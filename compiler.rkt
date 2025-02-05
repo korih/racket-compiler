@@ -1,8 +1,9 @@
 #lang racket
 
 (require
- cpsc411/compiler-lib
- cpsc411/2c-run-time)
+  cpsc411/compiler-lib
+  cpsc411/2c-run-time
+  rackunit)
 
 (provide
  check-values-lang
@@ -11,7 +12,7 @@
  normalize-bind
  select-instructions
  uncover-locals
- undead-analysis
+ ;undead-analysis
  conflict-analysis
  assign-registers
  replace-locations
@@ -33,7 +34,7 @@
                 normalize-bind
                 select-instructions
                 uncover-locals
-                undead-analysis
+                ;undead-analysis
                 conflict-analysis
                 assign-registers
                 replace-locations
@@ -46,7 +47,7 @@
 
                 compile-m2
                 compile-m3)
-  (values
+  (;values
    values
    values
    values
@@ -69,15 +70,122 @@
 ;; TODO: Fill in.
 ;; You'll want to merge milestone-2 code in
 
+;; asm-lang-v2/locals? -> asm-lang-v2/undead?
+(define (undead-analysis p)
+
+  ;; asm-lang-v2/locals? tail -> undead-out set
+  (define (compile-tail t)
+    (match t
+      [_ (define-values (ust _)
+           (compile-effects t '()))
+         (reverse (cons '() (remove '() ust)))]))
+
+  (define (compile-effects e undead-out)
+    (match e
+      [`(begin ,effects ...)
+       (define-values (rev-ust undead-in)
+         (for/foldr ([rev-ust '()]
+                     [undead-out undead-out])
+           ([effect effects])
+           (define-values (ust undead-in)
+                    (compile-effects effect undead-out))
+           (values (cons ust rev-ust) undead-in)))
+       (values (reverse rev-ust) undead-in)]
+      [`(set! ,aloc_1 (,binop ,aloc_1 ,triv))
+       (let ([undead-in (set-union (set-add (set-remove undead-out aloc_1) aloc_1) (analyze-triv triv))])
+         (values undead-in undead-in))]
+      [`(set! ,aloc ,triv)
+       (let ([undead-in (set-union (set-remove undead-out aloc) (analyze-triv triv))])
+         (values undead-in undead-in))]
+      [`(halt ,triv)
+       (let ([undead-in (set-add undead-out triv)])
+         (values undead-in undead-in))]))
+
+  (define (analyze-triv triv)
+    (match triv
+      [`,triv (if (aloc? triv)
+                  (list triv)
+                  '())]))
+
+  (define (compile-info i ust)
+    (match i
+      [`,info #:when (info? info) (info-set info 'undead-out ust)]))
+
+  (match p
+    [`(module ,info ,tail) `(module ,(compile-info info (compile-tail tail)) ,tail)]))
+
+;; undead-analysis tests from textbook
+#;
+(check-equal? (undead-analysis
+               '(module ((locals (x.1)))
+                  (begin
+                    (set! x.1 42)
+                    (halt x.1))))
+              '(module
+                   ((locals (x.1)) (undead-out ((x.1) ())))
+                 (begin (set! x.1 42) (halt x.1))))
+(check-equal? (undead-analysis
+               '(module ((locals (v.1 w.2 x.3 y.4 z.5 t.6 p.1)))
+                  (begin
+                    (set! v.1 1)
+                    (set! w.2 46)
+                    (set! x.3 v.1)
+                    (set! p.1 7)
+                    (set! x.3 (+ x.3 p.1))
+                    (set! y.4 x.3)
+                    (set! p.1 4)
+                    (set! y.4 (+ y.4 p.1))
+                    (set! z.5 x.3)
+                    (set! z.5 (+ z.5 w.2))
+                    (set! t.6 y.4)
+                    (set! p.1 -1)
+                    (set! t.6 (* t.6 p.1))
+                    (set! z.5 (+ z.5 t.6))
+                    (halt z.5))))
+              '(module
+                   ((locals (v.1 w.2 x.3 y.4 z.5 t.6 p.1))
+                    (undead-out
+                     ((v.1)
+                      (v.1 w.2)
+                      (x.3 w.2)
+                      (p.1 x.3 w.2)
+                      (x.3 w.2)
+                      (y.4 x.3 w.2)
+                      (p.1 y.4 x.3 w.2)
+                      (x.3 w.2 y.4)
+                      (w.2 z.5 y.4)
+                      (y.4 z.5)
+                      (t.6 z.5)
+                      (p.1 t.6 z.5)
+                      (t.6 z.5)
+                      (z.5)
+                      ())))
+                 (begin
+                   (set! v.1 1)
+                   (set! w.2 46)
+                   (set! x.3 v.1)
+                   (set! p.1 7)
+                   (set! x.3 (+ x.3 p.1))
+                   (set! y.4 x.3)
+                   (set! p.1 4)
+                   (set! y.4 (+ y.4 p.1))
+                   (set! z.5 x.3)
+                   (set! z.5 (+ z.5 w.2))
+                   (set! t.6 y.4)
+                   (set! p.1 -1)
+                   (set! t.6 (* t.6 p.1))
+                   (set! z.5 (+ z.5 t.6))
+                   (halt z.5))))
+
 (module+ test
   (require
-   rackunit
-   rackunit/text-ui
-   cpsc411/langs/v3
-   cpsc411/langs/v2-reg-alloc
-   cpsc411/langs/v2
-   cpsc411/test-suite/public/v3
-   cpsc411/test-suite/public/v2-reg-alloc)
+    rackunit
+    rackunit/text-ui
+    cpsc411/langs/v3
+    cpsc411/langs/v2-reg-alloc
+    cpsc411/langs/v2
+    cpsc411/test-suite/public/v3
+    cpsc411/test-suite/public/v2-reg-alloc)
 
   ;; You can modify this pass list, e.g., by adding check-assignment, or other
   ;; debugging and validation passes.
