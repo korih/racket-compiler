@@ -3,6 +3,7 @@
 (require
   cpsc411/compiler-lib
   cpsc411/2c-run-time
+  cpsc411/langs/v2-reg-alloc
   rackunit)
 
 (provide
@@ -13,7 +14,7 @@
  select-instructions
  uncover-locals
  ;undead-analysis
- conflict-analysis
+ ;conflict-analysis
  assign-registers
  replace-locations
  assign-homes-opt
@@ -35,7 +36,7 @@
                 select-instructions
                 uncover-locals
                 ;undead-analysis
-                conflict-analysis
+                ;conflict-analysis
                 assign-registers
                 replace-locations
                 assign-homes-opt
@@ -48,7 +49,7 @@
                 compile-m2
                 compile-m3)
   (;values
-   values
+   ;values
    values
    values
    values
@@ -88,7 +89,7 @@
                      [undead-out undead-out])
            ([effect effects])
            (define-values (ust undead-in)
-                    (compile-effects effect undead-out))
+             (compile-effects effect undead-out))
            (values (cons ust rev-ust) undead-in)))
        (values (reverse rev-ust) undead-in)]
       [`(set! ,aloc_1 (,binop ,aloc_1 ,triv))
@@ -115,53 +116,171 @@
     [`(module ,info ,tail) `(module ,(compile-info info (compile-tail tail)) ,tail)]))
 
 (module+ test
-    ;; undead-analysis tests from textbook
-    (check-equal? (undead-analysis
-                   '(module ((locals (x.1)))
-                      (begin
-                        (set! x.1 42)
-                        (halt x.1))))
-                  '(module
-                       ((locals (x.1)) (undead-out ((x.1) ())))
-                     (begin (set! x.1 42) (halt x.1))))
-    (check-equal? (undead-analysis
-                   '(module ((locals (v.1 w.2 x.3 y.4 z.5 t.6 p.1)))
-                      (begin
-                        (set! v.1 1)
-                        (set! w.2 46)
-                        (set! x.3 v.1)
-                        (set! p.1 7)
-                        (set! x.3 (+ x.3 p.1))
-                        (set! y.4 x.3)
-                        (set! p.1 4)
-                        (set! y.4 (+ y.4 p.1))
-                        (set! z.5 x.3)
-                        (set! z.5 (+ z.5 w.2))
-                        (set! t.6 y.4)
-                        (set! p.1 -1)
-                        (set! t.6 (* t.6 p.1))
-                        (set! z.5 (+ z.5 t.6))
-                        (halt z.5))))
-                  '(module
-                       ((locals (v.1 w.2 x.3 y.4 z.5 t.6 p.1))
-                        (undead-out
-                         ((v.1)
-                          (v.1 w.2)
-                          (x.3 w.2)
-                          (p.1 x.3 w.2)
-                          (x.3 w.2)
-                          (y.4 x.3 w.2)
-                          (p.1 y.4 x.3 w.2)
-                          (x.3 w.2 y.4)
-                          (w.2 z.5 y.4)
-                          (y.4 z.5)
-                          (t.6 z.5)
-                          (p.1 t.6 z.5)
-                          (t.6 z.5)
-                          (z.5)
-                          ())))
-                     (begin
-                       (set! v.1 1)
+  ;; undead-analysis tests from textbook
+  (check-equal? (undead-analysis
+                 '(module ((locals (x.1)))
+                    (begin
+                      (set! x.1 42)
+                      (halt x.1))))
+                '(module
+                     ((locals (x.1)) (undead-out ((x.1) ())))
+                   (begin (set! x.1 42) (halt x.1))))
+  (check-equal? (undead-analysis
+                 '(module ((locals (v.1 w.2 x.3 y.4 z.5 t.6 p.1)))
+                    (begin
+                      (set! v.1 1)
+                      (set! w.2 46)
+                      (set! x.3 v.1)
+                      (set! p.1 7)
+                      (set! x.3 (+ x.3 p.1))
+                      (set! y.4 x.3)
+                      (set! p.1 4)
+                      (set! y.4 (+ y.4 p.1))
+                      (set! z.5 x.3)
+                      (set! z.5 (+ z.5 w.2))
+                      (set! t.6 y.4)
+                      (set! p.1 -1)
+                      (set! t.6 (* t.6 p.1))
+                      (set! z.5 (+ z.5 t.6))
+                      (halt z.5))))
+                '(module
+                     ((locals (v.1 w.2 x.3 y.4 z.5 t.6 p.1))
+                      (undead-out
+                       ((v.1)
+                        (v.1 w.2)
+                        (x.3 w.2)
+                        (p.1 x.3 w.2)
+                        (x.3 w.2)
+                        (y.4 x.3 w.2)
+                        (p.1 y.4 x.3 w.2)
+                        (x.3 w.2 y.4)
+                        (w.2 z.5 y.4)
+                        (y.4 z.5)
+                        (t.6 z.5)
+                        (p.1 t.6 z.5)
+                        (t.6 z.5)
+                        (z.5)
+                        ())))
+                   (begin
+                     (set! v.1 1)
+                     (set! w.2 46)
+                     (set! x.3 v.1)
+                     (set! p.1 7)
+                     (set! x.3 (+ x.3 p.1))
+                     (set! y.4 x.3)
+                     (set! p.1 4)
+                     (set! y.4 (+ y.4 p.1))
+                     (set! z.5 x.3)
+                     (set! z.5 (+ z.5 w.2))
+                     (set! t.6 y.4)
+                     (set! p.1 -1)
+                     (set! t.6 (* t.6 p.1))
+                     (set! z.5 (+ z.5 t.6))
+                     (halt z.5)))))
+
+;; interp. creates a conflict graph for the given program
+(define/contract (conflict-analysis p)
+  (-> asm-lang-v2/undead? asm-lang-v2/conflicts?)
+  (define conflict-graph '())
+
+  ;; interp. creates a conflict graph for the given program
+  (define/contract (conflict-analysis p)
+    (-> asm-lang-v2/undead? asm-lang-v2/conflicts?)
+    (match p
+      [`(module ,info ,tail) `(module ,(conflict-analysis/info info tail) ,tail)]))
+  ;; asm-lang-v2/undead-info asm-lang-v2/undead-tail -> asm-lang-v2/conflicts-info
+  ;; interp. identify conflicts using the undead-out set
+  (define (conflict-analysis/info info tail)
+    (match info
+      [`((locals (,ls ...)) (undead-out ,udt)) (for ([l ls]) (dict-set! conflict-graph l (set)))
+                                               (displayln conflict-graph)
+                                               (conflict-analysis/tail udt tail)
+                                               `(locals (,ls ...) (conflicts ,conflict-graph))]))
+  ;; undead-set-tree asm-lang-v2/undead-tail -> (void)
+  ;; interp. identify conflicts and add them to the conflict graph
+  (define (conflict-analysis/tail udt tail)
+    (displayln udt)
+    (displayln tail)
+    (displayln (cons udt tail))
+    (match (cons udt tail)
+      [(cons `(,undead-out ,rest-undead-outs ...) `(halt ,triv)) (void)]
+      [(cons `(,undead-set-trees ... ,undead-set-tree-tail) `(begin ,fx ... ,inner-tail))
+       (for ([e fx] [ust undead-set-trees])
+         (conflict-analysis/effect ust e))
+       (conflict-analysis/tail undead-set-tree-tail inner-tail)]))
+  ;; undead-set-tree asm-lang-v2/undead-effect -> (void)
+  ;; interp. identify abstract location conflicts and add them to the conflict graph
+  (define (conflict-analysis/effect udt e)
+    (match (cons udt e)
+      [(cons `(,undead-set-trees ... ,last-undead-set-tree) `(begin ,fx ... ,effect))
+       (for ([e fx]
+             [ust undead-set-trees])
+         (conflict-analysis/effect ust e))
+       (conflict-analysis/effect last-undead-set-tree effect)]
+      [(cons `(,undead-out) `(set! ,aloc_1 (,binop ,aloc_1 ,triv))) (analyze-move-instruction udt
+                                                                                              aloc_1
+                                                                                              (get-aloc-set triv))]
+      [(cons `(,undead-out) `(set! ,aloc ,triv)) (analyze-move-instruction udt
+                                                                           aloc
+                                                                           (get-aloc-set triv))]))
+  ;; undead-set-tree aloc? (setof aloc?) -> (void)
+  ;; interp. track the conflict resulting from the move instruction to the dest aloc
+  (define (analyze-move-instruction udt dest src)
+    (dict-set! conflict-graph
+               dest
+               (set-union (dict-ref conflict-graph dest)
+                          (set-subtract udt (set dest) src))))
+  ;; asm-lang-v2/undead-triv -> (setof aloc?)
+  ;; interp. get the abstract location if this triv is an aloc, otherwise return an empty set
+  (define (get-aloc-set triv)
+    (match triv
+      [`,triv #:when (aloc? triv) (set triv)]
+      [_ (set)]))
+  (conflict-analysis p))
+
+(module+ test
+  (check-equal? (conflict-analysis '(module ((locals (x.1)) (undead-out ((x.1) ()))) (begin (set! x.1 42) (halt x.1))))
+             '(module ((locals (x.1)) (conflicts ((x.1 ())))) (begin (set! x.1 42) (halt x.1))))
+  (check-equal? (conflict-analysis '(module ((locals (v.1 w.2 x.3 y.4 z.5 t.6 p.1))
+                                          (undead-out ((v.1)
+                                                       (v.1 w.2)
+                                                       (w.2 x.3)
+                                                       (p.1 w.2 x.3)
+                                                       (w.2 x.3)
+                                                       (y.4 w.2 x.3)
+                                                       (p.1 y.4 w.2 x.3)
+                                                       (y.4 w.2 x.3)
+                                                       (z.5 y.4 w.2)
+                                                       (z.5 y.4)
+                                                       (t.6 z.5)
+                                                       (t.6 z.5 p.1)
+                                                       (t.6 z.5)
+                                                       (z.5)
+                                                       ())))
+                                   (begin (set! v.1 1)
+                                          (set! w.2 46)
+                                          (set! x.3 v.1)
+                                          (set! p.1 7)
+                                          (set! x.3 (+ x.3 p.1))
+                                          (set! y.4 x.3)
+                                          (set! p.1 4)
+                                          (set! y.4 (+ y.4 p.1))
+                                          (set! z.5 x.3)
+                                          (set! z.5 (+ z.5 w.2))
+                                          (set! t.6 y.4)
+                                          (set! p.1 -1)
+                                          (set! t.6 (* t.6 p.1))
+                                          (set! z.5 (+ z.5 t.6))
+                                          (halt z.5))))
+             '(module ((locals (v.1 w.2 x.3 y.4 z.5 t.6 p.1))
+                       (conflicts ((p.1 (z.5 t.6 y.4 x.3 w.2))
+                                   (t.6 (p.1 z.5))
+                                   (z.5 (p.1 t.6 w.2 y.4))
+                                   (y.4 (z.5 x.3 p.1 w.2))
+                                   (x.3 (y.4 p.1 w.2))
+                                   (w.2 (z.5 y.4 p.1 x.3 v.1))
+                                   (v.1 (w.2)))))
+                (begin (set! v.1 1)
                        (set! w.2 46)
                        (set! x.3 v.1)
                        (set! p.1 7)
@@ -176,64 +295,6 @@
                        (set! t.6 (* t.6 p.1))
                        (set! z.5 (+ z.5 t.6))
                        (halt z.5)))))
-
-;; interp. creates a conflict graph for the given program
-(define/contract (conflict-analysis p)
-  (-> asm-lang-v2/undead? asm-lang-v2/conflicts?)
-  ;; interp. creates a conflict graph for the given program
-  (define/contract (conflict-analysis p)
-    (-> asm-lang-v2/undead? asm-lang-v2/conflicts?)
-    (match p
-      [`(module ,info ,tail) `(module ,(conflict-analysis/info info tail) ,tail)]))
-  ;; asm-lang-v2/undead-info asm-lang-v2/undead-tail -> asm-lang-v2/conflicts-info
-  ;; interp. identify conflicts using the undead-out set
-  (define (conflict-analysis/info info tail)
-    ...)
-  (conflict-analysis p))
-
-(module+ test
-  (check-eq? (conflict-analysis '(module ((locals (x.1) (undead-out ((x.1) ())))) (begin (set! x.1 42) (halt x.1))))
-             '(module ((locals (x.1)) (conflicts ((x.1 ())))) (begin (set! x.1 42) (halt x.1))))
-  (check-eq? (conflict-analysis '(module ((locals (v.1 w.2 x.3 y.4 z.5 t.6 p.1))
-                                   (undead-out ((v.1) (v.1 w.2) (w.2 x.3) (p.1 w.2 x.3) (w.2 x.3) (y.4 w.2 x.3) (p.1 y.4 w.2 x.3) (y.4 w.2 x.3) (z.5 y.4 w.2) (z.5 y.4) (t.6 z.5) (t.6 z.5 p.1) (t.6 z.5) (z.5) ())))
-                                   (begin (set! v.1 1)
-                                   (set! w.2 46)
-                                   (set! x.3 v.1)
-                                   (set! p.1 7)
-                                   (set! x.3 (+ x.3 p.1))
-                                   (set! y.4 x.3)
-                                   (set! p.1 4)
-                                   (set! y.4 (+ y.4 p.1))
-                                   (set! z.5 x.3)
-                                   (set! z.5 (+ z.5 w.2))
-                                   (set! t.6 y.4)
-                                   (set! p.1 -1)
-                                   (set! t.6 (* t.6 p.1))
-                                   (set! z.5 (+ z.5 t.6))
-                                   (halt z.5))))
-             '(module ((locals (v.1 w.2 x.3 y.4 z.5 t.6 p.1))
-                       (conflicts ((p.1 (z.5 t.6 y.4 x.3 w.2))
-                                   (t.6 (p.1 z.5))
-                                   (z.5 (p.1 t.6 w.2 y.4))
-                                   (y.4 (z.5 x.3 p.1 w.2))
-                                   (x.3 (y.4 p.1 w.2))
-                                   (w.2 (z.5 y.4 p.1 x.3 v.1))
-                                   (v.1 (w.2)))))
-                (begin (set! v.1 1)
-                  (set! w.2 46)
-                  (set! x.3 v.1)
-                  (set! p.1 7)
-                  (set! x.3 (+ x.3 p.1))
-                  (set! y.4 x.3)
-                  (set! p.1 4)
-                  (set! y.4 (+ y.4 p.1))
-                  (set! z.5 x.3)
-                  (set! z.5 (+ z.5 w.2))
-                  (set! t.6 y.4)
-                  (set! p.1 -1)
-                  (set! t.6 (* t.6 p.1))
-                  (set! z.5 (+ z.5 t.6))
-                  (halt z.5)))))
 
 (module+ test
   (require
