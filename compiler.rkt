@@ -189,7 +189,8 @@
     (-> asm-lang-v2/undead? asm-lang-v2/conflicts?)
     (match p
       [`(module ,info ,tail) (init-conflict-graph info)
-                             `(module ,(conflict-analysis/info info tail) ,tail)]))
+                             (define analyzed-tail (conflict-analysis/tail tail))
+                             `(module ,(conflict-analysis/info info) ,analyzed-tail)]))
   ;; asm-lang-v2/undead-info -> (void)
   ;; interp. initialize the conflict graph with the locals
   (define (init-conflict-graph info)
@@ -208,28 +209,27 @@
       [(cons `(,undead-set-trees ... ,undead-set-tree-tail) `(begin ,fx ... ,inner-tail))
        (let ([compiled-effects (for/list ([e fx]) (conflict-analysis/effect udt e))])
          `(begin ,@compiled-effects ,(conflict-analysis/tail undead-set-tree-tail inner-tail)))]))
-  ;; undead-set-tree asm-lang-v2/undead-effect -> (void)
+  ;; undead-set-tree asm-lang-v2/undead-effect -> asm-lang-v2/conflicts-effect
   ;; interp. identify abstract location conflicts and add them to the conflict graph
   (define (conflict-analysis/effect udt e)
     (match (cons udt e)
       [(cons `(,undead-set-trees ... ,last-undead-set-tree) `(begin ,fx ... ,effect))
-       (for ([e fx]
-             [ust undead-set-trees])
-         (conflict-analysis/effect ust e))
-       (conflict-analysis/effect last-undead-set-tree effect)]
-      [(cons `(,undead-out) `(set! ,aloc_1 (,binop ,aloc_1 ,triv))) (analyze-move-instruction udt
+       (define analyzed-fx (for/list ([e fx] [ust undead-set-trees]) (conflict-analysis/effect ust e)))
+       `(begin ,@analyzed-fx ,(conflict-analysis/effect last-undead-set-tree effect))]
+      [(cons `(,undead-out) `(set! ,aloc_1 (,binop ,aloc_1 ,triv)))
+       (analyze-move-instruction udt
                                                                                               aloc_1
-                                                                                              (get-aloc-set triv))]
-      [(cons `(,undead-out) `(set! ,aloc ,triv)) (analyze-move-instruction udt
+                                                                                              (get-aloc-set triv))
+       `(set! ,aloc_1 (,binop ,aloc_1 ,triv))]
+      [(cons `(,undead-out) `(set! ,aloc ,triv))
+       (analyze-move-instruction udt
                                                                            aloc
-                                                                           (get-aloc-set triv))]))
+                                                                           (get-aloc-set triv))
+       `(set! ,aloc ,triv)]))
   ;; undead-set-tree aloc? (setof aloc?) -> (void)
-  ;; interp. track the conflict resulting from the move instruction to the dest aloc
+  ;; interp. track the conflict resulting from the move instruction to the dest aloc in the conflict graph
   (define (analyze-move-instruction udt dest src)
-    (dict-set! conflict-graph
-               dest
-               (set-union (dict-ref conflict-graph dest)
-                          (set-subtract udt (set dest) src))))
+    (set! conflict-graph (add-edges conflict-graph dest (set-subtract udt (set dest) src))))
   ;; asm-lang-v2/undead-triv -> (setof aloc?)
   ;; interp. get the abstract location if this triv is an aloc, otherwise return an empty set
   (define (get-aloc-set triv)
