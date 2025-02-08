@@ -73,26 +73,30 @@
 ;; You'll want to merge milestone-2 code in
 
 ;; asm-lang-v2/locals? -> asm-lang-v2/undead?
+;; analyze undead variables for physical location assignment
 (define (undead-analysis p)
 
   ;; asm-lang-v2/locals? tail -> undead-out set
-  (define (compile-tail t)
+  ;; analyze the tail data non-terminal
+  (define (analyze-tail t)
     (match t
       [_ (define-values (ust _)
-           (compile-effects t '()))
-         (reverse (cons '() (remove '() ust)))]))
+           (analyze-effects t '()))
+         (rest ust)]))
 
-  (define (compile-effects e undead-out)
+  ;; asm-lang-v2/locals? -> undead-out set
+  ;; analyze the effects data non-terminal
+  (define (analyze-effects e undead-out)
     (match e
       [`(begin ,effects ...)
        (define-values (rev-ust undead-in)
-         (for/foldr ([rev-ust '()]
+         (for/foldr ([rev-ust '(())]
                      [undead-out undead-out])
            ([effect effects])
            (define-values (ust undead-in)
-             (compile-effects effect undead-out))
+             (analyze-effects effect undead-out))
            (values (cons ust rev-ust) undead-in)))
-       (values (reverse rev-ust) undead-in)]
+       (values rev-ust undead-in)]
       [`(set! ,aloc_1 (,binop ,aloc_1 ,triv))
        (let ([undead-in (set-union (set-add (set-remove undead-out aloc_1) aloc_1) (analyze-triv triv))])
          (values undead-in undead-in))]
@@ -103,21 +107,26 @@
        (let ([undead-in (set-add undead-out triv)])
          (values undead-in undead-in))]))
 
+  ;; asm-lang-v2/locals? triv -> (ListOf triv)
+  ;; if triv is location, return as list to be added to undead-out
   (define (analyze-triv triv)
     (match triv
       [`,triv (if (aloc? triv)
                   (list triv)
                   '())]))
 
+  ;; (asm-lang-v2/locals? info) undead-set-tree -> (asm-lang-v2/undead? info) 
+  ;; interp the info and add the undead-set-tree to it
   (define (compile-info i ust)
     (match i
       [`,info #:when (info? info) (info-set info 'undead-out ust)]))
 
   (match p
-    [`(module ,info ,tail) `(module ,(compile-info info (compile-tail tail)) ,tail)]))
+    [`(module ,info ,tail) `(module ,(compile-info info (analyze-tail tail)) ,tail)]))
+
 
 (module+ test
-  ;; undead-analysis tests from textbook
+  (require rackunit)
   (check-equal? (undead-analysis
                  '(module ((locals (x.1)))
                     (begin
@@ -125,7 +134,9 @@
                       (halt x.1))))
                 '(module
                      ((locals (x.1)) (undead-out ((x.1) ())))
-                   (begin (set! x.1 42) (halt x.1))))
+                   (begin (set! x.1 42) (halt x.1)))
+                "Testing basic small program")
+
   (check-equal? (undead-analysis
                  '(module ((locals (v.1 w.2 x.3 y.4 z.5 t.6 p.1)))
                     (begin
