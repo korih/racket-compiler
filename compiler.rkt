@@ -4,6 +4,7 @@
   cpsc411/compiler-lib
   cpsc411/2c-run-time
   cpsc411/langs/v2-reg-alloc
+  cpsc411/graph-lib
   rackunit)
 
 (provide
@@ -181,33 +182,32 @@
 ;; interp. creates a conflict graph for the given program
 (define/contract (conflict-analysis p)
   (-> asm-lang-v2/undead? asm-lang-v2/conflicts?)
-  (define conflict-graph '())
+  (define conflict-graph (void))
 
   ;; interp. creates a conflict graph for the given program
   (define/contract (conflict-analysis p)
     (-> asm-lang-v2/undead? asm-lang-v2/conflicts?)
     (match p
-      [`(module ,info ,tail) `(module ,(conflict-analysis/info info tail) ,tail)]))
-  ;; asm-lang-v2/undead-info asm-lang-v2/undead-tail -> asm-lang-v2/conflicts-info
-  ;; interp. identify conflicts using the undead-out set
-  (define (conflict-analysis/info info tail)
+      [`(module ,info ,tail) (init-conflict-graph info)
+                             `(module ,(conflict-analysis/info info tail) ,tail)]))
+  ;; asm-lang-v2/undead-info -> (void)
+  ;; interp. initialize the conflict graph with the locals
+  (define (init-conflict-graph info)
     (match info
-      [`((locals (,ls ...)) (undead-out ,udt)) (for ([l ls]) (dict-set! conflict-graph l (set)))
-                                               (displayln conflict-graph)
-                                               (conflict-analysis/tail udt tail)
-                                               `(locals (,ls ...) (conflicts ,conflict-graph))]))
-  ;; undead-set-tree asm-lang-v2/undead-tail -> (void)
-  ;; interp. identify conflicts and add them to the conflict graph
+      [`((locals (,ls ...)) (undead-out ,udt)) (set! conflict-graph (new-graph ls))]))
+  ;; asm-lang-v2/undead-info -> asm-lang-v2/conflicts-info
+  ;; produce the conflict graph for the given program
+  (define (conflict-analysis/info info)
+    (match info
+      [`((locals (,ls ...)) (undead-out ,udt)) `((locals (,ls)) (conflicts (,conflict-graph)))]))
+  ;; asm-lang-v2/undead-tail -> asm-lang-v2/conflicts-tail
+  ;; produce the tail of the program while adding conflicts to the conflict graph
   (define (conflict-analysis/tail udt tail)
-    (displayln udt)
-    (displayln tail)
-    (displayln (cons udt tail))
     (match (cons udt tail)
-      [(cons `(,undead-out ,rest-undead-outs ...) `(halt ,triv)) (void)]
+      [(cons `(,undead-out ,rest-undead-outs ...) `(halt ,triv)) `(halt ,triv)]
       [(cons `(,undead-set-trees ... ,undead-set-tree-tail) `(begin ,fx ... ,inner-tail))
-       (for ([e fx] [ust undead-set-trees])
-         (conflict-analysis/effect ust e))
-       (conflict-analysis/tail undead-set-tree-tail inner-tail)]))
+       (let ([compiled-effects (for/list ([e fx]) (conflict-analysis/effect udt e))])
+         `(begin ,@compiled-effects ,(conflict-analysis/tail undead-set-tree-tail inner-tail)))]))
   ;; undead-set-tree asm-lang-v2/undead-effect -> (void)
   ;; interp. identify abstract location conflicts and add them to the conflict graph
   (define (conflict-analysis/effect udt e)
