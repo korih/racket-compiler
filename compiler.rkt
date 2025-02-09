@@ -32,7 +32,6 @@
 ;; STUBS; delete when you've begun to implement the passes or replaced them with
 ;; your own stubs.
 (define-values (check-values-lang
-                select-instructions
                 uncover-locals
                 replace-locations
                 assign-homes
@@ -42,7 +41,6 @@
                 compile-m2
                 compile-m3)
   (values
-   values
    values
    values
    values
@@ -175,6 +173,85 @@
                              `(begin ,@compiled-fx ,(normalize-bind/value v k)))]
       [`,value (k value)]))
   (normalize-bind p))
+
+;; intep. compile value abstractions into a sequence of instructions
+(define/contract (select-instructions p)
+  (-> imp-cmf-lang-v3? asm-lang-v2?)
+
+  ;; (imp-cmf-lang-v3-tail) -> bool
+  ;; interp. compiler that returns true if the expression is a valid value in tail position
+  (define (tail-value? e)
+    (match e
+      [`(begin ,fx ... ,tail) #f]
+      [_ #t]))
+
+  ; (Imp-cmf-lang-v3 value) -> (List-of (Asm-lang-v2 effect)) and (Asm-lang-v2 aloc)
+  ; Assigns the value v to a fresh temporary, returning two values: the list of
+  ; statements the implement the assignment in Loc-lang, and the aloc that the
+  ; value is stored in.
+  (define (assign-tmp v)
+    (match v
+      [`(,binop ,op1 ,op2) (match-let ([`(,stmts1 ,loc1) (select-triv op1)]
+                                       [`(,stmts2 ,loc2) (select-triv op2)])
+                             (list (append stmts1 stmts2 (list `(set! ,loc1 (,binop ,loc1 ,loc2)))) loc1))]
+      [`,triv (select-triv triv)]))
+
+
+  ;; imp-cmf-lang-v3-tail -> asm-lang-v2-tail
+  ;; interp. produce the asm-lang-v2-tail and halt with the trivial value
+  (define (select-tail e)
+    (match e
+      [`(begin ,fx ... ,tail)
+       (let ([compiled-fx (for/foldr ([instructions empty]) ([e fx]) (append (select-effect e) instructions))]
+             [tail-compiled (select-tail tail)])
+         (match tail-compiled
+           [`(begin ,inner-compiled-fx ... ,inner-compiled-tail) #:when (tail-value? tail)
+                                                                 `(begin ,@compiled-fx ,@inner-compiled-fx ,inner-compiled-tail)]
+           [_ `(begin ,@compiled-fx ,tail-compiled)]))]
+      [`,value (match-let ([`(,stmts ,loc) (select-value value)])
+                 (if (empty? stmts)
+                     `(halt ,loc)
+                     `(begin ,@stmts (halt ,loc))))]))
+
+  ;; imp-cmf-lang-v3-value -> (list (listof asm-lang-v2-effect) asm-lang-v2-aloc)
+  ;; interp. compiles value expression and creates temporary abstract locations to store intermediate values
+  (define (select-value e)
+    (match e
+      [`(,binop ,op1 ,op2) (let ([op1-tmp (fresh 'tmp)]
+                                 [op2-tmp (fresh 'tmp)])
+                             (list (list `(set! ,op1-tmp ,op1)
+                                         `(set! ,op2-tmp ,op2)
+                                         `(set! ,op1-tmp (,binop ,op1-tmp ,op2-tmp)))
+                                   op1-tmp))]
+      [`,triv (select-triv triv)]))
+
+  ;; imp-cmf-lang-v3-effect -> (listof asm-lang-v2-effect)
+  ;; interp. convert expressions of the form (set! x v) into (set! x triv) and (set! x (binop x triv))
+  (define (convert-set-expr x v)
+    (match v
+      [`(,binop ,op1 ,op2) (list `(set! ,x ,op1) `(set! ,x (,binop ,x ,op2)))]
+      [`,triv (list `(set! ,x ,triv))]))
+
+  ;; imp-cmf-lang-v3-effect -> (listof asm-lang-v2-effect)
+  ;; interp. compiles effect expression into a sequence of instructions, resolving values to abstract locations
+  (define (select-effect e)
+    (match e
+      [`(set! ,x ,v) (convert-set-expr x v)]
+      [`(begin ,fx ... ,e) (let ([compiled-fx (for/foldr ([fx-acc empty]) ([e fx]) (append (select-effect e) fx-acc))])
+                             (list `(begin ,@compiled-fx ,@(select-effect e))))]))
+
+  ;; imp-cmf-lang-v3-triv -> (list (listof asm-lang-v2-effect) asm-lang-v2-aloc)
+  ;; interp. compiles trivial expressions into a sequence of instructions and returns the abstract location
+  (define (select-triv t)
+    (match t
+      [x #:when (aloc? x) (list empty x)]
+      [x (let ([tmp (fresh 'tmp)])
+           (list (list `(set! ,tmp ,x)) tmp))]))
+
+  (match p
+    [`(module ,tail)
+     `(module () ,(select-tail tail))]))
+
 
 
 ;; para-asm-lang-v2 -> paren-x64-fvars-v2
