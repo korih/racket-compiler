@@ -5,6 +5,7 @@
   cpsc411/2c-run-time
   cpsc411/langs/v2-reg-alloc
   cpsc411/langs/v2
+  cpsc411/langs/v3
   cpsc411/graph-lib
   rackunit)
 
@@ -32,7 +33,6 @@
 ;; STUBS; delete when you've begun to implement the passes or replaced them with
 ;; your own stubs.
 (define-values (check-values-lang
-                uniquify
                 sequentialize-let
                 normalize-bind
                 select-instructions
@@ -41,14 +41,11 @@
                 assign-homes-opt
                 assign-homes
                 flatten-begins
-                ;patch-instructions
                 implement-fvars
                 generate-x64
                 compile-m2
                 compile-m3)
-  (;values
-   values
-   values
+  (values
    values
    values
    values
@@ -63,6 +60,69 @@
    values
    values))
 
+
+;; values-lang-v3 -> values-unique-lang-v3
+;; resolve identifiers to abstract locations
+(define/contract (uniquify p)
+  (-> values-lang-v3? values-unique-lang-v3?)
+
+  ;; env
+  ;; empty environment for holding variable mappings
+  (define (empty-env) (lambda (x) (error "Value not in environment!" x)))
+
+  ;; env aloc -> triv
+  ;; lookup variable in environment
+  (define (lookup-env env x)
+    (env x))
+
+  ;; env aloc triv -> env
+  ;; extend env mapping with x to v
+  (define (extend-env env x v)
+    (lambda (x0)
+      (if (equal? x0 x)
+          v
+          (env x0))))
+
+  ;; (values-lang-v3 tail) -> (values-unique-lang-v3 tail)
+  ;; compile the tail from identifiers to abstract locations
+  (define (compile-tail tail)
+    (match tail
+      [`(,values ...)
+       (for/list ([value values])
+         (compile-value value (empty-env)))]))
+
+  ;; (values-lang-v3 value) (HashSetof Bindings) -> (values-unique-lang-v3 value)
+  ;; compile the values from identifiers to abstract locations
+  (define (compile-value value env)
+    (match value
+      [`(let (,bindings ...) ,v)
+       (define-values (bindings^ env^)
+
+         (for/fold ([binding-acc '()]
+                    [env-acc env])
+                   ([binding bindings])
+
+           (match binding
+             [`(,x ,value)
+              (define value^ (compile-value value env))
+              (define aloc (fresh x))
+              (define env-new (extend-env env-acc x aloc))
+              (define binding-new (cons `(,aloc ,value^) binding-acc))
+              (values (reverse binding-new) env-new)])))
+
+       (define compiled-value
+         (compile-value v env^))
+
+       `(let ,bindings^ ,compiled-value)]
+      [`(,binop ,t1 ,t2) (let ([t1^ (if (name? t1) (lookup-env env t1) t1)]
+                               [t2^ (if (name? t2) (lookup-env env t2) t2)])
+                           `(,binop ,t1^ ,t2^))]
+      [triv (if (name? triv)
+                (lookup-env env triv)
+                triv)]))
+
+  (match p
+    [`(module ,tails ...) `(module ,@(compile-tail tails))]))
 
 ;; para-asm-lang-v2 -> paren-x64-fvars-v2
 ;; compile program by patching instructions that have tno x64 equivilent
