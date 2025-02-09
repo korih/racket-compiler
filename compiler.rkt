@@ -122,7 +122,7 @@
     [`(module ,tails ...) `(module ,@(compile-tail tails))]))
 
 ;; para-asm-lang-v2 -> paren-x64-fvars-v2
-;; compile program by patching instructions that have tno x64 equivilent
+;; compile program by patching instructions that have to x64 equivilent
 ;; into sequences of equivilent instructions
 (define/contract (patch-instructions p)
   (-> para-asm-lang-v2? paren-x64-fvars-v2?)
@@ -152,7 +152,7 @@
             (set! ,loc ,patch-reg-1))]
 
          ;; check triv since we know loc is not fvar
-         [(and (not (int32? triv)) (int64? triv))
+         [(or (and (not (int32? triv)) (int64? triv)) (fvar? triv))
           (define patch-reg-1 (first (current-patch-instructions-registers)))
           `((set! ,patch-reg-1 ,triv)
             (set! ,loc (,binop ,patch-reg-1 ,patch-reg-1)))]
@@ -375,10 +375,10 @@
 
 (module+ test
   (require
-    rackunit
+    ;rackunit
     rackunit/text-ui
     cpsc411/langs/v3
-    cpsc411/langs/v2-reg-alloc
+    ;cpsc411/langs/v2-reg-alloc
     cpsc411/langs/v2
     cpsc411/test-suite/public/v3
     cpsc411/test-suite/public/v2-reg-alloc)
