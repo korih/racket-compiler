@@ -4,6 +4,7 @@
   cpsc411/compiler-lib
   cpsc411/2c-run-time
   cpsc411/langs/v2-reg-alloc
+  cpsc411/langs/v2
   cpsc411/graph-lib
   rackunit)
 
@@ -73,21 +74,23 @@
 ;; You'll want to merge milestone-2 code in
 
 ;; asm-lang-v2/locals -> asm-lang-v2/undead
-;; analyze undead variables for physical location assignment
-(define (undead-analysis p)
+;; perform undead analysis on asm-lang-v2/locals to decarate program with
+;; undead-set tree
+(define/contract (undead-analysis p)
+  (-> asm-lang-v2/locals? asm-lang-v2/undead?)
 
-  ;; asm-lang-v2/locals tail -> undead-out-set
+  ;; asm-lang-v2/locals? tail -> undead-out set
   ;; analyze the tail data non-terminal
   (define (analyze-tail t)
     (match t
       ;; handle the effects, accumulate through all of them
       [`(begin ,effects ... ,tail)
 
-        ;; handle tail to get undead-in
-        (define-values (t-ust undead-out)
-          (analyze-tail tail))
+       ;; handle tail to get undead-in
+       (define-values (t-ust undead-out)
+         (analyze-tail tail))
 
-        ;; handle the effects
+       ;; handle the effects
        (define-values (rev-ust undead-in)
          (for/foldr ([rev-ust (list t-ust)]
                      [undead-out undead-out])
@@ -103,7 +106,7 @@
                      (values '() undead-in)]))
 
 
-  ;; asm-lang-v2/locals -> undead-out-set
+  ;; asm-lang-v2/locals? -> undead-out set
   ;; analyze the effects data non-terminal
   (define (analyze-effects e undead-out)
     (match e
@@ -126,15 +129,11 @@
        (let ([undead-in (set-union (set-remove undead-out aloc) (analyze-triv triv))])
          (values undead-out undead-in))]))
 
-  ;; asm-lang-v2/locals (triv) -> (ListOf triv) or (EmptyList)
-  ;; analyze triv non-terminal data, if its an aloc then return as list, else empty list
   (define (analyze-triv triv)
     (match triv
       [(? aloc?) (list triv)]
       [_ '()]))
 
-  ;; (asm-lang-v2/locals info) (asm-lang-v2/locals tail) ->  tail
-  ;; add new info set to info for undead set tree
   (define (compile-info i tail)
     (match i
       [`,info
