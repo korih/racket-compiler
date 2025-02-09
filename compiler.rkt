@@ -1,6 +1,9 @@
 #lang racket
 
 (require
+ "register-allocation.rkt")
+
+(require
   cpsc411/compiler-lib
   cpsc411/2c-run-time
   cpsc411/langs/v2-reg-alloc
@@ -32,18 +35,12 @@
 ;; STUBS; delete when you've begun to implement the passes or replaced them with
 ;; your own stubs.
 (define-values (check-values-lang
-                uncover-locals
-                replace-locations
-                assign-homes
                 flatten-begins
                 implement-fvars
                 generate-x64
                 compile-m2
                 compile-m3)
   (values
-   values
-   values
-   values
    values
    values
    values
