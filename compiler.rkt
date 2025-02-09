@@ -134,18 +134,12 @@
     (match e
       [`(set! ,loc (,binop ,loc ,triv))
        (cond
-         [(and (not (fvar? loc)) (int64? triv))
+         [(and (not (fvar? loc)) (not (int32? triv)) (int64? triv))
           (define patch-reg (first (current-patch-instructions-registers)))
           `((set! ,patch-reg ,triv) 
             (set! ,loc (,binop ,loc ,patch-reg)))]
 
          [(and (fvar? loc) (not (int64? triv)))
-          (define patch-reg (first (current-patch-instructions-registers)))
-          `((set! ,patch-reg ,loc)
-            (set! ,patch-reg (,binop ,patch-reg ,triv))
-            (set! ,loc ,patch-reg))]
-
-         [(fvar? loc)
           (define patch-reg (first (current-patch-instructions-registers)))
           `((set! ,patch-reg ,loc)
             (set! ,patch-reg (,binop ,patch-reg ,triv))
@@ -166,6 +160,17 @@
             (set! ,patch-reg-2 ,triv)
             (set! ,patch-reg-1 (,binop ,patch-reg-1 ,patch-reg-2))
             (set! ,loc ,patch-reg-1))]
+
+         [(fvar? loc)
+          (define patch-reg (first (current-patch-instructions-registers)))
+          `((set! ,patch-reg ,loc)
+            (set! ,patch-reg (,binop ,patch-reg ,triv))
+            (set! ,loc ,patch-reg))]
+
+         [(and (not (int32? triv)) (int64? triv))
+          (define patch-reg (first (current-patch-instructions-registers)))
+          `((set! ,patch-reg ,triv)
+            (set! ,loc (,binop ,loc ,patch-reg)))]
 
          [else
           `((set! ,loc (,binop ,loc ,triv)))])]
