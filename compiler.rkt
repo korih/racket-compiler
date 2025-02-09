@@ -63,7 +63,7 @@
 (define/contract (uniquify p)
   (-> values-lang-v3? values-unique-lang-v3?)
 
-  ;; env
+  ;; Env
   ;; empty environment for holding variable mappings
   (define (empty-env) (lambda (x) (error "Value not in environment!" x)))
 
@@ -128,24 +128,15 @@
   (-> para-asm-lang-v2? paren-x64-fvars-v2?)
 
   ;; (para-asm-lang-v2 effect) -> (paren-x64-fvars-v2 s)
-  ;; compiles effectful operations in para-asm-lang-v2 to sequence of 
-  ;; instructions equivilent in paren-x64-fvars-v2 
+  ;; compiles effectful operations in para-asm-lang-v2 to sequence of
+  ;; instructions equivilent in paren-x64-fvars-v2
   (define (compile-effect e)
     (match e
       [`(set! ,loc (,binop ,loc ,triv))
        (cond
-         [(and (not (fvar? loc)) (not (int32? triv)) (int64? triv))
-          (define patch-reg (first (current-patch-instructions-registers)))
-          `((set! ,patch-reg ,triv) 
-            (set! ,loc (,binop ,loc ,patch-reg)))]
 
-         [(and (fvar? loc) (not (int64? triv)))
-          (define patch-reg (first (current-patch-instructions-registers)))
-          `((set! ,patch-reg ,loc)
-            (set! ,patch-reg (,binop ,patch-reg ,triv))
-            (set! ,loc ,patch-reg))]
-
-         [(and (fvar? loc) (fvar? triv))
+         ;; check if fvar and triv are valid in there positions
+         [(and (fvar? loc) (not (int32? triv)))
           (define patch-reg-1 (first (current-patch-instructions-registers)))
           (define patch-reg-2 (second (current-patch-instructions-registers)))
           `((set! ,patch-reg-1 ,loc)
@@ -153,35 +144,31 @@
             (set! ,patch-reg-1 (,binop ,patch-reg-1 ,patch-reg-2))
             (set! ,loc ,patch-reg-1))]
 
-         [(and (fvar? loc) (int64? triv))
+         ;; check fvar since we know triv is now int32 when loc is fvar
+         [(and (fvar? loc) (int32? triv))
           (define patch-reg-1 (first (current-patch-instructions-registers)))
-          (define patch-reg-2 (last (current-patch-instructions-registers)))
           `((set! ,patch-reg-1 ,loc)
-            (set! ,patch-reg-2 ,triv)
-            (set! ,patch-reg-1 (,binop ,patch-reg-1 ,patch-reg-2))
+            (set! ,patch-reg-1 (,binop ,patch-reg-1 ,triv))
             (set! ,loc ,patch-reg-1))]
 
-         [(fvar? loc)
-          (define patch-reg (first (current-patch-instructions-registers)))
-          `((set! ,patch-reg ,loc)
-            (set! ,patch-reg (,binop ,patch-reg ,triv))
-            (set! ,loc ,patch-reg))]
-
+         ;; check triv since we know loc is not fvar
          [(and (not (int32? triv)) (int64? triv))
-          (define patch-reg (first (current-patch-instructions-registers)))
-          `((set! ,patch-reg ,triv)
-            (set! ,loc (,binop ,loc ,patch-reg)))]
+          (define patch-reg-1 (first (current-patch-instructions-registers)))
+          `((set! ,patch-reg-1 ,triv)
+            (set! ,loc (,binop ,patch-reg-1 ,patch-reg-1)))]
 
          [else
           `((set! ,loc (,binop ,loc ,triv)))])]
 
       [`(set! ,loc ,triv) (cond
-                            [(and (fvar? loc) (not (int32? triv)) (int64? triv))
+                            ;; if loc is fvar and we are not moving an int32 or reg there
+                            [(and (fvar? loc)
+                                  (or (and (not (int32? triv)) (int64? triv))
+                                      (fvar? triv)))
                              (define patch-reg (first (current-patch-instructions-registers)))
-                             `((set! ,patch-reg ,triv) (set! ,loc ,patch-reg))]
-                            [(and (fvar? loc) (fvar? triv))
-                             (define patch-reg (first (current-patch-instructions-registers)))
-                             `((set! ,patch-reg ,triv) (set! ,loc ,patch-reg))]
+                             `((set! ,patch-reg ,triv)
+                               (set! ,loc ,patch-reg))]
+
                             [else (list `(set! ,loc ,triv))])]))
 
 
@@ -346,12 +333,12 @@
 
   (define (graph-colouring-register-allocation conflict-graph registers)
     (define fvar-index 0)
-  
+
     (define (make-fvar-spill)
       (let ([fvar (make-fvar fvar-index)])
         (set! fvar-index (+ fvar-index 1))
         fvar))
-  
+
     (define (assign-registers-helper remaining-graph assignment)
       (if (null? remaining-graph)
           assignment
@@ -368,9 +355,9 @@
                                    (car available-registers))])
             (assign-registers-helper (remove-vertex remaining-graph chosen-node)
                                      (info-set assignment chosen-node new-location)))))
-  
+
     (assign-registers-helper conflict-graph '()))
-  
+
   (match p
     [`(module ,info ,tail)
      (let ([assignments (graph-colouring-register-allocation (info-ref info 'conflicts)
