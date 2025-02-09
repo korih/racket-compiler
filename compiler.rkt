@@ -427,18 +427,19 @@
     (define (assign-registers-helper remaining-graph assignment)
       (if (null? remaining-graph)
           assignment
-          (let* ([sorted-nodes (sort (map car remaining-graph) (lambda (a b)
-                                                                 (< (length (get-neighbors conflict-graph a))
-                                                                    (length (get-neighbors conflict-graph b)))))]
-            [chosen-node (car sorted-nodes)]
-            [conflicting (get-neighbors conflict-graph chosen-node)]
-            [used-registers (map (lambda (conflict) (info-ref assignment conflict #f)) conflicting)]
-            [available-registers (filter (lambda (r) (not (member r used-registers))) registers)]
-            [new-location (if (null? available-registers)
-                              (make-fvar-spill)
-                              (car available-registers))])
-          (assign-registers-helper (remove-vertex remaining-graph chosen-node)
-                                   (info-set assignment chosen-node new-location)))))
+          (let* ([sorted-nodes (sort (map car remaining-graph)
+                                     (lambda (a b)
+                                       (< (length (get-neighbors conflict-graph a))
+                                          (length (get-neighbors conflict-graph b)))))]
+                 [chosen-node (car sorted-nodes)]
+                 [conflicting (get-neighbors conflict-graph chosen-node)]
+                 [used-registers (map (lambda (conflict) (info-ref assignment conflict #f)) conflicting)]
+                 [available-registers (filter (lambda (r) (not (member r used-registers))) registers)]
+                 [new-location (if (null? available-registers)
+                                   (make-fvar-spill)
+                                   (car available-registers))])
+            (assign-registers-helper (remove-vertex remaining-graph chosen-node)
+                                     (info-set assignment chosen-node new-location)))))
   
     (assign-registers-helper conflict-graph '()))
   
