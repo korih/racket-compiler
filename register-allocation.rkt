@@ -178,7 +178,6 @@
   (match p
     [`(module ,info ,tail) `(module ,(compile-info info tail) ,tail)]))
 
-;; Exercise 2
 ;; asm-lang-v2/undead -> asm-lang-v2/conflicts
 ;; compiles p to asm-lang-v2/conflicts by decorating p with its conflict graph
 (define/contract (conflict-analysis p)
@@ -243,7 +242,6 @@
       [_ empty]))
   (conflict-analysis p))
 
-;; Exercise 3
 ;; asm-lang-v2/conflicts -> asm-lang-v2/assignments
 ;; compiles p to asm-lang-v2/assignments by attempting to fit each of the
 ;; abstract location declared in the locals set into a register, and if one
@@ -284,11 +282,10 @@
                                                              (current-assignable-registers))])
        `(module ,(info-set (info-remove info 'conflicts) 'assignment assignments) ,tail))]))
 
-;; Exercise 4
 ;; asm-lang-v2 -> nested-asm-lang-v2
 ;; compiles p to nested-asm-lang-v2 by replacing each abstract location with a
 ;; physical location through a graph-colouring register allocation algorithm
 (define/contract (assign-homes-opt p)
   (-> asm-lang-v2? nested-asm-lang-v2?)
 
-  (assign-registers (conflict-analysis (undead-analysis (uncover-locals p)))))
+  (replace-locations (assign-registers (conflict-analysis (undead-analysis (uncover-locals p))))))
