@@ -246,6 +246,10 @@
   (test-case
    "assign-registers"
    (check-true #t))
+
+  ;; -----------------------------------
+  ;; sequentialize-let tests
+  ;; -----------------------------------
   (test-case
    "sequentialize-let"
    (check-equal? (sequentialize-let '(module (let ([x.1 3]) x.1))) '(module (begin (set! x.1 3) x.1)))
@@ -254,4 +258,20 @@
                                                (+ x.1 x.2))))
                  '(module (begin (set! x.1 0) (set! x.2 1) (+ x.1 x.2))))
    (check-equal? (sequentialize-let '(module (let ([x.1 (let ([x.7 5]) (* 5 x.7))]) (+ x.1 -1))))
-                 '(module (begin (set! x.1 (begin (set! x.7 5) (* 5 x.7))) (+ x.1 -1))))))
+                 '(module (begin (set! x.1 (begin (set! x.7 5) (* 5 x.7))) (+ x.1 -1)))))
+
+  ;; -----------------------------------
+  ;; normalize-bind tests
+  ;; -----------------------------------
+  (test-case
+   "normalize-bind"
+   (check-equal? (normalize-bind '(module x1)) '(module x1))
+   (check-equal? (normalize-bind '(module (begin (set! x1 1) x1))) '(module (begin (set! x1 1) x1)))
+   (check-equal? (normalize-bind '(module (begin (set! x2 2) (begin (set! x3 4) x3))))
+                 '(module (begin (set! x2 2) (begin (set! x3 4) x3))))
+   (check-equal? (normalize-bind '(module (begin (set! x4 1) (set! x5 1) (+ x4 x5))))
+                 '(module (begin (set! x4 1) (set! x5 1) (+ x4 x5))))
+   (check-equal? (normalize-bind '(module (begin (set! x5 (begin (set! x6 5) -2)) (+ x5 1))))
+                 '(module (begin (begin (set! x6 5) (set! x5 -2)) (+ x5 1))))
+   (check-equal? (normalize-bind '(module (begin (set! x0 0) (set! x1 (begin (set! x2 2) (+ x2 1))) x0)))
+                 '(module (begin (set! x0 0) (begin (set! x2 2) (set! x1 (+ x2 1))) x0)))))

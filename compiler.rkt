@@ -32,7 +32,6 @@
 ;; STUBS; delete when you've begun to implement the passes or replaced them with
 ;; your own stubs.
 (define-values (check-values-lang
-                normalize-bind
                 select-instructions
                 uncover-locals
                 replace-locations
@@ -43,7 +42,6 @@
                 compile-m2
                 compile-m3)
   (values
-   values
    values
    values
    values
@@ -144,6 +142,39 @@
                                    `(begin ,@sequentialize-let-values ,(sequentialize-let/value v)))]
       [_ v]))
   (sequentialize-let p))
+
+;; interp. normalizes set! statements
+(define (normalize-bind p)
+  (-> imp-mf-lang-v3? imp-cmf-lang-v3?)
+  ;; interp. compiler that normalizes the set! statements to only be value-producing
+  (define (normalize-bind p)
+    (-> imp-mf-lang-v3? imp-cmf-lang-v3?)
+    (match p
+      [`(module ,tail) `(module ,(normalize-bind/tail tail))]))
+  ;; imp-mf-lang-v3-tail -> imp-cmf-lang-v3-tail
+  ;; interp. compiler that normalizes the effect statements of a tail expression
+  (define (normalize-bind/tail t)
+    (match t
+      [`(begin ,fx ... ,tail) (let ([compiled-fx (for/list ([e fx]) (normalize-bind/effect e))])
+                                `(begin ,@compiled-fx ,(normalize-bind/tail tail)))]
+      [`,value (normalize-bind/value value (lambda (v) `,value))]))
+  ;; imp-mf-lang-v3-effect -> imp-cmf-lang-v3-effect
+  ;; interp. modify effect statements to only be value-producing
+  (define (normalize-bind/effect e)
+    (match e
+      [`(set! ,x ,v) (normalize-bind/value v (lambda (v) `(set! ,x ,v)))]
+      [`(begin ,fx ... e) (let ([compiled-fx (for/list ([e fx]) (normalize-bind/effect e))])
+                            `(begin ,@compiled-fx ,(normalize-bind/effect e)))]))
+  ;; imp-mf-lang-v3-value (imp-cmf-lang-v3-value -> imp-cmf-lang-v3-effect) -> imp-cmf-lang-v3-effect
+  ;; OR
+  ;; imp-mf-lang-v3-value (imp-cmf-lang-v3-value -> imp-cmf-lang-v3-tail) -> imp-cmf-lang-v3-tail
+  ;; interp. restructure effect computations such that they only produce values
+  (define (normalize-bind/value v k)
+    (match v
+      [`(begin ,fx ... ,v) (let ([compiled-fx (for/list ([e fx]) (normalize-bind/effect e))])
+                             `(begin ,@compiled-fx ,(normalize-bind/value v k)))]
+      [`,value (k value)]))
+  (normalize-bind p))
 
 
 ;; para-asm-lang-v2 -> paren-x64-fvars-v2
