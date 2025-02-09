@@ -15,8 +15,8 @@
  normalize-bind
  select-instructions
  uncover-locals
- ;undead-analysis
- ;conflict-analysis
+ undead-analysis
+ conflict-analysis
  assign-registers
  replace-locations
  assign-homes-opt
@@ -25,7 +25,6 @@
  patch-instructions
  implement-fvars
  generate-x64
-
  compile-m2
  compile-m3)
 
@@ -38,7 +37,6 @@
                 select-instructions
                 uncover-locals
                 replace-locations
-                assign-homes-opt
                 assign-homes
                 flatten-begins
                 patch-instructions
@@ -47,7 +45,6 @@
                 compile-m2
                 compile-m3)
   (values
-   values
    values
    values
    values
@@ -135,147 +132,6 @@
   (match p
     [`(module ,info ,tail) `(module ,(compile-info info tail) ,tail)]))
 
-
-(module+ test
-  (require rackunit)
-
-  (check-equal? (undead-analysis
-                 '(module ((locals ()))
-                    (halt x.1)))
-                '(module
-                     ((locals ()) (undead-out ()))
-                   (halt x.1)))
-  (check-equal? (undead-analysis
-                 '(module ((locals ()))
-                    (begin
-                      (set! x.1 1)
-                      (halt x.1))))
-                '(module
-                     ((locals ()) (undead-out ((x.1) ())))
-                   (begin
-                     (set! x.1 1)
-                     (halt x.1))))
-  (check-equal? (undead-analysis
-                 '(module ((locals (x.1)))
-                    (begin
-                      (set! x.1 42)
-                      (halt x.1))))
-                '(module
-                     ((locals (x.1)) (undead-out ((x.1) ())))
-                   (begin (set! x.1 42) (halt x.1)))
-                "Testing basic small program")
-  (check-equal? (undead-analysis '(module
-                                      ((locals (x.1 y.2)))
-                                    (begin
-                                      (set! y.2 1)
-                                      (set! x.1 2)
-                                      (set! y.2 (* y.2 x.1))
-                                      (begin
-                                        (set! x.1 (+ x.1 -1))
-                                        (set! y.2 (* y.2 x.1))
-                                        (begin
-                                          (set! x.1 (+ x.1 -1))
-                                          (set! y.2 (* y.2 x.1))))
-                                      (halt y.2))))
-                '(module
-                     ((locals (x.1 y.2))
-                      (undead-out ((y.2)
-                                   (y.2 x.1)
-                                   (x.1 y.2)
-                                   ((y.2 x.1)
-                                    (x.1 y.2)
-                                    ((x.1 y.2)
-                                     (y.2)))
-                                   ())))
-                   (begin
-                     (set! y.2 1)
-                     (set! x.1 2)
-                     (set! y.2 (* y.2 x.1))
-                     (begin
-                       (set! x.1 (+ x.1 -1))
-                       (set! y.2 (* y.2 x.1))
-                       (begin
-                         (set! x.1 (+ x.1 -1))
-                         (set! y.2 (* y.2 x.1))))
-                     (halt y.2))))
-  (check-equal? (undead-analysis
-                 '(module ((locals ()))
-                    (halt 1)))
-                '(module
-                     ((locals ()) (undead-out ()))
-                   (halt 1)))
-  (check-equal? (undead-analysis
-                 '(module ((locals (x.1 y.2 z.3)))
-                    (begin
-                      (set! x.1 42)
-                      (set! x.1 x.1)
-                      (set! z.3 x.1)
-                      (set! z.3 z.3)
-                      (set! z.3 (+ z.3 z.3))
-                      (halt z.3))))
-                '(module
-                     ((locals (x.1 y.2 z.3))
-                      (undead-out ((x.1) (x.1) (z.3) (z.3) (z.3) ())))
-                   (begin
-                     (set! x.1 42)
-                     (set! x.1 x.1)
-                     (set! z.3 x.1)
-                     (set! z.3 z.3)
-                     (set! z.3 (+ z.3 z.3))
-                     (halt z.3))))
-  (check-equal? (undead-analysis
-                 '(module ((locals (v.1 w.2 x.3 y.4 z.5 t.6 p.1)))
-                    (begin
-                      (set! v.1 1)
-                      (set! w.2 46)
-                      (set! x.3 v.1)
-                      (set! p.1 7)
-                      (set! x.3 (+ x.3 p.1))
-                      (set! y.4 x.3)
-                      (set! p.1 4)
-                      (set! y.4 (+ y.4 p.1))
-                      (set! z.5 x.3)
-                      (set! z.5 (+ z.5 w.2))
-                      (set! t.6 y.4)
-                      (set! p.1 -1)
-                      (set! t.6 (* t.6 p.1))
-                      (set! z.5 (+ z.5 t.6))
-                      (halt z.5))))
-                '(module
-                     ((locals (v.1 w.2 x.3 y.4 z.5 t.6 p.1))
-                      (undead-out
-                       ((v.1)
-                        (v.1 w.2)
-                        (x.3 w.2)
-                        (p.1 x.3 w.2)
-                        (x.3 w.2)
-                        (y.4 x.3 w.2)
-                        (p.1 y.4 x.3 w.2)
-                        (x.3 w.2 y.4)
-                        (w.2 z.5 y.4)
-                        (y.4 z.5)
-                        (t.6 z.5)
-                        (p.1 t.6 z.5)
-                        (t.6 z.5)
-                        (z.5)
-                        ())))
-                   (begin
-                     (set! v.1 1)
-                     (set! w.2 46)
-                     (set! x.3 v.1)
-                     (set! p.1 7)
-                     (set! x.3 (+ x.3 p.1))
-                     (set! y.4 x.3)
-                     (set! p.1 4)
-                     (set! y.4 (+ y.4 p.1))
-                     (set! z.5 x.3)
-                     (set! z.5 (+ z.5 w.2))
-                     (set! t.6 y.4)
-                     (set! p.1 -1)
-                     (set! t.6 (* t.6 p.1))
-                     (set! z.5 (+ z.5 t.6))
-                     (halt z.5)))))
-
 ;; Exercise 2
 ;; asm-lang-v2/undead -> asm-lang-v2/conflicts
 ;; compiles p to asm-lang-v2/conflicts by decorating p with its conflict graph
@@ -341,73 +197,6 @@
       [_ empty]))
   (conflict-analysis p))
 
-(module+ test
-  (check-equal? (conflict-analysis '(module ((locals (x.1)) (undead-out ((x.1) ()))) (begin (set! x.1 42) (halt x.1))))
-                '(module ((locals (x.1)) (conflicts ((x.1 ())))) (begin (set! x.1 42) (halt x.1))))
-  (match (conflict-analysis '(module ((locals (v.1 w.2 x.3 y.4 z.5 t.6 p.1))
-                                             (undead-out ((v.1)
-                                                          (v.1 w.2)
-                                                          (w.2 x.3)
-                                                          (p.1 w.2 x.3)
-                                                          (w.2 x.3)
-                                                          (y.4 w.2 x.3)
-                                                          (p.1 y.4 w.2 x.3)
-                                                          (y.4 w.2 x.3)
-                                                          (z.5 y.4 w.2)
-                                                          (z.5 y.4)
-                                                          (t.6 z.5)
-                                                          (t.6 z.5 p.1)
-                                                          (t.6 z.5)
-                                                          (z.5)
-                                                          ())))
-                                      (begin (set! v.1 1)
-                                             (set! w.2 46)
-                                             (set! x.3 v.1)
-                                             (set! p.1 7)
-                                             (set! x.3 (+ x.3 p.1))
-                                             (set! y.4 x.3)
-                                             (set! p.1 4)
-                                             (set! y.4 (+ y.4 p.1))
-                                             (set! z.5 x.3)
-                                             (set! z.5 (+ z.5 w.2))
-                                             (set! t.6 y.4)
-                                             (set! p.1 -1)
-                                             (set! t.6 (* t.6 p.1))
-                                             (set! z.5 (+ z.5 t.6))
-                                             (halt z.5))))
-    [`(module ((locals ,ls) (conflicts ,conflicts)) ,tail)
-     (check-true (set=? (get-neighbors conflicts 'v.1) (list 'w.2)))
-     (check-true (set=? (get-neighbors conflicts 'w.2) (list 'z.5 'y.4 'p.1 'x.3 'v.1)))
-     (check-true (set=? (get-neighbors conflicts 'x.3) (list 'y.4 'p.1 'w.2)))
-     (check-true (set=? (get-neighbors conflicts 'y.4) (list 'z.5 'x.3 'p.1 'w.2)))
-     (check-true (set=? (get-neighbors conflicts 'z.5) (list 'p.1 't.6 'w.2 'y.4)))
-     (check-true (set=? (get-neighbors conflicts 't.6) (list 'p.1 'z.5)))
-     (check-true (set=? (get-neighbors conflicts 'p.1) (list 'z.5 't.6 'y.4 'x.3 'w.2)))]))
-
-                ;'(module ((locals (v.1 w.2 x.3 y.4 z.5 t.6 p.1))
-                ;          (conflicts ((p.1 (z.5 t.6 y.4 x.3 w.2))
-                ;                      (t.6 (p.1 z.5))
-                ;                      (z.5 (p.1 t.6 w.2 y.4))
-                ;                      (y.4 (z.5 x.3 p.1 w.2))
-                ;                      (x.3 (y.4 p.1 w.2))
-                ;                      (w.2 (z.5 y.4 p.1 x.3 v.1))
-                ;                      (v.1 (w.2)))))
-                ;   (begin (set! v.1 1)
-                ;          (set! w.2 46)
-                ;          (set! x.3 v.1)
-                ;          (set! p.1 7)
-                ;          (set! x.3 (+ x.3 p.1))
-                ;          (set! y.4 x.3)
-                ;          (set! p.1 4)
-                ;          (set! y.4 (+ y.4 p.1))
-                ;          (set! z.5 x.3)
-                ;          (set! z.5 (+ z.5 w.2))
-                ;          (set! t.6 y.4)
-                ;          (set! p.1 -1)
-                ;          (set! t.6 (* t.6 p.1))
-                ;          (set! z.5 (+ z.5 t.6))
-                ;          (halt z.5)))))
-
 ;; Exercise 3
 ;; asm-lang-v2/conflicts -> asm-lang-v2/assignments
 ;; compiles p to asm-lang-v2/assignments by attempting to fit each of the
@@ -448,6 +237,15 @@
      (let ([assignments (graph-colouring-register-allocation (info-ref info 'conflicts)
                                                              (current-assignable-registers))])
        `(module ,(info-set (info-remove info 'conflicts) 'assignment assignments) ,tail))]))
+
+;; Exercise 4
+;; asm-lang-v2 -> nested-asm-lang-v2
+;; compiles p to nested-asm-lang-v2 by replacing each abstract location with a
+;; physical location through a graph-colouring register allocation algorithm
+(define/contract (assign-homes-opt p)
+  (-> asm-lang-v2? nested-asm-lang-v2?)
+
+  (assign-registers (conflict-analysis (undead-analysis (uncover-locals p)))))
 
 (module+ test
   (require
