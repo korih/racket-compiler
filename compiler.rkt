@@ -152,7 +152,7 @@
             (set! ,loc ,patch-reg-1))]
 
          ;; check triv since we know loc is not fvar
-         [(or (and (not (int32? triv)) (int64? triv)) (fvar? triv))
+         [(and (not (int32? triv)) (int64? triv))
           (define patch-reg-1 (first (current-patch-instructions-registers)))
           `((set! ,patch-reg-1 ,triv)
             (set! ,loc (,binop ,patch-reg-1 ,patch-reg-1)))]
@@ -177,14 +177,17 @@
   (define (compile-p p)
     (match p
       [`(halt ,triv) (define ret (current-return-value-register))
-                     `(set! ,ret ,triv)]))
+                     (define patch (first (current-patch-instructions-registers)))
+                     (if (fvar? triv)
+                         `((set! ,patch ,triv) (set! ,ret ,patch))
+                         `((set! ,ret ,triv)))]))
 
   (match p
     [`(begin ,effects ... ,halt)
      (define effects^ (for/list ([effect effects])
                         (compile-effect effect)))
      (define halt^ (compile-p halt))
-     `(begin ,@(apply append effects^) ,halt^)]))
+     `(begin ,@(apply append effects^) ,@halt^)]))
 
 ;; Exercise 1
 ;; asm-lang-v2/locals -> asm-lang-v2/undead
