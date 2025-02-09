@@ -32,7 +32,6 @@
 ;; STUBS; delete when you've begun to implement the passes or replaced them with
 ;; your own stubs.
 (define-values (check-values-lang
-                sequentialize-let
                 normalize-bind
                 select-instructions
                 uncover-locals
@@ -44,7 +43,6 @@
                 compile-m2
                 compile-m3)
   (values
-   values
    values
    values
    values
@@ -121,6 +119,33 @@
   (match p
     [`(module ,tails ...) `(module ,@(compile-tail tails))]))
 
+;; interp. sequentialize the let statements into set! statements
+(define/contract (sequentialize-let p)
+  (-> values-unique-lang-v3? imp-mf-lang-v3?)
+  ;; interp. compiler that sequentializes the let statements into set! statements
+  (define/contract (sequentialize-let p)
+    (-> values-unique-lang-v3? imp-mf-lang-v3?)
+    (match p
+      [`(module ,tail) `(module ,(sequentialize-let/tail tail))]))
+  ;; values-unique-lang-v3-tail -> imp-mf-lang-v3-tail
+  ;; interp. compiler that converts the tail and sequentializes the let statements
+  (define (sequentialize-let/tail t)
+    (match t
+      [`(let ([,xs ,vs] ...) ,tail) (let ([sequentialize-let-values (for/list ([x xs] [v vs])
+                                                                      `(set! ,x ,(sequentialize-let/value v)))])
+                                      `(begin ,@sequentialize-let-values ,(sequentialize-let/tail tail)))]
+      [`,value (sequentialize-let/value value)]))
+  ;; values-unique-lang-v3-value -> imp-mf-lang-v3-value
+  ;; interp. compiler that converts from values-unique-lang-v3-value to imp-mf-lang-v3-value
+  (define (sequentialize-let/value v)
+    (match v
+      [`(let ([,xs ,vs] ...) ,v) (let ([sequentialize-let-values (for/list ([x xs] [v vs])
+                                                                   `(set! ,x ,(sequentialize-let/value v)))])
+                                   `(begin ,@sequentialize-let-values ,(sequentialize-let/value v)))]
+      [_ v]))
+  (sequentialize-let p))
+
+
 ;; para-asm-lang-v2 -> paren-x64-fvars-v2
 ;; compile program by patching instructions that have to x64 equivilent
 ;; into sequences of equivilent instructions
@@ -177,7 +202,7 @@
   (define (compile-p p)
     (match p
       [`(halt ,triv) (define ret (current-return-value-register))
-                         `(set! ,ret ,triv)]))
+                     `(set! ,ret ,triv)]))
 
   (match p
     [`(begin ,effects ... ,halt)

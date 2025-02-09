@@ -25,7 +25,7 @@
 
              compile-m2
              compile-m3))
-  
+
   (require
     cpsc411/test-suite/utils)
 
@@ -245,4 +245,13 @@
   ;; -----------------------------------
   (test-case
    "assign-registers"
-   (check-true #t)))
+   (check-true #t))
+  (test-case
+   "sequentialize-let"
+   (check-equal? (sequentialize-let '(module (let ([x.1 3]) x.1))) '(module (begin (set! x.1 3) x.1)))
+   (check-equal? (sequentialize-let '(module (let ([x.1 0]
+                                                   [x.2 1])
+                                               (+ x.1 x.2))))
+                 '(module (begin (set! x.1 0) (set! x.2 1) (+ x.1 x.2))))
+   (check-equal? (sequentialize-let '(module (let ([x.1 (let ([x.7 5]) (* 5 x.7))]) (+ x.1 -1))))
+                 '(module (begin (set! x.1 (begin (set! x.7 5) (* 5 x.7))) (+ x.1 -1))))))
