@@ -72,61 +72,99 @@
 ;; TODO: Fill in.
 ;; You'll want to merge milestone-2 code in
 
-;; asm-lang-v2/locals? -> asm-lang-v2/undead?
+;; asm-lang-v2/locals -> asm-lang-v2/undead
 ;; analyze undead variables for physical location assignment
 (define (undead-analysis p)
 
-  ;; asm-lang-v2/locals? tail -> undead-out set
+  ;; asm-lang-v2/locals tail -> undead-out-set
   ;; analyze the tail data non-terminal
   (define (analyze-tail t)
     (match t
-      [_ (define-values (ust _)
-           (analyze-effects t '()))
-         (rest ust)]))
+      ;; handle the effects, accumulate through all of them
+      [`(begin ,effects ... ,tail)
 
-  ;; asm-lang-v2/locals? -> undead-out set
-  ;; analyze the effects data non-terminal
-  (define (analyze-effects e undead-out)
-    (match e
-      [`(begin ,effects ...)
+        ;; handle tail to get undead-in
+        (define-values (t-ust undead-out)
+          (analyze-tail tail))
+
+        ;; handle the effects
        (define-values (rev-ust undead-in)
-         (for/foldr ([rev-ust '(())]
+         (for/foldr ([rev-ust (list t-ust)]
                      [undead-out undead-out])
            ([effect effects])
            (define-values (ust undead-in)
              (analyze-effects effect undead-out))
            (values (cons ust rev-ust) undead-in)))
        (values rev-ust undead-in)]
+
+      ;; tail must be halt, pass empty ust and undead-in if applicable
+      [`(halt ,triv) (define undead-in
+                       (analyze-triv triv))
+                     (values '() undead-in)]))
+
+
+  ;; asm-lang-v2/locals -> undead-out-set
+  ;; analyze the effects data non-terminal
+  (define (analyze-effects e undead-out)
+    (match e
+      [`(begin ,effects ...)
+       (define-values (rev-ust undead-in)
+         (for/foldr ([rev-ust '()]
+                     [undead-out undead-out])
+           ([effect effects])
+           (define-values (ust undead-in)
+             (analyze-effects effect undead-out))
+           (values (cons ust rev-ust) undead-in)))
+       (values rev-ust undead-in)]
+
+
       [`(set! ,aloc_1 (,binop ,aloc_1 ,triv))
        (let ([undead-in (set-union (set-add (set-remove undead-out aloc_1) aloc_1) (analyze-triv triv))])
-         (values undead-in undead-in))]
+         (values undead-out undead-in))]
+
       [`(set! ,aloc ,triv)
        (let ([undead-in (set-union (set-remove undead-out aloc) (analyze-triv triv))])
-         (values undead-in undead-in))]
-      [`(halt ,triv)
-       (let ([undead-in (set-add undead-out triv)])
-         (values undead-in undead-in))]))
+         (values undead-out undead-in))]))
 
-  ;; asm-lang-v2/locals? triv -> (ListOf triv)
-  ;; if triv is location, return as list to be added to undead-out
+  ;; asm-lang-v2/locals (triv) -> (ListOf triv) or (EmptyList)
+  ;; analyze triv non-terminal data, if its an aloc then return as list, else empty list
   (define (analyze-triv triv)
     (match triv
-      [`,triv (if (aloc? triv)
-                  (list triv)
-                  '())]))
+      [(? aloc?) (list triv)]
+      [_ '()]))
 
-  ;; (asm-lang-v2/locals? info) undead-set-tree -> (asm-lang-v2/undead? info) 
-  ;; interp the info and add the undead-set-tree to it
-  (define (compile-info i ust)
+  ;; (asm-lang-v2/locals info) (asm-lang-v2/locals tail) ->  tail
+  ;; add new info set to info for undead set tree
+  (define (compile-info i tail)
     (match i
-      [`,info #:when (info? info) (info-set info 'undead-out ust)]))
+      [`,info
+       (define-values (ust^ _)
+         (analyze-tail tail))
+       (info-set info 'undead-out ust^)]))
 
   (match p
-    [`(module ,info ,tail) `(module ,(compile-info info (analyze-tail tail)) ,tail)]))
+    [`(module ,info ,tail) `(module ,(compile-info info tail) ,tail)]))
 
 
 (module+ test
   (require rackunit)
+
+  (check-equal? (undead-analysis
+                 '(module ((locals ()))
+                    (halt x.1)))
+                '(module
+                     ((locals ()) (undead-out ()))
+                   (halt x.1)))
+  (check-equal? (undead-analysis
+                 '(module ((locals ()))
+                    (begin
+                      (set! x.1 1)
+                      (halt x.1))))
+                '(module
+                     ((locals ()) (undead-out ((x.1) ())))
+                   (begin
+                     (set! x.1 1)
+                     (halt x.1))))
   (check-equal? (undead-analysis
                  '(module ((locals (x.1)))
                     (begin
@@ -136,7 +174,65 @@
                      ((locals (x.1)) (undead-out ((x.1) ())))
                    (begin (set! x.1 42) (halt x.1)))
                 "Testing basic small program")
-
+  (check-equal? (undead-analysis '(module
+                                      ((locals (x.1 y.2)))
+                                    (begin
+                                      (set! y.2 1)
+                                      (set! x.1 2)
+                                      (set! y.2 (* y.2 x.1))
+                                      (begin
+                                        (set! x.1 (+ x.1 -1))
+                                        (set! y.2 (* y.2 x.1))
+                                        (begin
+                                          (set! x.1 (+ x.1 -1))
+                                          (set! y.2 (* y.2 x.1))))
+                                      (halt y.2))))
+                '(module
+                     ((locals (x.1 y.2))
+                      (undead-out ((y.2)
+                                   (y.2 x.1)
+                                   (x.1 y.2)
+                                   ((y.2 x.1)
+                                    (x.1 y.2)
+                                    ((x.1 y.2)
+                                     (y.2)))
+                                   ())))
+                   (begin
+                     (set! y.2 1)
+                     (set! x.1 2)
+                     (set! y.2 (* y.2 x.1))
+                     (begin
+                       (set! x.1 (+ x.1 -1))
+                       (set! y.2 (* y.2 x.1))
+                       (begin
+                         (set! x.1 (+ x.1 -1))
+                         (set! y.2 (* y.2 x.1))))
+                     (halt y.2))))
+  (check-equal? (undead-analysis
+                 '(module ((locals ()))
+                    (halt 1)))
+                '(module
+                     ((locals ()) (undead-out ()))
+                   (halt 1)))
+  (check-equal? (undead-analysis
+                 '(module ((locals (x.1 y.2 z.3)))
+                    (begin
+                      (set! x.1 42)
+                      (set! x.1 x.1)
+                      (set! z.3 x.1)
+                      (set! z.3 z.3)
+                      (set! z.3 (+ z.3 z.3))
+                      (halt z.3))))
+                '(module
+                     ((locals (x.1 y.2 z.3))
+                      (undead-out ((x.1) (x.1) (z.3) (z.3) (z.3) ())))
+                   (begin
+                     (set! x.1 42)
+                     (set! x.1 x.1)
+                     (set! z.3 x.1)
+                     (set! z.3 z.3)
+                     (set! z.3 (+ z.3 z.3))
+                     (halt z.3))))
   (check-equal? (undead-analysis
                  '(module ((locals (v.1 w.2 x.3 y.4 z.5 t.6 p.1)))
                     (begin
