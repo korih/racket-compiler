@@ -11,3 +11,16 @@ To submit, make sure you most recent work is merged into this branch and this
 branch is pushed.
 
 For versions of the skeletons from prior versions of the course, see the tags.
+
+## Exercise Locations
+Exercise 1, undead-analysis -> register-allocation.rkt
+Exercise 1, undead-analysis tests -> register-allocation-test.rkt
+
+Exercise 2, conflict-analysis -> register-allocation.rkt
+Exercise 2, conflict-analysis tests -> register-allocation-test.rkt
+
+Exercise 3, assign-registers -> register-allocation.rkt
+Exercise 3, assign-registers tests -> register-allocation-test.rkt
+
+Exercise 4, assign-homes-opt -> register-allocation.rkt
+Exercise 4, assign-homes-opt tests -> register-allocation-test.rkt
