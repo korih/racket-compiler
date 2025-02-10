@@ -383,7 +383,9 @@
                                           flatten-begins
                                           patch-instructions
                                           implement-fvars
-                                          generate-x64)])
+                                          generate-x64
+                                          wrap-x64-run-time
+                                          wrap-x64-boilerplate)])
     (compile p)))
 
 ;; interp. compile values-lang-v3 to x64 assembly with register allocation
@@ -397,7 +399,9 @@
                                           flatten-begins
                                           patch-instructions
                                           implement-fvars
-                                          generate-x64)])
+                                          generate-x64
+                                          wrap-x64-run-time
+                                          wrap-x64-boilerplate)])
     (compile p)))
 
 (module+ test

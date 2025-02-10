@@ -175,5 +175,7 @@
      (define m2 (compile-m2 test-case))
      (define m3 (compile-m3 test-case))
      (displayln (format "test case: ~a" test-case))
+     (check-equal? (nasm-run/print-number m2) (interp-values-lang-v3 test-case))
+     (check-equal? (nasm-run/print-number m3) (interp-values-lang-v3 test-case))
      (time (nasm-run/exit-code m2))
      (time (nasm-run/exit-code m3)))))
