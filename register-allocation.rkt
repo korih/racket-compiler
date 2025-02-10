@@ -223,7 +223,7 @@
       [(cons `(,undead-out ...) `(set! ,aloc_1 (,binop ,aloc_1 ,triv)))
        (analyze-move-instruction undead-out
                                  aloc_1
-                                 (get-aloc-set triv))
+                                 empty)
        `(set! ,aloc_1 (,binop ,aloc_1 ,triv))]
       [(cons `(,undead-out ...) `(set! ,aloc ,triv))
        (analyze-move-instruction undead-out

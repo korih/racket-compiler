@@ -7,6 +7,19 @@
 
   (require rackunit)
 
+  (define asm-lang-v2-1 '(module ()
+                           (begin (set! x.6 2)
+                                  (set! x.6 (+ x.6 3))
+                                  (set! x.7 x.6)
+                                  (set! x.7 (+ x.7 x.6))
+                                  (begin (set! y.2 5)
+                                         (halt x.6)))))
+  (define asm-lang-v2-2 '(module ()
+                           (begin (set! x.1 1)
+                                  (set! x.2 x.1)
+                                  (set! x.1 (+ x.1 x.1))
+                                  (halt x.2))))
+
   ;; ------------------------------
   ;; uncover-locals tests
   ;; ------------------------------
@@ -209,7 +222,23 @@
                       (set! p.1 -1)
                       (set! t.6 (* t.6 p.1))
                       (set! z.5 (+ z.5 t.6))
-                      (halt z.5)))))
+                      (halt z.5))))
+
+
+   (check-equal? (undead-analysis (uncover-locals asm-lang-v2-1))
+                 `(module ((locals (y.2 x.6 x.7))
+                           (undead-out ((x.6)
+                                        (x.6)
+                                        (x.7 x.6)
+                                        (x.6)
+                                        ((x.6)
+                                         ()))))
+                    (begin (set! x.6 2)
+                           (set! x.6 (+ x.6 3))
+                           (set! x.7 x.6)
+                           (set! x.7 (+ x.7 x.6))
+                           (begin (set! y.2 5)
+                                  (halt x.6))))))
 
   ;; -----------------------------------
   ;; conflict-analysis tests
@@ -256,7 +285,19 @@
       (check-true (set=? (get-neighbors conflicts 'y.4) (list 'z.5 'x.3 'p.1 'w.2)))
       (check-true (set=? (get-neighbors conflicts 'z.5) (list 'p.1 't.6 'w.2 'y.4)))
       (check-true (set=? (get-neighbors conflicts 't.6) (list 'p.1 'z.5)))
-      (check-true (set=? (get-neighbors conflicts 'p.1) (list 'z.5 't.6 'y.4 'x.3 'w.2)))]))
+      (check-true (set=? (get-neighbors conflicts 'p.1) (list 'z.5 't.6 'y.4 'x.3 'w.2)))])
+
+   (match (conflict-analysis (undead-analysis (uncover-locals asm-lang-v2-1)))
+     [`(module ((locals ,ls) (conflicts ,conflicts)) ,tail)
+      (check-true (set=? (get-neighbors conflicts 'y.2) (list 'x.6)))
+      (check-true (set=? (get-neighbors conflicts 'x.6) (list 'y.2 'x.7))
+                  (format "unexpected conflict graph: ~a" (get-neighbors conflicts 'x.6)))
+      (check-true (set=? (get-neighbors conflicts 'x.7) (list 'x.6)))])
+
+   (match (conflict-analysis (undead-analysis (uncover-locals asm-lang-v2-2)))
+     [`(module ((locals ,ls) (conflicts ,conflicts)) ,tail)
+      (check-true (set=? (get-neighbors conflicts 'x.1) (list 'x.2)))
+      (check-true (set=? (get-neighbors conflicts 'x.2) (list 'x.1)))]))
 
   ;; -----------------------------------
   ;; assign-registers tests
