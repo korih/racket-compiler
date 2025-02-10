@@ -27,6 +27,7 @@
              compile-m3))
 
   (require
+    cpsc411/compiler-lib
     cpsc411/langs/v2
     cpsc411/langs/v3
     cpsc411/test-suite/utils)
@@ -103,4 +104,26 @@
 
    (define cmf-lang-v3-3 '(module (begin (set! foo.12 1) (begin (begin (set! x.14 1) (set! bar.13 (+ x.14 5)))
                                                                 (+ foo.12 bar.13)))))
-   (check-equal? (interp-imp-cmf-lang-v3 cmf-lang-v3-3) (interp-asm-lang-v2 (select-instructions cmf-lang-v3-3)))))
+   (check-equal? (interp-imp-cmf-lang-v3 cmf-lang-v3-3) (interp-asm-lang-v2 (select-instructions cmf-lang-v3-3))))
+
+  ;; -----------------------------------
+  ;; flatten-begins tests
+  ;; -----------------------------------
+  (test-case
+   "flatten-begins"
+   (check-equal? (flatten-begins '(halt 1)) '(begin (halt 1)))
+   (check-equal? (flatten-begins '(begin (set! rbx 1) (halt rbx))) '(begin (set! rbx 1) (halt rbx)))
+   (check-equal? (flatten-begins '(begin (set! rax 0) (begin (set! rbx 1) (halt rbx))))
+                 '(begin (set! rax 0) (set! rbx 1) (halt rbx)))
+   (check-equal? (flatten-begins '(begin (begin (set! rax 0)) (halt rax))) '(begin (set! rax 0) (halt rax))))
+
+  ;; -----------------------------------
+  ;; implement-fvars tests
+  ;; -----------------------------------
+  (test-case
+   "implement-fvars"
+   (check-equal? (implement-fvars '(begin (set! fv0 0))) '(begin (set! (rbp - 0) 0)))
+   (check-equal? (implement-fvars `(begin (set! fv0 0) (set! fv1 ,(max-int 32))))
+                 `(begin (set! (rbp - 0) 0) (set! (rbp - 8) ,(max-int 32))))
+   (check-equal? (implement-fvars '(begin (set! fv0 5) (set! rax fv0))) '(begin (set! (rbp - 0) 5)
+                                                                                (set! rax (rbp - 0))))))

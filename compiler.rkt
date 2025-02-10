@@ -33,14 +33,10 @@
 ;; STUBS; delete when you've begun to implement the passes or replaced them with
 ;; your own stubs.
 (define-values (check-values-lang
-                flatten-begins
-                implement-fvars
                 generate-x64
                 compile-m2
                 compile-m3)
   (values
-   values
-   values
    values
    values
    values
@@ -248,6 +244,32 @@
      `(module () ,(select-tail tail))]))
 
 
+;; interp. flatten begin statements in the program
+(define (flatten-begins p)
+  (-> nested-asm-lang-v2? para-asm-lang-v2?)
+  ;; interp. flatten begin statements in the program
+  (define/contract (flatten-begins p)
+    (-> nested-asm-lang-v2? para-asm-lang-v2?)
+    (match p
+      [`(halt ,triv) `(begin (halt ,triv))]
+      [`(begin ,fx ... ,tail) (let ([compiled-fx (for/foldr ([fx-acc empty])
+                                                   ([e fx])
+                                                   (append (flatten-begins/effect e) fx-acc))])
+                                (match (flatten-begins tail)
+                                  [`(begin ,inner-fx ... ,inner-tail)
+                                   `(begin ,@compiled-fx ,@inner-fx ,inner-tail)]))]))
+  ;; (nest-asm-lang-v2-effect) -> (listof para-asm-lang-v2-effect)
+  ;; interp. flatten begin statements in the program into a list of effect statements
+  (define (flatten-begins/effect e)
+    (match e
+      [`(set! ,x (,binop ,x ,v)) (list `(set! ,x (,binop ,x ,v)))]
+      [`(set! ,x ,v) (list `(set! ,x ,v))]
+      [`(begin ,fx ... ,e) (let ([compiled-fx (for/foldr ([fx-acc empty])
+                                                ([e fx])
+                                                (append (flatten-begins/effect e) fx-acc))])
+                             (append compiled-fx (flatten-begins/effect e)))]))
+  (flatten-begins p))
+
 
 ;; para-asm-lang-v2 -> paren-x64-fvars-v2
 ;; compile program by patching instructions that have to x64 equivilent
@@ -314,6 +336,36 @@
      (define halt^ (compile-p halt))
      `(begin ,@(apply append effects^) ,halt^)]))
 
+;; interp. convert fvars into displacement mode operands
+(define/contract (implement-fvars p)
+  (-> paren-x64-fvars-v2? paren-x64-v2?)
+  ;; interp. convert fvars into displacement mode operands
+  (define/contract (implement-fvars p)
+    (-> paren-x64-fvars-v2? paren-x64-v2?)
+    (match p
+      [`(begin ,ss ...) (let ([compiled-s (for/list ([s ss]) (implement-fvars/s s))])
+                          `(begin ,@compiled-s))]))
+
+  ;; fvar -> addr
+  ;; convert fvar into displacement mode operand
+  (define (fvar->addr fvar)
+    `(,(current-frame-base-pointer-register) - ,(* (fvar->index fvar) (current-word-size-bytes))))
+
+  ;; (param-asm-fvars-v2-s) -> (paren-x64-v2-s)
+  ;; interp. convert fvars into displacement mode operands
+  (define (implement-fvars/s s)
+    (match s
+      [`(set! ,fvar ,v)
+       #:when (fvar? fvar)
+       `(set! ,(fvar->addr fvar) ,v)]
+      [`(set! ,x ,fvar)
+       #:when (fvar? fvar)
+       `(set! ,x ,(fvar->addr fvar))]
+      [`(set! ,x (,binop ,x ,fvar))
+       #:when (fvar? fvar)
+       `(set! ,x (,binop ,x ,(fvar->addr fvar)))]
+      [_ s]))
+  (implement-fvars p))
 
 (module+ test
   (require
