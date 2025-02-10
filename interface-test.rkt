@@ -24,7 +24,7 @@
 
              compile-m2
              compile-m3))
-  
+
   (require
     cpsc411/compiler-lib
     cpsc411/langs/v2
@@ -80,7 +80,30 @@
    (check-equal? (normalize-bind '(module (begin (set! x5 (begin (set! x6 5) -2)) (+ x5 1))))
                  '(module (begin (begin (set! x6 5) (set! x5 -2)) (+ x5 1))))
    (check-equal? (normalize-bind '(module (begin (set! x0 0) (set! x1 (begin (set! x2 2) (+ x2 1))) x0)))
-                 '(module (begin (set! x0 0) (begin (set! x2 2) (set! x1 (+ x2 1))) x0))))
+                 '(module (begin (set! x0 0) (begin (set! x2 2) (set! x1 (+ x2 1))) x0)))
+   (check-equal? (normalize-bind '(module (begin 0))) '(module (begin 0)))
+   (check-equal? (normalize-bind '(module (begin (set! x.1 1)
+                                                 (begin (set! x.2 -2)
+                                                        (set! x.3 3)
+                                                        (set! x.4 (+ x.2 x.3))
+                                                        (begin (set! x.5 0)
+                                                               (begin (set! x.6 7)
+                                                                      x.6))))))
+                 '(module (begin (set! x.1 1)
+                                 (begin (set! x.2 -2)
+                                        (set! x.3 3)
+                                        (set! x.4 (+ x.2 x.3))
+                                        (begin (set! x.5 0)
+                                               (begin (set! x.6 7)
+                                                      x.6))))))
+   (check-equal? (normalize-bind '(module (begin (set! x.0 -3)
+                                                 (set! x.1 (begin (set! x.2 2)
+                                                                  (set! x.3 (begin (set! x.4 4) x.4)) (+ x.2 x.3))) x.0)))
+                 '(module (begin (set! x.0 -3)
+                                 (begin (set! x.2 2)
+                                        (begin (set! x.4 4)
+                                               (set! x.3 x.4))
+                                        (set! x.1 (+ x.2 x.3))) x.0))))
 
   ;; -----------------------------------
   ;; select-instructions tests

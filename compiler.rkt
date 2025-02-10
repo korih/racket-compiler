@@ -113,17 +113,20 @@
   ;; interp. compiler that converts the tail and sequentializes the let statements
   (define (sequentialize-let/tail t)
     (match t
-      [`(let ([,xs ,vs] ...) ,tail) (let ([sequentialize-let-values (for/list ([x xs] [v vs])
-                                                                      `(set! ,x ,(sequentialize-let/value v)))])
-                                      `(begin ,@sequentialize-let-values ,(sequentialize-let/tail tail)))]
-      [`,value (sequentialize-let/value value)]))
+      [`(let ([,xs ,vs] ...) ,tail)
+       (let ([sequentialize-let-values (for/list ([x xs] [v vs])
+                                         `(set! ,x ,(sequentialize-let/value v)))])
+         `(begin ,@sequentialize-let-values ,(sequentialize-let/tail tail)))]
+      [value (sequentialize-let/value value)]))
   ;; values-unique-lang-v3-value -> imp-mf-lang-v3-value
   ;; interp. compiler that converts from values-unique-lang-v3-value to imp-mf-lang-v3-value
   (define (sequentialize-let/value v)
     (match v
-      [`(let ([,xs ,vs] ...) ,v) (let ([sequentialize-let-values (for/list ([x xs] [v vs])
-                                                                   `(set! ,x ,(sequentialize-let/value v)))])
-                                   `(begin ,@sequentialize-let-values ,(sequentialize-let/value v)))]
+      [`(let ([,xs ,vs] ...) ,v)
+       (let ([sequentialize-let-values (for/list ([x xs] [v vs])
+                                         `(set! ,x ,(sequentialize-let/value v)))])
+         `(begin ,@sequentialize-let-values ,(sequentialize-let/value v)))]
+      ;; in the other two cases, the expression is already in imp-mf-lang-v3-value form
       [_ v]))
   (sequentialize-let p))
 
@@ -139,25 +142,28 @@
   ;; interp. compiler that normalizes the effect statements of a tail expression
   (define (normalize-bind/tail t)
     (match t
-      [`(begin ,fx ... ,tail) (let ([compiled-fx (for/list ([e fx]) (normalize-bind/effect e))])
-                                `(begin ,@compiled-fx ,(normalize-bind/tail tail)))]
-      [`,value (normalize-bind/value value (lambda (v) `,value))]))
+      [`(begin ,fx ... ,tail)
+       (let ([compiled-fx (for/list ([e fx]) (normalize-bind/effect e))])
+         `(begin ,@compiled-fx ,(normalize-bind/tail tail)))]
+      [value (normalize-bind/value value (lambda (v) value))]))
   ;; imp-mf-lang-v3-effect -> imp-cmf-lang-v3-effect
   ;; interp. modify effect statements to only be value-producing
   (define (normalize-bind/effect e)
     (match e
       [`(set! ,x ,v) (normalize-bind/value v (lambda (v) `(set! ,x ,v)))]
-      [`(begin ,fx ... e) (let ([compiled-fx (for/list ([e fx]) (normalize-bind/effect e))])
-                            `(begin ,@compiled-fx ,(normalize-bind/effect e)))]))
+      [`(begin ,fx ... e)
+       (let ([compiled-fx (for/list ([e fx]) (normalize-bind/effect e))])
+         `(begin ,@compiled-fx ,(normalize-bind/effect e)))]))
   ;; imp-mf-lang-v3-value (imp-cmf-lang-v3-value -> imp-cmf-lang-v3-effect) -> imp-cmf-lang-v3-effect
   ;; OR
   ;; imp-mf-lang-v3-value (imp-cmf-lang-v3-value -> imp-cmf-lang-v3-tail) -> imp-cmf-lang-v3-tail
   ;; interp. restructure effect computations such that they only produce values
   (define (normalize-bind/value v k)
     (match v
-      [`(begin ,fx ... ,v) (let ([compiled-fx (for/list ([e fx]) (normalize-bind/effect e))])
-                             `(begin ,@compiled-fx ,(normalize-bind/value v k)))]
-      [`,value (k value)]))
+      [`(begin ,fx ... ,v)
+       (let ([compiled-fx (for/list ([e fx]) (normalize-bind/effect e))])
+         `(begin ,@compiled-fx ,(normalize-bind/value v k)))]
+      [value (k value)]))
   (normalize-bind p))
 
 ;; intep. compile value abstractions into a sequence of instructions
@@ -177,10 +183,11 @@
   ; value is stored in.
   (define (assign-tmp v)
     (match v
-      [`(,binop ,op1 ,op2) (match-let ([`(,stmts1 ,loc1) (select-triv op1)]
-                                       [`(,stmts2 ,loc2) (select-triv op2)])
-                             (list (append stmts1 stmts2 (list `(set! ,loc1 (,binop ,loc1 ,loc2)))) loc1))]
-      [`,triv (select-triv triv)]))
+      [`(,binop ,op1 ,op2)
+       (match-let ([`(,stmts1 ,loc1) (select-triv op1)]
+                   [`(,stmts2 ,loc2) (select-triv op2)])
+         (list (append stmts1 stmts2 (list `(set! ,loc1 (,binop ,loc1 ,loc2)))) loc1))]
+      [triv (select-triv triv)]))
 
 
   ;; imp-cmf-lang-v3-tail -> asm-lang-v2-tail
@@ -194,10 +201,10 @@
            [`(begin ,inner-compiled-fx ... ,inner-compiled-tail) #:when (tail-value? tail)
                                                                  `(begin ,@compiled-fx ,@inner-compiled-fx ,inner-compiled-tail)]
            [_ `(begin ,@compiled-fx ,tail-compiled)]))]
-      [`,value (match-let ([`(,stmts ,loc) (select-value value)])
-                 (if (empty? stmts)
-                     `(halt ,loc)
-                     `(begin ,@stmts (halt ,loc))))]))
+      [value (match-let ([`(,stmts ,loc) (select-value value)])
+               (if (empty? stmts)
+                   `(halt ,loc)
+                   `(begin ,@stmts (halt ,loc))))]))
 
   ;; imp-cmf-lang-v3-value -> (list (listof asm-lang-v2-effect) asm-lang-v2-aloc)
   ;; interp. compiles value expression and creates temporary abstract locations to store intermediate values
@@ -209,14 +216,14 @@
                                          `(set! ,op2-tmp ,op2)
                                          `(set! ,op1-tmp (,binop ,op1-tmp ,op2-tmp)))
                                    op1-tmp))]
-      [`,triv (select-triv triv)]))
+      [triv (select-triv triv)]))
 
   ;; imp-cmf-lang-v3-effect -> (listof asm-lang-v2-effect)
   ;; interp. convert expressions of the form (set! x v) into (set! x triv) and (set! x (binop x triv))
   (define (convert-set-expr x v)
     (match v
       [`(,binop ,op1 ,op2) (list `(set! ,x ,op1) `(set! ,x (,binop ,x ,op2)))]
-      [`,triv (list `(set! ,x ,triv))]))
+      [triv (list `(set! ,x ,triv))]))
 
   ;; imp-cmf-lang-v3-effect -> (listof asm-lang-v2-effect)
   ;; interp. compiles effect expression into a sequence of instructions, resolving values to abstract locations
@@ -247,22 +254,24 @@
     (-> nested-asm-lang-v2? para-asm-lang-v2?)
     (match p
       [`(halt ,triv) `(begin (halt ,triv))]
-      [`(begin ,fx ... ,tail) (let ([compiled-fx (for/foldr ([fx-acc empty])
-                                                   ([e fx])
-                                                   (append (flatten-begins/effect e) fx-acc))])
-                                (match (flatten-begins tail)
-                                  [`(begin ,inner-fx ... ,inner-tail)
-                                   `(begin ,@compiled-fx ,@inner-fx ,inner-tail)]))]))
+      [`(begin ,fx ... ,tail)
+       (let ([compiled-fx (for/foldr ([fx-acc empty])
+                            ([e fx])
+                            (append (flatten-begins/effect e) fx-acc))])
+         (match (flatten-begins tail)
+           [`(begin ,inner-fx ... ,inner-tail)
+            `(begin ,@compiled-fx ,@inner-fx ,inner-tail)]))]))
   ;; (nest-asm-lang-v2-effect) -> (listof para-asm-lang-v2-effect)
   ;; interp. flatten begin statements in the program into a list of effect statements
   (define (flatten-begins/effect e)
     (match e
       [`(set! ,x (,binop ,x ,v)) (list `(set! ,x (,binop ,x ,v)))]
       [`(set! ,x ,v) (list `(set! ,x ,v))]
-      [`(begin ,fx ... ,e) (let ([compiled-fx (for/foldr ([fx-acc empty])
-                                                ([e fx])
-                                                (append (flatten-begins/effect e) fx-acc))])
-                             (append compiled-fx (flatten-begins/effect e)))]))
+      [`(begin ,fx ... ,e)
+       (let ([compiled-fx (for/foldr ([fx-acc empty])
+                            ([e fx])
+                            (append (flatten-begins/effect e) fx-acc))])
+         (append compiled-fx (flatten-begins/effect e)))]))
   (flatten-begins p))
 
 
@@ -338,8 +347,9 @@
   (define/contract (implement-fvars p)
     (-> paren-x64-fvars-v2? paren-x64-v2?)
     (match p
-      [`(begin ,ss ...) (let ([compiled-s (for/list ([s ss]) (implement-fvars/s s))])
-                          `(begin ,@compiled-s))]))
+      [`(begin ,ss ...)
+       (define compiled-s (for/list ([s ss]) (implement-fvars/s s)))
+       `(begin ,@compiled-s)]))
 
   ;; fvar -> addr
   ;; convert fvar into displacement mode operand
