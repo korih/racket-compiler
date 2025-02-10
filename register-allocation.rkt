@@ -266,29 +266,29 @@
 
   (define (graph-colouring-register-allocation conflict-graph registers)
     (define fvar-index 0)
-  
+
     (define (make-fvar-spill)
-      (let ([fvar (make-fvar fvar-index)])
-        (set! fvar-index (+ fvar-index 1))
-        fvar))
-  
+      (define fvar (make-fvar fvar-index))
+      (set! fvar-index (+ fvar-index 1))
+      fvar)
+
     (define (assign-registers-helper remaining-graph assignment)
-      (define sorted-nodes (sort (map car remaining-graph)
-                                 (lambda (a b)
-                                   (< (length (get-neighbors conflict-graph a))
-                                      (length (get-neighbors conflict-graph b))))))
-      (define chosen-node (car sorted-nodes))
-      (define conflicting (get-neighbors conflict-graph chosen-node))
-      (define used-registers (map (lambda (conflict) (info-ref assignment conflict #f)) conflicting))
-      (define available-registers (filter (lambda (r) (not (member r used-registers))) registers))
-      (define new-location (if (null? available-registers)
-                               (make-fvar-spill)
-                               (car available-registers)))
       (if (null? remaining-graph)
           assignment
-          (assign-registers-helper (remove-vertex remaining-graph chosen-node)
-                                   (info-set assignment chosen-node new-location))))
-  
+          (let* ([sorted-nodes (sort (map car remaining-graph)
+                                     (lambda (a b)
+                                       (< (length (get-neighbors conflict-graph a))
+                                          (length (get-neighbors conflict-graph b)))))]
+                 [chosen-node (car sorted-nodes)]
+                 [conflicting (get-neighbors conflict-graph chosen-node)]
+                 [used-registers (map (lambda (conflict) (info-ref assignment conflict #f)) conflicting)]
+                 [available-registers (filter (lambda (r) (not (member r used-registers))) registers)]
+                 [new-location (if (null? available-registers)
+                                   (make-fvar-spill)
+                                   (car available-registers))])
+            (assign-registers-helper (remove-vertex remaining-graph chosen-node)
+                                     (info-set assignment chosen-node new-location)))))
+
     (assign-registers-helper conflict-graph '()))
 
   (match p
