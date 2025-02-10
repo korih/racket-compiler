@@ -1,7 +1,6 @@
 #lang racket
 
-(require rackunit
-         cpsc411/graph-lib)
+(require rackunit)
 
 (module+ test
   (require
@@ -25,7 +24,7 @@
 
              compile-m2
              compile-m3))
-
+  
   (require
     cpsc411/compiler-lib
     cpsc411/langs/v2
