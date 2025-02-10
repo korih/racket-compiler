@@ -33,12 +33,8 @@
 
 ;; STUBS; delete when you've begun to implement the passes or replaced them with
 ;; your own stubs.
-(define-values (check-values-lang
-                compile-m2
-                compile-m3)
+(define-values (check-values-lang)
   (values
-   values
-   values
    values))
 
 
@@ -366,12 +362,38 @@
       [_ s]))
   (implement-fvars p))
 
+;; interp. compile values-lang-v3 to x64 assembly without register allocation
+(define/contract (compile-m2 p)
+  (-> values-unique-lang-v3? string?)
+  (parameterize ([current-pass-list (list uniquify
+                                          sequentialize-let
+                                          normalize-bind
+                                          select-instructions
+                                          assign-homes
+                                          flatten-begins
+                                          patch-instructions
+                                          implement-fvars
+                                          generate-x64)])
+    (compile p)))
+
+;; interp. compile values-lang-v3 to x64 assembly with register allocation
+(define/contract (compile-m3 p)
+  (-> values-unique-lang-v3? string?)
+  (parameterize ([current-pass-list (list uniquify
+                                          sequentialize-let
+                                          normalize-bind
+                                          select-instructions
+                                          assign-homes-opt
+                                          flatten-begins
+                                          patch-instructions
+                                          implement-fvars
+                                          generate-x64)])
+    (compile p)))
+
 (module+ test
   (require
-    ;rackunit
     rackunit/text-ui
     cpsc411/langs/v3
-    ;cpsc411/langs/v2-reg-alloc
     cpsc411/langs/v2
     cpsc411/test-suite/public/v3
     cpsc411/test-suite/public/v2-reg-alloc)

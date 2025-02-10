@@ -126,4 +126,32 @@
    (check-equal? (implement-fvars `(begin (set! fv0 0) (set! fv1 ,(max-int 32))))
                  `(begin (set! (rbp - 0) 0) (set! (rbp - 8) ,(max-int 32))))
    (check-equal? (implement-fvars '(begin (set! fv0 5) (set! rax fv0))) '(begin (set! (rbp - 0) 5)
-                                                                                (set! rax (rbp - 0))))))
+                                                                                (set! rax (rbp - 0)))))
+
+  ;; -----------------------------------
+  ;; compile-m2 and compile-m3 tests
+  ;; -----------------------------------
+  (define values-lang-v3-1 '(module 1))
+  (define values-lang-v3-2 '(module (let ([x.1 1]) x.1)))
+  (define values-lang-v3-3 '(module (let ([x.1 (let ([x.2 -1]) (+ x.2 1))]) (* x.1 0))))
+  (define values-lang-v3-4 '(module (let ([x.1 1]
+                                          [x.2 2]
+                                          [x.3 3]
+                                          [x.4 4]
+                                          [x.5 5]
+                                          [x.6 6])
+                                      (let ([x.7 (* x.1 x.2)]
+                                            [x.8 (* x.3 x.4)]
+                                            [x.9 (+ x.5 x.6)])
+                                        (let ([x.10 (* x.7 x.8)])
+                                          (let ([x.11 (+ x.9 x.10)])
+                                            x.11))))))
+
+  (test-case
+   "compile-m2 & compile-m3"
+   (for ([test-case (in-list (list values-lang-v3-1 values-lang-v3-2 values-lang-v3-3 values-lang-v3-4))])
+     (define m2 (compile-m2 test-case))
+     (define m3 (compile-m3 test-case))
+     (displayln (format "test case: ~a" test-case))
+     (time (nasm-run/exit-code m2))
+     (time (nasm-run/exit-code m3)))))
