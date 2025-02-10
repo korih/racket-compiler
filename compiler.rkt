@@ -79,20 +79,20 @@
 
            (match binding
              [`(,x ,value)
-              (let* ([value^ (compile-value value env)]
-                     [aloc (fresh x)]
-                     [env-new (extend-env env-acc x aloc)]
-                     [binding-new (cons `(,aloc ,value^) binding-acc)])
-                (values (reverse binding-new) env-new))])))
+              (define value^ (compile-value value env))
+              (define aloc (fresh x))
+              (define env-new (extend-env env-acc x aloc))
+              (define binding-new (cons `(,aloc ,value^) binding-acc))
+              (values (reverse binding-new) env-new)])))
 
        (define compiled-value
          (compile-value v env^))
 
        `(let ,bindings^ ,compiled-value)]
       [`(,binop ,t1 ,t2)
-       (let ([t1^ (if (name? t1) (lookup-env env t1) t1)]
-             [t2^ (if (name? t2) (lookup-env env t2) t2)])
-         `(,binop ,t1^ ,t2^))]
+       (define t1^ (if (name? t1) (lookup-env env t1) t1))
+       (define t2^ (if (name? t2) (lookup-env env t2) t2))
+       `(,binop ,t1^ ,t2^)]
       [triv
        (if (name? triv)
            (lookup-env env triv)
@@ -109,17 +109,17 @@
   (define (sequentialize-let/tail t)
     (match t
       [`(let ([,xs ,vs] ...) ,tail)
-       (let ([sequentialize-let-values (for/list ([x xs] [v vs])
-                                         `(set! ,x ,(sequentialize-let/value v)))])
-         `(begin ,@sequentialize-let-values ,(sequentialize-let/tail tail)))]
+       (define sequentialize-let-values (for/list ([x xs] [v vs])
+                                          `(set! ,x ,(sequentialize-let/value v))))
+       `(begin ,@sequentialize-let-values ,(sequentialize-let/tail tail))]
       [value (sequentialize-let/value value)]))
   
   (define (sequentialize-let/value v)
     (match v
       [`(let ([,xs ,vs] ...) ,v)
-       (let ([sequentialize-let-values (for/list ([x xs] [v vs])
-                                         `(set! ,x ,(sequentialize-let/value v)))])
-         `(begin ,@sequentialize-let-values ,(sequentialize-let/value v)))]
+       (define sequentialize-let-values (for/list ([x xs] [v vs])
+                                         `(set! ,x ,(sequentialize-let/value v))))
+       `(begin ,@sequentialize-let-values ,(sequentialize-let/value v))]
       ;; Using wildcard collapse case because in the other two cases, the
       ;; expression is already in imp-mf-lang-v3-value form
       [_ v]))
@@ -191,15 +191,15 @@
   (define (select-tail e)
     (match e
       [`(begin ,fx ... ,tail)
-       (let ([compiled-fx (for/foldr ([instructions empty])
-                            ([e fx])
-                            (append (select-effect e) instructions))]
-             [tail-compiled (select-tail tail)])
-         (match tail-compiled
-           [`(begin ,inner-compiled-fx ... ,inner-compiled-tail)
-            #:when (tail-value? tail)
-            `(begin ,@compiled-fx ,@inner-compiled-fx ,inner-compiled-tail)]
-           [_ `(begin ,@compiled-fx ,tail-compiled)]))]
+       (define compiled-fx (for/foldr ([instructions empty])
+                             ([e fx])
+                             (append (select-effect e) instructions)))
+       (define tail-compiled (select-tail tail))
+       (match tail-compiled
+         [`(begin ,inner-compiled-fx ... ,inner-compiled-tail)
+          #:when (tail-value? tail)
+          `(begin ,@compiled-fx ,@inner-compiled-fx ,inner-compiled-tail)]
+         [_ `(begin ,@compiled-fx ,tail-compiled)])]
       [value (match-let ([`(,stmts ,loc) (select-value value)])
                (if (empty? stmts)
                    `(halt ,loc)
@@ -211,12 +211,12 @@
   (define (select-value e)
     (match e
       [`(,binop ,op1 ,op2)
-       (let ([op1-tmp (fresh 'tmp)]
-             [op2-tmp (fresh 'tmp)])
-         (list (list `(set! ,op1-tmp ,op1)
-                     `(set! ,op2-tmp ,op2)
-                     `(set! ,op1-tmp (,binop ,op1-tmp ,op2-tmp)))
-               op1-tmp))]
+       (define op1-tmp (fresh 'tmp))
+       (define op2-tmp (fresh 'tmp))
+       (list (list `(set! ,op1-tmp ,op1)
+                   `(set! ,op2-tmp ,op2)
+                   `(set! ,op1-tmp (,binop ,op1-tmp ,op2-tmp)))
+             op1-tmp)]
       [triv (select-triv triv)]))
 
   ;; imp-cmf-lang-v3-effect -> (listof asm-lang-v2-effect)
@@ -235,10 +235,10 @@
     (match e
       [`(set! ,x ,v) (convert-set-expr x v)]
       [`(begin ,fx ... ,e)
-       (let ([compiled-fx (for/foldr ([fx-acc empty])
-                            ([e fx])
-                            (append (select-effect e) fx-acc))])
-         (list `(begin ,@compiled-fx ,@(select-effect e))))]))
+       (define compiled-fx (for/foldr ([fx-acc empty])
+                             ([e fx])
+                             (append (select-effect e) fx-acc)))
+       (list `(begin ,@compiled-fx ,@(select-effect e)))]))
 
   ;; imp-cmf-lang-v3-triv -> (list (listof asm-lang-v2-effect) asm-lang-v2-aloc)
   ;; interp. compiles trivial expressions into a sequence of instructions and
@@ -246,8 +246,9 @@
   (define (select-triv t)
     (match t
       [x #:when (aloc? x) (list empty x)]
-      [x (let ([tmp (fresh 'tmp)])
-           (list (list `(set! ,tmp ,x)) tmp))]))
+      [x
+       (define tmp (fresh 'tmp))
+       (list (list `(set! ,tmp ,x)) tmp)]))
 
   (match p
     [`(module ,tail)
@@ -265,21 +266,20 @@
       [`(set! ,x (,binop ,x ,v)) (list `(set! ,x (,binop ,x ,v)))]
       [`(set! ,x ,v) (list `(set! ,x ,v))]
       [`(begin ,fx ... ,e)
-       (let ([compiled-fx (for/foldr ([fx-acc empty])
-                            ([e fx])
-                            (append (flatten-begins/effect e) fx-acc))])
-         (append compiled-fx (flatten-begins/effect e)))]))
+       (define compiled-fx (for/foldr ([fx-acc empty])
+                             ([e fx])
+                             (append (flatten-begins/effect e) fx-acc)))
+       (append compiled-fx (flatten-begins/effect e))]))
 
   (match p
     [`(halt ,triv) `(begin (halt ,triv))]
     [`(begin ,fx ... ,tail)
-     (let ([compiled-fx (for/foldr ([fx-acc empty])
-                          ([e fx])
-                          (append (flatten-begins/effect e) fx-acc))])
-       (match (flatten-begins tail)
-         [`(begin ,inner-fx ... ,inner-tail)
-          `(begin ,@compiled-fx ,@inner-fx ,inner-tail)]))]))
-
+     (define compiled-fx (for/foldr ([fx-acc empty])
+                           ([e fx])
+                           (append (flatten-begins/effect e) fx-acc)))
+     (match (flatten-begins tail)
+       [`(begin ,inner-fx ... ,inner-tail)
+        `(begin ,@compiled-fx ,@inner-fx ,inner-tail)])]))
 
 ;; para-asm-lang-v2 -> paren-x64-fvars-v2
 ;; compile program by patching instructions that have to x64 equivilent
@@ -292,58 +292,49 @@
   (define (compile-effect e)
     (match e
       [`(set! ,loc (,binop ,loc ,triv))
-       (cond
-         ;; check if fvar and triv are valid in there positions
-         [(and (fvar? loc) (not (int32? triv)))
-          (define patch-reg-1 (first (current-patch-instructions-registers)))
-          (define patch-reg-2 (second (current-patch-instructions-registers)))
-          `((set! ,patch-reg-1 ,loc)
-            (set! ,patch-reg-2 ,triv)
-            (set! ,patch-reg-1 (,binop ,patch-reg-1 ,patch-reg-2))
-            (set! ,loc ,patch-reg-1))]
-
-         ;; check fvar since we know triv is now int32 when loc is fvar
-         [(and (fvar? loc) (int32? triv))
-          (define patch-reg-1 (first (current-patch-instructions-registers)))
-          `((set! ,patch-reg-1 ,loc)
-            (set! ,patch-reg-1 (,binop ,patch-reg-1 ,triv))
-            (set! ,loc ,patch-reg-1))]
-
-         ;; check triv since we know loc is not fvar
-         [(and (not (int32? triv)) (int64? triv))
-          (define patch-reg-1 (first (current-patch-instructions-registers)))
-          `((set! ,patch-reg-1 ,triv)
-            (set! ,loc (,binop ,loc ,patch-reg-1)))]
-
-         [else
-          `((set! ,loc (,binop ,loc ,triv)))])]
-
+       #:when (and (fvar? loc) (not (int32? triv)))
+       (define patch-reg-1 (first (current-patch-instructions-registers)))
+       (define patch-reg-2 (second (current-patch-instructions-registers)))
+       `((set! ,patch-reg-1 ,loc)
+         (set! ,patch-reg-2 ,triv)
+         (set! ,patch-reg-1 (,binop ,patch-reg-1 ,patch-reg-2))
+         (set! ,loc ,patch-reg-1))]
+      [`(set! ,loc (,binop ,loc ,triv))
+       #:when (and (fvar? loc) (int32? triv))
+       (define patch-reg-1 (first (current-patch-instructions-registers)))
+       `((set! ,patch-reg-1 ,loc)
+         (set! ,patch-reg-1 (,binop ,patch-reg-1 ,triv))
+         (set! ,loc ,patch-reg-1))]
+      [`(set! ,loc (,binop ,loc ,triv))
+       #:when (and (not (int32? triv)) (int64? triv))
+       (define patch-reg-1 (first (current-patch-instructions-registers)))
+       `((set! ,patch-reg-1 ,triv)
+         (set! ,loc (,binop ,loc ,patch-reg-1)))]
+      [`(set! ,loc (,binop ,loc ,triv))
+       `((set! ,loc (,binop ,loc ,triv)))]
       [`(set! ,loc ,triv)
-       (cond
-         ;; if loc is fvar and we are not moving an int32 or reg there
-         [(and (fvar? loc)
-               (or (and (not (int32? triv)) (int64? triv))
-                   (fvar? triv)))
-          (define patch-reg (first (current-patch-instructions-registers)))
-          `((set! ,patch-reg ,triv)
-            (set! ,loc ,patch-reg))]
-
-         [else (list `(set! ,loc ,triv))])]))
-
+       #:when (and (fvar? loc)
+                   (or (and (not (int32? triv)) (int64? triv))
+                       (fvar? triv)))
+       (define patch-reg (first (current-patch-instructions-registers)))
+       `((set! ,patch-reg ,triv)
+         (set! ,loc ,patch-reg))]
+      [`(set! ,loc ,triv)
+       (list `(set! ,loc ,triv))]))
 
   ;; compiles para-asm-lang-v2 halt to set return register in paren-x64-fvars-v2
   (define (compile-p p)
     (match p
       [`(halt ,triv)
-       (let ([ret (current-return-value-register)])
-         `(set! ,ret ,triv))]))
+       (define ret (current-return-value-register))
+       `(set! ,ret ,triv)]))
 
   (match p
     [`(begin ,effects ... ,halt)
-     (let* ([effects^ (for/list ([effect effects])
-                        (compile-effect effect))]
-            [halt^ (compile-p halt)])
-       `(begin ,@(apply append effects^) ,halt^))]))
+     (define effects^ (for/list ([effect effects])
+                        (compile-effect effect)))
+     (define halt^ (compile-p halt))
+     `(begin ,@(apply append effects^) ,halt^)]))
 
 ;; paren-x64-fvars-v2 -> paren-x64-v2
 ;; interp. convert fvars into displacement mode operands
@@ -372,8 +363,8 @@
 
   (match p
     [`(begin ,ss ...)
-     (let ([compiled-s (for/list ([s ss]) (implement-fvars/s s))])
-       `(begin ,@compiled-s))]))
+     (define compiled-s (for/list ([s ss]) (implement-fvars/s s)))
+     `(begin ,@compiled-s)]))
 
 ;; values-unique-lang-v3 -> string
 ;; interp. compile values-lang-v3 to x64 assembly without register allocation

@@ -65,11 +65,11 @@
   (define (assign-fvars p)
     (match p
       [`(module ,info ,tail)
-       (let* ([assignments (for/list ([l (info-ref info 'locals)]
+       (define assignments (for/list ([l (info-ref info 'locals)]
                                       [i (in-naturals)])
-                             `(,l ,(make-fvar i)))]
-              [updated-info (info-set info 'assignment assignments)])
-         `(module ,updated-info ,tail))]))
+                             `(,l ,(make-fvar i))))
+       (define updated-info (info-set info 'assignment assignments))
+       `(module ,updated-info ,tail)]))
   
   (assign-fvars p))
 
@@ -88,22 +88,23 @@
       [`(halt ,triv)
        `(halt ,(replace-locations/triv triv))]
       [`(begin ,fx ... ,tail)
-       (let ([compiled-fx (for/list ([e fx]) (replace-locations/effect e))]
-             [compiled-tail (replace-locations/tail tail)])
-         `(begin ,@compiled-fx ,compiled-tail))]))
+       (define compiled-fx (for/list ([e fx])
+                             (replace-locations/effect e)))
+       (define compiled-tail (replace-locations/tail tail))
+       `(begin ,@compiled-fx ,compiled-tail)]))
 
   ;; interp. replaces the abstract locations with the concrete locations
   (define (replace-locations/effect e)
     (match e
       [`(set! ,x (,binop ,x ,v))
-       (let ([reg (dict-ref assignments x)])
-         `(set! ,reg (,binop ,reg ,(replace-locations/triv v))))]
+       (define reg (dict-ref assignments x))
+       `(set! ,reg (,binop ,reg ,(replace-locations/triv v)))]
       [`(set! ,x ,v)
        `(set! ,(dict-ref assignments x) ,(replace-locations/triv v))]
       [`(begin ,fx ... ,e)
-       (let ([compiled-fx (for/list ([e fx]) (replace-locations/effect e))]
-             [compiled-e (replace-locations/effect e)])
-         `(begin ,@compiled-fx ,compiled-e))]))
+       (define compiled-fx (for/list ([e fx]) (replace-locations/effect e)))
+       (define compiled-e (replace-locations/effect e))
+       `(begin ,@compiled-fx ,compiled-e)]))
 
   ;; interp. replaces any abstract locations with the concrete locations
   (define (replace-locations/triv t)
@@ -164,15 +165,21 @@
            (values (cons ust rev-ust) undead-in)))
        (values rev-ust undead-in)]
       [`(set! ,aloc_1 (,binop ,aloc_1 ,triv))
-       (let ([undead-in (set-union (set-add (set-remove undead-out aloc_1) aloc_1) (analyze-triv triv))])
-         (values undead-out undead-in))]
+       (define undead-in (set-union
+                          (set-add
+                           (set-remove undead-out aloc_1)
+                           aloc_1)
+                          (analyze-triv triv)))
+       (values undead-out undead-in)]
       [`(set! ,aloc ,triv)
-       (let ([undead-in (set-union (set-remove undead-out aloc) (analyze-triv triv))])
-         (values undead-out undead-in))]))
+       (define undead-in (set-union
+                          (set-remove undead-out aloc)
+                          (analyze-triv triv)))
+       (values undead-out undead-in)]))
 
   (define (analyze-triv triv)
     (match triv
-      [(? aloc?) (list triv)]
+      [x #:when (aloc? x) (list x)]
       [_ '()]))
 
   (define (compile-info i tail)
@@ -202,17 +209,19 @@
     (match (cons udt tail)
       [(cons '() `(halt ,triv)) `(halt ,triv)]
       [(cons `(,undead-set-trees ... ,undead-set-tree-tail) `(begin ,fx ... ,inner-tail))
-       (let ([compiled-effects (for/list ([e fx]
-                                          [udt-e undead-set-trees])
-                                 (conflict-analysis/effect udt-e e))])
-         `(begin ,@compiled-effects ,(conflict-analysis/tail undead-set-tree-tail inner-tail)))]))
+       (define compiled-effects (for/list ([e fx]
+                                           [udt-e undead-set-trees])
+                                  (conflict-analysis/effect udt-e e)))
+       `(begin ,@compiled-effects ,(conflict-analysis/tail undead-set-tree-tail inner-tail))]))
   
   ;; undead-set-tree asm-lang-v2/undead-effect -> asm-lang-v2/conflicts-effect
   ;; interp. identify abstract location conflicts and add them to the conflict graph
   (define (conflict-analysis/effect udt e)
     (match (cons udt e)
       [(cons `(,undead-set-trees ... ,last-undead-set-tree) `(begin ,fx ... ,effect))
-       (define analyzed-fx (for/list ([e fx] [ust undead-set-trees]) (conflict-analysis/effect ust e)))
+       (define analyzed-fx (for/list ([e fx]
+                                      [ust undead-set-trees])
+                             (conflict-analysis/effect ust e)))
        `(begin ,@analyzed-fx ,(conflict-analysis/effect last-undead-set-tree effect))]
       [(cons `(,undead-out ...) `(set! ,aloc_1 (,binop ,aloc_1 ,triv)))
        (analyze-move-instruction undead-out
@@ -240,12 +249,12 @@
   (match p
     [`(module ,info ,tail)
      (set! conflict-graph (new-graph (info-ref info 'locals)))
-     (let* ([udt (info-ref info 'undead-out)]
-            [analyzed-tail (conflict-analysis/tail udt tail)]
-            [updated-info (info-set (info-remove info 'undead-out)
+     (define udt (info-ref info 'undead-out))
+     (define analyzed-tail (conflict-analysis/tail udt tail))
+     (define updated-info (info-set (info-remove info 'undead-out)
                                     'conflicts
-                                    conflict-graph)])
-       `(module ,updated-info ,analyzed-tail))]))
+                                    conflict-graph))
+     `(module ,updated-info ,analyzed-tail)]))
 
 ;; Exercise 3
 ;; asm-lang-v2/conflicts -> asm-lang-v2/assignments
@@ -257,39 +266,39 @@
 
   (define (graph-colouring-register-allocation conflict-graph registers)
     (define fvar-index 0)
-
+  
     (define (make-fvar-spill)
       (let ([fvar (make-fvar fvar-index)])
         (set! fvar-index (+ fvar-index 1))
         fvar))
-
+  
     (define (assign-registers-helper remaining-graph assignment)
+      (define sorted-nodes (sort (map car remaining-graph)
+                                 (lambda (a b)
+                                   (< (length (get-neighbors conflict-graph a))
+                                      (length (get-neighbors conflict-graph b))))))
+      (define chosen-node (car sorted-nodes))
+      (define conflicting (get-neighbors conflict-graph chosen-node))
+      (define used-registers (map (lambda (conflict) (info-ref assignment conflict #f)) conflicting))
+      (define available-registers (filter (lambda (r) (not (member r used-registers))) registers))
+      (define new-location (if (null? available-registers)
+                               (make-fvar-spill)
+                               (car available-registers)))
       (if (null? remaining-graph)
           assignment
-          (let* ([sorted-nodes (sort (map car remaining-graph)
-                                     (lambda (a b)
-                                       (< (length (get-neighbors conflict-graph a))
-                                          (length (get-neighbors conflict-graph b)))))]
-                 [chosen-node (car sorted-nodes)]
-                 [conflicting (get-neighbors conflict-graph chosen-node)]
-                 [used-registers (map (lambda (conflict) (info-ref assignment conflict #f)) conflicting)]
-                 [available-registers (filter (lambda (r) (not (member r used-registers))) registers)]
-                 [new-location (if (null? available-registers)
-                                   (make-fvar-spill)
-                                   (car available-registers))])
-            (assign-registers-helper (remove-vertex remaining-graph chosen-node)
-                                     (info-set assignment chosen-node new-location)))))
-
+          (assign-registers-helper (remove-vertex remaining-graph chosen-node)
+                                   (info-set assignment chosen-node new-location))))
+  
     (assign-registers-helper conflict-graph '()))
 
   (match p
     [`(module ,info ,tail)
-     (let ([assignments (graph-colouring-register-allocation (info-ref info 'conflicts)
-                                                             (current-assignable-registers))])
-       `(module ,(info-set (info-remove info 'conflicts)
-                           'assignment
-                           assignments)
-          ,tail))]))
+     (define assignments (graph-colouring-register-allocation (info-ref info 'conflicts)
+                                                              (current-assignable-registers)))
+     `(module ,(info-set (info-remove info 'conflicts)
+                         'assignment
+                         assignments)
+        ,tail)]))
 
 ;; Exercise 4
 ;; asm-lang-v2 -> nested-asm-lang-v2
