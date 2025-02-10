@@ -130,42 +130,40 @@
       [_ v]))
   (sequentialize-let p))
 
-;; interp. normalizes set! statements
-(define (normalize-bind p)
+;; imp-mf-lang-v3 -> imp-cmf-lang-v3
+;; compiles p to imp-cmf-lang-v3 by ensuring the right-hand-side of each set! is
+;; a simple value-producing operation
+(define/contract (normalize-bind p)
   (-> imp-mf-lang-v3? imp-cmf-lang-v3?)
-  ;; interp. compiler that normalizes the set! statements to only be value-producing
-  (define (normalize-bind p)
-    (-> imp-mf-lang-v3? imp-cmf-lang-v3?)
-    (match p
-      [`(module ,tail) `(module ,(normalize-bind/tail tail))]))
-  ;; imp-mf-lang-v3-tail -> imp-cmf-lang-v3-tail
-  ;; interp. compiler that normalizes the effect statements of a tail expression
-  (define (normalize-bind/tail t)
-    (match t
-      [`(begin ,fx ... ,tail)
-       (let ([compiled-fx (for/list ([e fx]) (normalize-bind/effect e))])
-         `(begin ,@compiled-fx ,(normalize-bind/tail tail)))]
-      [value (normalize-bind/value value (lambda (v) value))]))
-  ;; imp-mf-lang-v3-effect -> imp-cmf-lang-v3-effect
-  ;; interp. modify effect statements to only be value-producing
-  (define (normalize-bind/effect e)
-    (match e
-      [`(set! ,x ,v) (normalize-bind/value v (lambda (v) `(set! ,x ,v)))]
-      [`(begin ,fx ... e)
-       (let ([compiled-fx (for/list ([e fx]) (normalize-bind/effect e))])
-         `(begin ,@compiled-fx ,(normalize-bind/effect e)))]))
-  ;; imp-mf-lang-v3-value (imp-cmf-lang-v3-value -> imp-cmf-lang-v3-effect) -> imp-cmf-lang-v3-effect
-  ;; OR
-  ;; imp-mf-lang-v3-value (imp-cmf-lang-v3-value -> imp-cmf-lang-v3-tail) -> imp-cmf-lang-v3-tail
-  ;; interp. restructure effect computations such that they only produce values
-  (define (normalize-bind/value v k)
-    (match v
-      [`(begin ,fx ... ,v)
-       (let ([compiled-fx (for/list ([e fx]) (normalize-bind/effect e))])
-         `(begin ,@compiled-fx ,(normalize-bind/value v k)))]
-      [value (k value)]))
-  (normalize-bind p))
 
+  (define (normalize-bind-tail tail)
+    (match tail
+      [`(begin ,e ... ,t)
+       `(begin ,@(map normalize-bind-effect e) ,(normalize-bind-tail t))]
+      [v (normalize-bind-value v (lambda (v) v))]))
+
+  (define (normalize-bind-value value cont)
+    (match value
+      [`(begin ,e ... ,v)
+       `(begin ,@(map normalize-bind-effect e) ,(normalize-bind-value v cont))]
+      [triv (cont triv)]))
+
+  (define (normalize-bind-effect effect)
+    (match effect
+      [`(set! ,aloc ,v)
+       (normalize-bind-value v (lambda (simple-v)
+                                 `(set! ,aloc ,simple-v)))]
+      [`(begin ,e ...)
+       `(begin ,@(map normalize-bind-effect e))]
+      ;; Using a wildcard collapse case as it captures all other well-formed
+      ;; expressions without transformation
+      [_ effect]))
+
+  (match p
+    [`(module ,tail)
+     `(module ,(normalize-bind-tail tail))]))
+
+;; imp-cmf-lang-v3 -> asm-lang-v2
 ;; intep. compile value abstractions into a sequence of instructions
 (define/contract (select-instructions p)
   (-> imp-cmf-lang-v3? asm-lang-v2?)
@@ -245,9 +243,9 @@
     [`(module ,tail)
      `(module () ,(select-tail tail))]))
 
-
+;; nested-asm-lang-v2 -> para-asm-lang-v2
 ;; interp. flatten begin statements in the program
-(define (flatten-begins p)
+(define/contract (flatten-begins p)
   (-> nested-asm-lang-v2? para-asm-lang-v2?)
   ;; interp. flatten begin statements in the program
   (define/contract (flatten-begins p)
