@@ -1,7 +1,8 @@
 #lang racket
 
 (require
-  "register-allocation.rkt")
+  "register-allocation.rkt"
+  "x64-wrapper.rkt")
 
 (require
   cpsc411/compiler-lib
@@ -33,11 +34,9 @@
 ;; STUBS; delete when you've begun to implement the passes or replaced them with
 ;; your own stubs.
 (define-values (check-values-lang
-                generate-x64
                 compile-m2
                 compile-m3)
   (values
-   values
    values
    values
    values))
