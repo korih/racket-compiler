@@ -1,4 +1,4 @@
-*.rkt~
+**/*.rkt~
 submission.zip
 compiled/
 .DS_Store
