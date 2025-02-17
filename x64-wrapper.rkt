@@ -39,17 +39,25 @@
   ;; interp. a generated x64-instruction-sequence for a paren-x64-v2 statement
   (define (statement->x64 s)
     (match s
-      ;; TODO: case where (addr reg) is now to (addr trg) for setting label
       [`(set! (,fbp - ,dispoffset) ,val) (format "mov QWORD [~a - ~a], ~a" fbp dispoffset val)]
       [`(set! ,reg ,val) #:when (int64? val) (format "mov ~a, ~a" reg val)]
       [`(set! ,reg1 ,loc) #:when (loc? loc) (format "mov ~a, ~a" reg1 (loc->x64 loc))]
       [`(set! ,reg_1 (,op ,reg_1 ,val)) #:when (int32? val) (format "~a ~a, ~a" (binop->ins op) reg_1 val)]
       [`(set! ,reg_1 (,op ,reg_1 ,loc)) (format "~a ~a, ~a" (binop->ins op) reg_1 (loc->x64 loc))]
-      [`(with-label ,label ,s) '...]
-      [`(jump ,trg) '...]
-      [`(compare ,reg ,op) '...]
-      [`(jump-if ,relop ,label) '...]))
+      [`(with-label ,label ,s) (format "~a:\n ~a" (fresh-label label) (statement->x64 s))]
+      [`(jump ,trg) (format "jmp ~a" trg)]
+      [`(compare ,reg ,op) "cmp ~a,~a" reg op]
+      [`(jump-if ,relop ,label) "~a ~a" (select-jump-cmp relop) label]))
 
+  ;; match relop for x64 instruction equivalent
+  (define (select-jump-cmp relop)
+    (match relop
+      [`< 'jl]
+      [`<= 'jle]
+      [`= 'je]
+      [`> 'jg]
+      [`>= 'jge]
+      [`!= 'jne]))
 
   ;; paren-x64-v2 binop -> x64-instruction-sequence instruction binop
   ;; interp. a corresponding x64-instruction-sequence binop for a paren-x64-v2 binop
@@ -59,7 +67,7 @@
       [`* "imul"]))
 
   ;; paren-x64 trg -> ...
-  ;; TODO:
+  ;; TODO: might not need this
   (define (resolve-trg trg)
     (match trg
       [`,reg '...]))
