@@ -44,20 +44,20 @@
       [`(set! ,reg1 ,loc) #:when (loc? loc) (format "mov ~a, ~a" reg1 (loc->x64 loc))]
       [`(set! ,reg_1 (,op ,reg_1 ,val)) #:when (int32? val) (format "~a ~a, ~a" (binop->ins op) reg_1 val)]
       [`(set! ,reg_1 (,op ,reg_1 ,loc)) (format "~a ~a, ~a" (binop->ins op) reg_1 (loc->x64 loc))]
-      [`(with-label ,label ,s) (format "~a:\n ~a" (fresh-label label) (statement->x64 s))]
+      [`(with-label ,label ,s) (format "~a:\n~a" (symbol->string label) (statement->x64 s))]
       [`(jump ,trg) (format "jmp ~a" trg)]
-      [`(compare ,reg ,op) "cmp ~a,~a" reg op]
-      [`(jump-if ,relop ,label) "~a ~a" (select-jump-cmp relop) label]))
+      [`(compare ,reg ,op) (format "cmp ~a, ~a" reg op)]
+      [`(jump-if ,relop ,label) (format "~a ~a" (select-jump-cmp relop) (symbol->string label))]))
 
   ;; match relop for x64 instruction equivalent
   (define (select-jump-cmp relop)
     (match relop
-      [`< 'jl]
-      [`<= 'jle]
-      [`= 'je]
-      [`> 'jg]
-      [`>= 'jge]
-      [`!= 'jne]))
+      [`< "jl"]
+      [`<= "jle"]
+      [`= "je"]
+      [`> "jg"]
+      [`>= "jge"]
+      [`!= "jne"]))
 
   ;; paren-x64-v2 binop -> x64-instruction-sequence instruction binop
   ;; interp. a corresponding x64-instruction-sequence binop for a paren-x64-v2 binop
@@ -65,11 +65,5 @@
     (match b
       [`+ "add"]
       [`* "imul"]))
-
-  ;; paren-x64 trg -> ...
-  ;; TODO: might not need this
-  (define (resolve-trg trg)
-    (match trg
-      [`,reg '...]))
 
   (program->x64 p))
