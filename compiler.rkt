@@ -16,7 +16,7 @@
   "passes/uncover-locals.rkt"
   "passes/undead-analysis.rkt"
   "passes/uniquify.rkt"
-  "x64-wrapper.rkt")
+  "passes/generate-x64.rkt")
 
 (require
   cpsc411/compiler-lib
@@ -130,7 +130,8 @@
 ;; your own stubs.
 #;
 (define-values (check-values-lang)
-  (values))
+  (values
+   values))
 
 ;; Exercise 5
 ;; values-unique-lang-v3 -> string

@@ -14,10 +14,11 @@
 (define/contract (uncover-locals p)
   (-> asm-lang-v2? asm-lang-v2/locals?)
 
-  ;; acc is (Set-of aloc)
+  ;; unique-alocs is (Set-of aloc)
   ;; the unique abstract locations used in the program p
   (define unique-alocs (mutable-set))
 
+  ;; asm-lang-v2.tail -> asm-lang-v2/locals.tail
   (define (uncover-locals-tail t)
     (match t
       [`(halt ,tr)
@@ -26,6 +27,7 @@
        (for-each uncover-locals-effect ef)
        (uncover-locals-tail ta)]))
 
+  ;; asm-lang-v2.effect -> asm-lang-v2/locals.effect
   (define (uncover-locals-effect e)
     (match e
       [`(set! ,aloc1 (,binop ,aloc1 ,triv))
@@ -37,6 +39,7 @@
       [`(begin ,ef ...)
        (for-each uncover-locals-effect ef)]))
 
+  ;; asm-lang-v2.effect -> asm-lang-v2/locals.triv
   (define (uncover-locals-triv t)
     (match t
       [aloc #:when (aloc? aloc) (set-add! unique-alocs aloc)]
@@ -47,12 +50,11 @@
      (uncover-locals-tail t)
      `(module ,(info-set '() 'locals (set->list unique-alocs)) ,t)]))
 
-(test-case
- "uncover-locals"
- (check-equal? (uncover-locals '(module () (begin (set! x.1 0) (halt x.1))))
-               '(module ((locals (x.1))) (begin (set! x.1 0) (halt x.1))))
- (match-let ([`(module ((locals (,ls ...))) ,_) (uncover-locals '(module () (begin (set! x.1 0)
-                                                                                   (set! y.1 x.1)
-                                                                                   (set! y.1 (+ y.1 x.1))
-                                                                                   (halt y.1))))])
-   (check-equal? (list->set ls) (set 'x.1 'y.1))))
+(module+ test
+  (check-equal? (uncover-locals '(module () (begin (set! x.1 0) (halt x.1))))
+                '(module ((locals (x.1))) (begin (set! x.1 0) (halt x.1))))
+  (match-let ([`(module ((locals (,ls ...))) ,_) (uncover-locals '(module () (begin (set! x.1 0)
+                                                                                    (set! y.1 x.1)
+                                                                                    (set! y.1 (+ y.1 x.1))
+                                                                                    (halt y.1))))])
+    (check-equal? (list->set ls) (set 'x.1 'y.1))))
