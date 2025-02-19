@@ -18,12 +18,11 @@
    (assign-fvars
     (uncover-locals p))))
 
-(test-case
- "assign-homes"
- (check-equal? (assign-homes '(module () (begin (set! x.1 0) (halt x.1)))) '(begin (set! fv0 0) (halt fv0)))
- (check-equal? (assign-homes '(module () (begin (set! x.1 0)
-                                                (set! y.1 x.1)
-                                                (set! w.1 1)
-                                                (set! w.1 (+ w.1 y.1))
-                                                (halt w.1))))
-               '(begin (set! fv2 0) (set! fv1 fv2) (set! fv0 1) (set! fv0 (+ fv0 fv1)) (halt fv0))))
+(module+ test
+  (check-equal? (assign-homes '(module () (begin (set! x.1 0) (halt x.1)))) '(begin (set! fv0 0) (halt fv0)))
+  (check-equal? (assign-homes '(module () (begin (set! x.1 0)
+                                                 (set! y.1 x.1)
+                                                 (set! w.1 1)
+                                                 (set! w.1 (+ w.1 y.1))
+                                                 (halt w.1))))
+                '(begin (set! fv2 0) (set! fv1 fv2) (set! fv0 1) (set! fv0 (+ fv0 fv1)) (halt fv0))))

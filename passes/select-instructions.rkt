@@ -9,21 +9,22 @@
 (provide select-instructions)
 
 ;; imp-cmf-lang-v3 -> asm-lang-v2
-;; intep. compile value abstractions into a sequence of instructions
+;; compiles p to asm-lang-v2 by selecting appropriate sequences of abstract
+;; assembly instructions to implement the operations of the source language
 (define/contract (select-instructions p)
   (-> imp-cmf-lang-v3? asm-lang-v2?)
 
-  ;; (imp-cmf-lang-v3-tail) -> bool
-  ;; interp. compiler that returns true if the expression is a valid value in tail position
+  ;; imp-cmf-lang-v3.tail -> bool
+  ;; produces true if the expression is a valid value in tail position
   (define (tail-value? e)
     (match e
       [`(begin ,fx ... ,tail) #f]
       [_ #t]))
 
-  ; (Imp-cmf-lang-v3 value) -> (List-of (Asm-lang-v2 effect)) and (Asm-lang-v2 aloc)
+  ; imp-cmf-lang-v3.value -> (list (List-of asm-lang-v2.effect) aloc)
   ; Assigns the value v to a fresh temporary, returning two values: the list of
   ; statements the implement the assignment in Loc-lang, and the aloc that the
-  ; value is stored in.
+  ; value is stored in
   (define (assign-tmp v)
     (match v
       [`(,binop ,op1 ,op2)
@@ -32,9 +33,7 @@
          (list (append stmts1 stmts2 (list `(set! ,loc1 (,binop ,loc1 ,loc2)))) loc1))]
       [triv (select-triv triv)]))
 
-
-  ;; imp-cmf-lang-v3-tail -> asm-lang-v2-tail
-  ;; interp. produce the asm-lang-v2-tail and halt with the trivial value
+  ;; imp-cmf-lang-v3.tail -> asm-lang-v2.tail
   (define (select-tail e)
     (match e
       [`(begin ,fx ... ,tail)
@@ -52,9 +51,7 @@
                    `(halt ,loc)
                    `(begin ,@stmts (halt ,loc))))]))
 
-  ;; imp-cmf-lang-v3-value -> (list (listof asm-lang-v2-effect) asm-lang-v2-aloc)
-  ;; interp. compiles value expression and creates temporary abstract locations
-  ;; to store intermediate values
+  ;; imp-cmf-lang-v3.value -> (list (List-of asm-lang-v2.effect) aloc)
   (define (select-value e)
     (match e
       [`(,binop ,op1 ,op2)
@@ -66,18 +63,14 @@
              op1-tmp)]
       [triv (select-triv triv)]))
 
-  ;; imp-cmf-lang-v3-effect -> (listof asm-lang-v2-effect)
-  ;; interp. convert expressions of the form (set! x v) into (set! x triv) and
-  ;; (set! x (binop x triv))
+  ;; imp-cmf-lang-v3.effect -> (List-of asm-lang-v2.effect)
   (define (convert-set-expr x v)
     (match v
       [`(,binop ,op1 ,op2)
        (list `(set! ,x ,op1) `(set! ,x (,binop ,x ,op2)))]
       [triv (list `(set! ,x ,triv))]))
 
-  ;; imp-cmf-lang-v3-effect -> (listof asm-lang-v2-effect)
-  ;; interp. compiles effect expression into a sequence of instructions,
-  ;; resolving values to abstract locations
+  ;; imp-cmf-lang-v3.effect -> (List-of asm-lang-v2.effect)
   (define (select-effect e)
     (match e
       [`(set! ,x ,v) (convert-set-expr x v)]
@@ -87,9 +80,7 @@
                              (append (select-effect e) fx-acc)))
        (list `(begin ,@compiled-fx ,@(select-effect e)))]))
 
-  ;; imp-cmf-lang-v3-triv -> (list (listof asm-lang-v2-effect) asm-lang-v2-aloc)
-  ;; interp. compiles trivial expressions into a sequence of instructions and
-  ;; returns the abstract location
+  ;; imp-cmf-lang-v3.triv -> (list (List-of asm-lang-v2.effect) aloc)
   (define (select-triv t)
     (match t
       [x #:when (aloc? x) (list empty x)]
@@ -101,22 +92,21 @@
     [`(module ,tail)
      `(module () ,(select-tail tail))]))
 
-(test-case
- "select-instructions"
- (define cmf-lang-v3-1 '(module (+ 2 2)))
- (check-equal? (interp-imp-cmf-lang-v3 cmf-lang-v3-1) (interp-asm-lang-v2 (select-instructions cmf-lang-v3-1)))
+(module+ test
+  (define cmf-lang-v3-1 '(module (+ 2 2)))
+  (check-equal? (interp-imp-cmf-lang-v3 cmf-lang-v3-1) (interp-asm-lang-v2 (select-instructions cmf-lang-v3-1)))
 
- (check-equal? (select-instructions '(module (begin (set! x.1 5) x.1)))
-               '(module () (begin (set! x.1 5) (halt x.1))))
- (check-equal? (select-instructions '(module (begin (set! x.1 (+ 2 2)) x.1)))
-               '(module () (begin (set! x.1 2) (set! x.1 (+ x.1 2)) (halt x.1))))
+  (check-equal? (select-instructions '(module (begin (set! x.1 5) x.1)))
+                '(module () (begin (set! x.1 5) (halt x.1))))
+  (check-equal? (select-instructions '(module (begin (set! x.1 (+ 2 2)) x.1)))
+                '(module () (begin (set! x.1 2) (set! x.1 (+ x.1 2)) (halt x.1))))
 
- (define cmf-lang-v3-2 '(module (begin (set! x.1 2) (set! x.2 2) (+ x.1 x.2))))
- (check-equal? (interp-imp-cmf-lang-v3 cmf-lang-v3-2) (interp-asm-lang-v2 (select-instructions cmf-lang-v3-2)))
+  (define cmf-lang-v3-2 '(module (begin (set! x.1 2) (set! x.2 2) (+ x.1 x.2))))
+  (check-equal? (interp-imp-cmf-lang-v3 cmf-lang-v3-2) (interp-asm-lang-v2 (select-instructions cmf-lang-v3-2)))
 
- (check-equal? (select-instructions '(module (begin (begin (set! x.1 1)) x.1)))
-               '(module () (begin (begin (set! x.1 1)) (halt x.1))))
+  (check-equal? (select-instructions '(module (begin (begin (set! x.1 1)) x.1)))
+                '(module () (begin (begin (set! x.1 1)) (halt x.1))))
 
- (define cmf-lang-v3-3 '(module (begin (set! foo.12 1) (begin (begin (set! x.14 1) (set! bar.13 (+ x.14 5)))
-                                                              (+ foo.12 bar.13)))))
- (check-equal? (interp-imp-cmf-lang-v3 cmf-lang-v3-3) (interp-asm-lang-v2 (select-instructions cmf-lang-v3-3))))
+  (define cmf-lang-v3-3 '(module (begin (set! foo.12 1) (begin (begin (set! x.14 1) (set! bar.13 (+ x.14 5)))
+                                                               (+ foo.12 bar.13)))))
+  (check-equal? (interp-imp-cmf-lang-v3 cmf-lang-v3-3) (interp-asm-lang-v2 (select-instructions cmf-lang-v3-3))))
