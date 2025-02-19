@@ -35,24 +35,10 @@
  interp-paren-x64
  interp-values-lang
  check-values-lang
-
- uniquify
- sequentialize-let
- normalize-bind
- select-instructions
- uncover-locals
- undead-analysis
- conflict-analysis
- assign-registers
- replace-locations
- assign-homes-opt
  optimize-predicates
  expose-basic-blocks
  resolve-predicates
- flatten-program
- patch-instructions
- implement-fvars
- generate-x64)
+ flatten-program)
 
 ;; Template support macro; feel free to delete
 (define-syntax-rule (.... stx ...)
@@ -61,38 +47,11 @@
 ;; Stubs; remove or replace with your definitions.
 (define-values (check-values-lang
                 interp-values-lang
-
-                uniquify
-                sequentialize-let
-                normalize-bind
-                select-instructions
-                uncover-locals
-                undead-analysis
-                conflict-analysis
-                assign-registers
-                replace-locations
-                assign-homes-opt
                 optimize-predicates
                 expose-basic-blocks
                 resolve-predicates
-                flatten-program
-                patch-instructions
-                implement-fvars
-                generate-x64)
+                flatten-program)
   (values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
    values
    values
    values
@@ -126,14 +85,6 @@
 
   (TODO "Redesign and implement interp-paren-x64 for Exercise 3."))
 
-;; STUBS; delete when you've begun to implement the passes or replaced them with
-;; your own stubs.
-#;
-(define-values (check-values-lang)
-  (values
-   values))
-
-;; Exercise 5
 ;; values-unique-lang-v3 -> string
 ;; interp. compile values-lang-v3 to x64 assembly without register allocation
 (define/contract (compile-m2 p)
