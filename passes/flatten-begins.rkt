@@ -2,15 +2,15 @@
 
 (require
   cpsc411/compiler-lib
-  cpsc411/langs/v2
+  cpsc411/langs/v4
   rackunit)
 
 (provide flatten-begins)
 
-;; nested-asm-lang-v2 -> para-asm-lang-v2
+;; block-asm-lang-v4 -> para-asm-lang-v4
 ;; interp. flatten begin statements in the program
 (define/contract (flatten-begins p)
-  (-> nested-asm-lang-v2? para-asm-lang-v2?)
+  (-> block-asm-lang-v4? para-asm-lang-v4?)
 
   ;; interp. flatten begin statements in the program into a list of effect
   ;; statements
@@ -34,8 +34,17 @@
 
 (test-case
  "flatten-begins"
- (check-equal? (flatten-begins '(halt 1)) '(begin (halt 1)))
- (check-equal? (flatten-begins '(begin (set! rbx 1) (halt rbx))) '(begin (set! rbx 1) (halt rbx)))
- (check-equal? (flatten-begins '(begin (set! rax 0) (begin (set! rbx 1) (halt rbx))))
-               '(begin (set! rax 0) (set! rbx 1) (halt rbx)))
- (check-equal? (flatten-begins '(begin (begin (set! rax 0)) (halt rax))) '(begin (set! rax 0) (halt rax))))
+ (check-equal? (flatten-begins '(module (halt 1))) '(begin (halt 1)))
+ (let ([x (symbol->string (gensym))])
+   (check-equal? (flatten-begins `(module (define ,x (begin (set! rbx 1) (halt rbx))))
+                                '(begin (with-label ,x (set! rbx 1)) (halt rbx)))))
+ (let ([x (symbol->string (gensym))])
+   (check-equal? (flatten-begins `(module (define ,x (begin (set! rax 0) (begin (set! rbx 1) (halt rbx))))))
+                 `(begin (with-label ,x (set! rax 0)) (set! rbx 1) (halt rbx))))
+ (let ([x (symbol->string (gensym))])
+   (check-equal? (flatten-begins `(module (define ,x (begin (begin (set! rax 0)) (halt rax))))
+                                 `(begin (with-label ,x (set! rax 0)) (halt rax)))))
+ (let ([x (symbol->string (gensym))]
+       [y (symbol->string (gensym))])
+   (check-equal? (flatten-begins `(module (define ,x (jump ,y)) (define ,y (halt 0))))
+                 `(begin (with-label ,x (jump ,y)) (with-label ,y (halt 0))))))
