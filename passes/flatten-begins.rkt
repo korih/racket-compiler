@@ -1,6 +1,7 @@
 #lang racket
 
 (require
+  cpsc411/compiler-lib
   cpsc411/langs/v2
   rackunit)
 
@@ -10,7 +11,7 @@
 ;; interp. flatten begin statements in the program
 (define/contract (flatten-begins p)
   (-> nested-asm-lang-v2? para-asm-lang-v2?)
-  
+
   ;; interp. flatten begin statements in the program into a list of effect
   ;; statements
   (define (flatten-begins/effect e)
@@ -29,9 +30,7 @@
      (define compiled-fx (for/foldr ([fx-acc empty])
                            ([e fx])
                            (append (flatten-begins/effect e) fx-acc)))
-     (match (flatten-begins tail)
-       [`(begin ,inner-fx ... ,inner-tail)
-        `(begin ,@compiled-fx ,@inner-fx ,inner-tail)])]))
+     (make-begin compiled-fx (flatten-begins tail))]))
 
 (test-case
  "flatten-begins"
