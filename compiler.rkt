@@ -16,7 +16,8 @@
   "passes/uncover-locals.rkt"
   "passes/undead-analysis.rkt"
   "passes/uniquify.rkt"
-  "passes/generate-x64.rkt")
+  "passes/generate-x64.rkt"
+  "passes/resolve-predicates.rkt")
 
 (require
   cpsc411/compiler-lib
@@ -49,10 +50,8 @@
                 interp-values-lang
                 optimize-predicates
                 expose-basic-blocks
-                resolve-predicates
                 flatten-program)
   (values
-   values
    values
    values
    values
@@ -121,50 +120,11 @@
 
 (module+ test
   (require
-    rackunit
-    rackunit/text-ui
-    racket/engine
-    cpsc411/langs/v4
-    cpsc411/langs/v3
-    cpsc411/langs/v2
-    cpsc411/test-suite/public/v4
-    cpsc411/test-suite/public/v3
-    cpsc411/test-suite/public/v2-reg-alloc)
-
-  ;; You can modify this pass list, e.g., by adding check-assignment, or other
-  ;; debugging and validation passes.
-  ;; Doing this may provide additional debugging info when running the rest
-  ;; suite.
-  ;; If you modify, you must modify the corresponding interpreter in the
-  ;; interp-ls, at least by interesting #f as the interpreter for the new pass.
-  ;; See the documentation for v3-public-test-suite for details on the structure
-  ;; of the interpreter list.
-  (current-pass-list (list
-                      check-values-lang
-                      uniquify
-                      sequentialize-let
-                      normalize-bind
-                      select-instructions
-                      assign-homes-opt
-                      flatten-begins
-                      patch-instructions
-                      implement-fvars
-                      generate-x64
-                      wrap-x64-run-time
-                      wrap-x64-boilerplate))
-
-  (define interp-ls (list
-                     interp-values-lang-v3
-                     interp-values-lang-v3
-                     interp-values-unique-lang-v3
-                     interp-imp-mf-lang-v3
-                     interp-imp-cmf-lang-v3
-                     interp-asm-lang-v2
-                     interp-nested-asm-lang-v2
-                     interp-para-asm-lang-v2
-                     interp-paren-x64-fvars-v2
-                     interp-paren-x64-v2
-                     #f #f))
+   rackunit
+   rackunit/text-ui
+   cpsc411/langs/v4
+   cpsc411/test-suite/public/v4
+   racket/engine)
 
   ;; Milliseconds (any/c -> any_1) (() -> any_2) -> any_1 or any_2
   ;; Runs proc in an engine, returning its result, or calling the failure
@@ -186,9 +146,9 @@
 
   (check-timeout?
    (lambda (_)
-     (interp-paren-x64
-      '(begin
-         (with-label L.f.10 (jump L.f.10)))))
+    (interp-paren-x64
+     '(begin
+        (with-label L.f.10 (jump L.f.10)))))
    2000)
 
   ;; You can modify this pass list, e.g., by adding check-assignment, or other
@@ -230,8 +190,4 @@
     #f #;link-paren-x64
     #f #;interp-paren-x64
     #f #;interp-values-lang
-    #f #;check-values-lang))
-
-
-  (run-tests (v3-public-test-sutie (current-pass-list) interp-ls))
-  (run-tests (v2-reg-alloc-public-test-suite undead-analysis conflict-analysis assign-registers)))
+    #f #;check-values-lang)))
