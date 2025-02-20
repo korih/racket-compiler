@@ -9,6 +9,7 @@
 
 (provide generate-x64)
 
+;; Exercise 1
 ;; paren-x64-v4 -> string
 ;; compiles p into a valid sequence of x64 instructions, represented as a string
 (define/contract (generate-x64 p)
