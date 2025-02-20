@@ -12,6 +12,23 @@
 (define/contract (flatten-begins p)
   (-> block-asm-lang-v4? para-asm-lang-v4?)
 
+  ;; block-asm-lang-v4-b -> (list para-asm-lang-v4-s)
+  ;; convert b expressions to flattened s expressions
+  (define (flatten-begins/b b)
+    (match b
+      [`(define ,label ,tail)
+       (define compiled-s (flatten-begins/tail tail))
+       (list `(with-label ,label (first ,compiled-s)) (rest compiled-s))]))
+
+  ;; block-asm-lang-v4-tail -> (list para-asm-lang-v4-s)
+  ;; interp. flattens the tail expression into a list of s statements
+  (define (flatten-begins/tail tail)
+    (match tail
+      [`(halt ,opand) (void)]
+      [`(jump ,trg) (void)]
+      [`(begin ,fx ... ,tail) (void)]
+      [`(if (,relop ,loc ,opand) (jump ,trg1) (jump ,trg2)) (void)]))
+
   ;; interp. flatten begin statements in the program into a list of effect
   ;; statements
   (define (flatten-begins/effect e)
@@ -25,12 +42,11 @@
        (append compiled-fx (flatten-begins/effect e))]))
 
   (match p
-    [`(halt ,triv) `(begin (halt ,triv))]
-    [`(begin ,fx ... ,tail)
-     (define compiled-fx (for/foldr ([fx-acc empty])
-                           ([e fx])
-                           (append (flatten-begins/effect e) fx-acc)))
-     (make-begin compiled-fx (flatten-begins tail))]))
+    [`(module ,bs ...)
+     (define compiled-s (for/fold ([s empty])
+                          ([b bs])
+                                  (append (flatten-begins/b b) s)))
+     `(module ,@compiled-s)]))
 
 (test-case
  "flatten-begins"
