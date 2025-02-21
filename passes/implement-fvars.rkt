@@ -2,7 +2,7 @@
 
 (require
   cpsc411/compiler-lib
-  cpsc411/langs/v2
+  cpsc411/langs/v4
   rackunit)
 
 (provide implement-fvars)
@@ -10,7 +10,7 @@
 ;; paren-x64-fvars-v2 -> paren-x64-v2
 ;; interp. convert fvars into displacement mode operands
 (define/contract (implement-fvars p)
-  (-> paren-x64-fvars-v2? paren-x64-v2?)
+  (-> paren-x64-fvars-v4? paren-x64-v4?)
 
   ;; fvar -> addr
   ;; convert fvar into displacement mode operand
@@ -30,6 +30,11 @@
       [`(set! ,x (,binop ,x ,fvar))
        #:when (fvar? fvar)
        `(set! ,x (,binop ,x ,(fvar->addr fvar)))]
+      [`(with-label ,label ,s) 
+        `(with-label ,label ,s)] ; TODO: evaluate the s
+      [`(jump ,trg) `(jump ,trg)]
+      [`(compare ,reg ,op) `(compare ,reg ,op)]
+      [`(jump-if ,relop ,label) `(jump-if ,relop ,label)]
       ;; Using a wildcard collapse case as it captures all other well-formed
       ;; expressions without transformation
       [_ s]))
