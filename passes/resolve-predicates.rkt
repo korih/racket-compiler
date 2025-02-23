@@ -15,11 +15,13 @@
 (define/contract (resolve-predicates p)
   (-> block-pred-lang-v4? block-asm-lang-v4?)
 
+  ;; block-pred-lang-v4.b -> block-asm-lang-v4.b
   (define (resolve-predicates-b b)
     (match b
       [`(define ,label ,tail)
        `(define ,label ,(resolve-predicates-tail tail))]))
 
+  ;; block-pred-lang-v4.tail -> block-asm-lang-v4.tail
   (define (resolve-predicates-tail t)
     (match t
       [`(if ,pred (jump ,trg1) (jump ,trg2))
@@ -29,6 +31,7 @@
       ;; 
       [_ t]))
 
+  ;; block-pred-lang-v4.pred -> (block-pred-lang-v4.tail block-pred-lang-v4.tail -> block-asm-lang-v4.tail)
   (define (resolve-predicates-pred p)
     (match p
       [`(,relop ,loc ,opand) (λ (t f) `(if ,p ,t ,f))]
