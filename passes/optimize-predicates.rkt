@@ -17,6 +17,9 @@
   ;; invariant: env contains a mapping of the locations to their currently known value ranges
   (define env empty-env)
 
+  ;; RangeValue is one-of:
+  ;; - (Pairof Integer Integer) representing the range [a, b]
+
   ;; nested-asm-lang-v4-tail -> nested-asm-lang-v4-tail
   ;; interp. optimize predicates in the program tail
   (define (optimize-predicates/tail t)
@@ -24,14 +27,16 @@
       [`(halt ,triv) `(halt ,triv)]
       [`(begin ,fx ... ,tail) `(begin ,@(map optimize-predicates/effect fx) ,(optimize-predicates/tail tail))]
       [`(if ,pred ,t-tail ,f-tail) (optimize-conditional pred
-                                                     (optimize-predicates/tail t-tail)
-                                                     (optimize-predicates/tail f-tail))]))
+                                                         (optimize-predicates/tail t-tail)
+                                                         (optimize-predicates/tail f-tail))]))
 
   ;; nested-asm-lang-v4-pred nested-asm-lang-v4-tail nested-asm-lang-v4-tail -> nested-asm-lang-v4-tail
+  ;; OR
+  ;; nested-asm-lang-v4-pred nested-asm-lang-v4-effect nested-asm-lang-v4-effect -> nested-asm-lang-v4-effect
   ;; interp. optimize the predicate if possible and return the corresponding tail
   (define (optimize-conditional pred k-t k-f)
     (match pred
-      [`(,relop ,loc ,triv) (void)]
+      [`(,relop ,loc ,triv) (interp-relop-conditional relop loc triv k-t k-f)]
       ['(true) k-t]
       ['(false) k-f]
       [`(not ,pred) (optimize-conditional pred k-f k-t)]
@@ -50,18 +55,29 @@
                           `(set! ,loc ,triv)]
       [`(set! ,loc (,binop ,loc ,triv))
        (define triv-val (interp-triv triv))
-       (set! env (extend-env env loc (interp-binop binop (lookup-env env loc) triv-val)))
+       (set! env (extend-env env loc (interp-binop binop loc triv-val)))
        `(set! ,loc ,triv-val)]
       [`(begin ,fx ...) `(begin ,@(map optimize-predicates/effect fx))]
-      [`(if ,pred ,t-e ,f-e) (void)]))
+      [`(if ,pred ,t-e ,f-e)
+       (optimize-conditional pred
+                             (optimize-predicates/effect t-e)
+                             (optimize-predicates/effect f-e))]))
 
   ;; nested-asm-lang-v4-binop RangeValue RangeValue -> RangeValue
   ;; interp. the known abstract value resulting from the binary operation
-  (define (interp-binop binop v1 v2) (void))
+  (define (interp-binop binop val1 val2) (void))
 
   ;; nested-asm-lang-v4-triv -> RangeValue
   ;; interp. the known value of the triv
   (define (interp-triv triv) (void))
+
+  ;; nested-asm-lang-v4-relop nested-asm-lang-v4-loc nested-asm-lang-v4-triv nested-asm-lang-v4-tail
+  ;; nested-asm-lang-v4-tail -> nested-asm-lang-v4-tail
+  ;; OR
+  ;; nested-asm-lang-v4-relop nested-asm-lang-v4-loc nested-asm-lang-v4-triv nested-asm-lang-v4-effect
+  ;; nested-asm-lang-v4-effect -> nested-asm-lang-v4-effect
+  ;; interp. optimize the relop if possible and return the corresponding expression
+  (define (interp-relop-conditional relop loc triv k-t k-f) (void))
 
   (match p
     [`(module ,tail) (optimize-predicates/tail tail)]))
