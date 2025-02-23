@@ -49,7 +49,6 @@
   ;; interp. optimize the predicate if possible and return the corresponding tail
   (define (optimize-conditional pred k-t k-f)
     (match pred
-      [`(,relop ,loc ,triv) (interp-relop-conditional relop loc triv k-t k-f)]
       ['(true) k-t]
       ['(false) k-f]
       [`(not ,pred) (optimize-conditional pred k-f k-t)]
@@ -58,23 +57,25 @@
       [`(if ,pred ,t-pred ,f-pred)
        (optimize-conditional pred
                              (optimize-conditional t-pred k-t k-f)
-                             (optimize-conditional f-pred k-t k-f))]))
+                             (optimize-conditional f-pred k-t k-f))]
+      [`(,relop ,loc ,triv) (interp-relop-conditional relop loc triv k-t k-f)]))
 
   ;; nested-asm-lang-v4-effect -> nested-asm-lang-v4-effect
   ;; interp. optimize predicates in the program effect
   (define (optimize-predicates/effect e)
     (match e
-      [`(set! ,loc ,triv) (set! env (extend-env env loc (interp-triv triv)))
-                          `(set! ,loc ,triv)]
-      [`(set! ,loc (,binop ,loc ,triv))
-       (define triv-val (interp-triv triv))
-       (set! env (extend-env env loc (interp-binop binop (interp-triv loc) triv-val)))
-       `(set! ,loc ,triv-val)]
       [`(begin ,fx ...) `(begin ,@(map optimize-predicates/effect fx))]
       [`(if ,pred ,t-e ,f-e)
        (optimize-conditional pred
                              (optimize-predicates/effect t-e)
-                             (optimize-predicates/effect f-e))]))
+                             (optimize-predicates/effect f-e))]
+      [`(set! ,loc (,binop ,loc ,triv))
+       (define triv-rv (interp-triv triv))
+       (define updated-rv (interp-binop binop (interp-triv loc) triv-rv))
+       (set! env (extend-env env loc updated-rv))
+       `(set! ,loc (,binop ,loc ,triv))]
+      [`(set! ,loc ,triv) (set! env (extend-env env loc (interp-triv triv)))
+                          `(set! ,loc ,triv)]))
 
   ;; nested-asm-lang-v4-binop RangeValue RangeValue -> RangeValue
   ;; interp. the known abstract value resulting from the binary operation
@@ -159,4 +160,10 @@
   (check-equal? (optimize-predicates '(module (begin (set! rbx rcx) (if (= rbx 5) (halt 0) (halt 1)))))
                 '(module (begin (set! rbx rcx) (if (= rbx 5) (halt 0) (halt 1)))))
   (check-equal? (optimize-predicates '(module (begin (set! rbx 33) (if (= rbx 44) (halt -1) (halt 3)))))
-                '(module (begin (set! rbx 33) (halt 3)))))
+                '(module (begin (set! rbx 33) (halt 3))))
+  (check-equal? (optimize-predicates `(module (begin (set! rcx rbx)
+                                                     (if (begin (set! rcx (+ rcx 10))
+                                                                (< rcx ,(+ (min-int 64) 10)))
+                                                         (halt 35)
+                                                         (halt 99)))))
+                '(module (begin (set! rcx rbx) (begin (set! rcx (+ rcx 10)) (halt 99))))))
