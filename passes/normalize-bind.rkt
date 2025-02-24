@@ -42,7 +42,7 @@
        `(if ,(normalize-bind-pred p)
             ,(cont v1)
             ,(cont v2))]
-      [`(,binop ,triv ,triv) value]
+      [`(,binop ,triv ,triv) (cont value)]
       [triv (cont triv)]))
 
   (define (normalize-bind-pred pred)
@@ -61,6 +61,9 @@
      `(module ,(normalize-bind-tail tail))]))
 
 (module+ test
+  (check-equal? (normalize-bind '(module (begin (set! x.6 (+ 2 3)) (set! x.7 (+ x.6 x.6)) (begin (set! y.2 5) x.6))))
+                '(module
+                     (begin (set! x.6 (+ 2 3)) (set! x.7 (+ x.6 x.6)) (begin (set! y.2 5) x.6))))
   (check-equal? (normalize-bind '(module (begin (set! x.1 (if (true) 1 2)) x.1)))
                 '(module (begin (if (true) (set! x.1 1) (set! x.1 2)) x.1)))
   (check-equal? (normalize-bind '(module (if (begin
