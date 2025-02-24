@@ -2,26 +2,26 @@
 
 (require
   cpsc411/compiler-lib
-  cpsc411/langs/v2
-  cpsc411/langs/v3
+  cpsc411/langs/v4
   rackunit)
 
 (provide select-instructions)
 
-;; imp-cmf-lang-v3 -> asm-lang-v2
-;; compiles p to asm-lang-v2 by selecting appropriate sequences of abstract
+;; Exercise 17
+;; imp-cmf-lang-v4 -> asm-pred-lang-v4
+;; compiles p to Asm-pred-lang v4 by selecting appropriate sequences of abstract
 ;; assembly instructions to implement the operations of the source language
 (define/contract (select-instructions p)
-  (-> imp-cmf-lang-v3? asm-lang-v2?)
+  (-> imp-cmf-lang-v4? asm-pred-lang-v4?)
 
-  ;; imp-cmf-lang-v3.tail -> bool
+  ;; imp-cmf-lang-v4.tail -> bool
   ;; produces true if the expression is a valid value in tail position
   (define (tail-value? e)
     (match e
       [`(begin ,fx ... ,tail) #f]
       [_ #t]))
 
-  ; imp-cmf-lang-v3.value -> (list (List-of asm-lang-v2.effect) aloc)
+  ; imp-cmf-lang-v4.value -> (list (List-of asm-pred-lang-v4.effect) aloc)
   ; Assigns the value v to a fresh temporary, returning two values: the list of
   ; statements the implement the assignment in Loc-lang, and the aloc that the
   ; value is stored in
@@ -33,9 +33,13 @@
          (list (append stmts1 stmts2 (list `(set! ,loc1 (,binop ,loc1 ,loc2)))) loc1))]
       [triv (select-triv triv)]))
 
-  ;; imp-cmf-lang-v3.tail -> asm-lang-v2.tail
+  ;; imp-cmf-lang-v4.tail -> asm-pred-lang-v4.tail
   (define (select-tail e)
     (match e
+      [`(if ,pred ,tail1 ,tail2)
+       `(if ,(select-pred pred)
+            ,(select-tail tail1)
+            ,(select-tail tail2))]
       [`(begin ,fx ... ,tail)
        (define compiled-fx (for/foldr ([instructions empty])
                              ([e fx])
@@ -51,7 +55,7 @@
                    `(halt ,loc)
                    `(begin ,@stmts (halt ,loc))))]))
 
-  ;; imp-cmf-lang-v3.value -> (list (List-of asm-lang-v2.effect) aloc)
+  ;; imp-cmf-lang-v4.value -> (list (List-of asm-pred-lang-v4.effect) aloc)
   (define (select-value e)
     (match e
       [`(,binop ,op1 ,op2)
@@ -63,14 +67,16 @@
              op1-tmp)]
       [triv (select-triv triv)]))
 
-  ;; imp-cmf-lang-v3.effect -> (List-of asm-lang-v2.effect)
+  ;; aloc imp-cmf-lang-v4.effect -> (List-of asm-pred-lang-v4.effect)
   (define (convert-set-expr x v)
     (match v
       [`(,binop ,op1 ,op2)
-       (list `(set! ,x ,op1) `(set! ,x (,binop ,x ,op2)))]
+       (cond
+         [(int64? op1) (list `(set! ,x ,op1) `(set! ,x (,binop ,x ,op2)))]
+         [else (list `(set! ,x (,binop ,x ,op2)))])]
       [triv (list `(set! ,x ,triv))]))
 
-  ;; imp-cmf-lang-v3.effect -> (List-of asm-lang-v2.effect)
+  ;; imp-cmf-lang-v4.effect -> (List-of asm-pred-lang-v4.effect)
   (define (select-effect e)
     (match e
       [`(set! ,x ,v) (convert-set-expr x v)]
@@ -78,35 +84,76 @@
        (define compiled-fx (for/foldr ([fx-acc empty])
                              ([e fx])
                              (append (select-effect e) fx-acc)))
-       (list `(begin ,@compiled-fx ,@(select-effect e)))]))
+       `(,@compiled-fx ,@(select-effect e))]
+      [`(if ,pred ,e1 ,e2)
+       (list `(if ,(select-pred pred)
+                  ,@(select-effect e1)
+                  ,@(select-effect e2)))]))
 
-  ;; imp-cmf-lang-v3.triv -> (list (List-of asm-lang-v2.effect) aloc)
+  ;; imp-cmf-lang-v4.triv -> (list (List-of asm-pred-lang-v4.effect) aloc)
   (define (select-triv t)
     (match t
       [x #:when (aloc? x) (list empty x)]
-      [x
+      [x #:when (int64? x)
        (define tmp (fresh 'tmp))
        (list (list `(set! ,tmp ,x)) tmp)]))
+
+  ;; imp-cmf-lang-v4.pred -> asm-pred-lang-v4.pred
+  (define (select-pred p)
+    (match p
+      [`(not ,pred)
+       `(not ,(select-pred pred))]
+      [`(begin ,fx ... ,pred)
+       (define compiled-fx (for/foldr ([fx-acc empty])
+                             ([e fx])
+                             (append (select-effect e) fx-acc)))
+       `(begin ,@compiled-fx ,(select-pred pred))]
+      [`(if ,pred1 ,pred2 ,pred3)
+       `(if ,(select-pred pred1) ,(select-pred pred2) ,(select-pred pred3))]
+      [`(,relop ,triv1 ,triv2)
+       (match-let ([`(,stmts ,loc) (select-triv triv1)])
+         (if (empty? stmts)
+             `(,relop ,loc ,triv2)
+             `(begin ,@stmts (,relop ,loc ,triv2))))]
+      ['(true) p]
+      ['(false) p]))
 
   (match p
     [`(module ,tail)
      `(module () ,(select-tail tail))]))
 
 (module+ test
-  (define cmf-lang-v3-1 '(module (+ 2 2)))
-  (check-equal? (interp-imp-cmf-lang-v3 cmf-lang-v3-1) (interp-asm-lang-v2 (select-instructions cmf-lang-v3-1)))
-
   (check-equal? (select-instructions '(module (begin (set! x.1 5) x.1)))
                 '(module () (begin (set! x.1 5) (halt x.1))))
   (check-equal? (select-instructions '(module (begin (set! x.1 (+ 2 2)) x.1)))
                 '(module () (begin (set! x.1 2) (set! x.1 (+ x.1 2)) (halt x.1))))
-
-  (define cmf-lang-v3-2 '(module (begin (set! x.1 2) (set! x.2 2) (+ x.1 x.2))))
-  (check-equal? (interp-imp-cmf-lang-v3 cmf-lang-v3-2) (interp-asm-lang-v2 (select-instructions cmf-lang-v3-2)))
-
   (check-equal? (select-instructions '(module (begin (begin (set! x.1 1)) x.1)))
-                '(module () (begin (begin (set! x.1 1)) (halt x.1))))
-
-  (define cmf-lang-v3-3 '(module (begin (set! foo.12 1) (begin (begin (set! x.14 1) (set! bar.13 (+ x.14 5)))
-                                                               (+ foo.12 bar.13)))))
-  (check-equal? (interp-imp-cmf-lang-v3 cmf-lang-v3-3) (interp-asm-lang-v2 (select-instructions cmf-lang-v3-3))))
+                '(module () (begin (set! x.1 1) (halt x.1))))
+  (check-equal? (select-instructions '(module (begin (set! x.1 2) (set! x.1 (+ x.1 x.1)) x.1)))
+                '(module () (begin (set! x.1 2) (set! x.1 (+ x.1 x.1)) (halt x.1))))
+  (check-equal? (select-instructions '(module (begin (set! x.1 2) (begin (set! x.1 (+ x.1 2))) x.1)))
+                '(module () (begin (set! x.1 2) (set! x.1 (+ x.1 2)) (halt x.1))))
+  (check-equal? (select-instructions '(module (begin (begin (begin 5)))))
+                '(module () (begin (begin (begin (set! tmp.1 5) (halt tmp.1))))))
+  (check-equal? (select-instructions '(module (begin
+                                                (begin
+                                                  (set! x.1 1)
+                                                  (set! x.2 2)
+                                                  (if (begin
+                                                        (set! x.2 (+ x.2 1))
+                                                        (= x.2 3))
+                                                      (set! x.1 (+ x.1 x.2))
+                                                      (set! x.1 (* x.1 x.2)))
+                                                  (if (if (not (> x.1 1)) (false) (true))
+                                                      x.1
+                                                      x.2)))))
+                '(module
+                     ()
+                   (begin
+                     (begin
+                       (set! x.1 1)
+                       (set! x.2 2)
+                       (if (begin (set! x.2 (+ x.2 1)) (= x.2 3))
+                           (set! x.1 (+ x.1 x.2))
+                           (set! x.1 (* x.1 x.2)))
+                       (if (if (not (> x.1 1)) (false) (true)) (halt x.1) (halt x.2)))))))

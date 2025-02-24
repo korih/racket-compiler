@@ -52,18 +52,18 @@
 
   (define (replace-locations-pred p)
     (match p
-      [`(,relop ,aloc ,triv)
-       (define reg (dict-ref assignments aloc))
-       `(,relop ,reg ,triv)]
       [`(true) `(true)]
       [`(false) `(false)]
-      [`(not ,pred) `(not ,(replace-locations-pred pred))]
       [`(begin ,effects ... ,pred)
        (define effects^
          (for/list ([effect effects])
            (replace-locations-effect effect)))
        (define pred^ (replace-locations-pred pred))
-       `(begin ,effects^ ,pred^)]
+       `(begin ,@effects^ ,pred^)]
+      [`(not ,pred) `(not ,(replace-locations-pred pred))]
+      [`(,relop ,aloc ,triv)
+       (define reg (dict-ref assignments aloc))
+       `(,relop ,reg ,triv)]
       [`(if ,p1 ,p2 ,p3)
        (define p1^ (replace-locations-pred p1))
        (define p2^ (replace-locations-pred p2))
@@ -84,6 +84,34 @@
 
 (module+ test
   (check-equal? (replace-locations '(module ((locals (x.1)) (assignment ((x.1 rax))))
+                                      (begin (set! x.1 1) (if (> x.1 0) (set! x.1 2) (set! x.1 3)) (halt x.1))))
+                '(module
+                     (begin (set! rax 1) (if (> rax 0) (set! rax 2) (set! rax 3)) (halt rax))))
+  (check-equal? (replace-locations '(module ((locals (x.1)) (assignment ((x.1 rax))))
+                                      (if (if (true) (true) (false)) (halt 1) (halt 0))))
+                '(module (if (if (true) (true) (false)) (halt 1) (halt 0))))
+  (check-equal? (replace-locations '(module ((locals (x.1)) (assignment ((x.1 rax))))
+                                      (if (begin (set! x.1 1) (begin (set! x.1 2) (set! x.1 3)) (> x.1 0)) (halt 1) (halt 0))))
+                '(module
+                     (if (begin (set! rax 1) (begin (set! rax 2) (set! rax 3)) (> rax 0))
+                         (halt 1)
+                         (halt 0))))
+  (check-equal? (replace-locations '(module ((locals (x.1)) (assignment ((x.1 rax))))
+                                      (if (begin (set! x.1 1) (set! x.1 1) (> x.1 0)) (halt 1) (halt 0))))
+                '(module (if (begin (set! rax 1) (set! rax 1) (> rax 0)) (halt 1) (halt 0))))
+  (check-equal? (replace-locations '(module ((locals (x.1)) (assignment ((x.1 rax))))
+                                      (if (begin (set! x.1 1) (> x.1 0)) (halt 1) (halt 0))))
+                '(module (if (begin (set! rax 1) (> rax 0)) (halt 1) (halt 0))))
+  (check-equal? (replace-locations '(module ((locals (x.1)) (assignment ((x.1 rax))))
+                                      (if (not (> x.1 1)) (halt 1) (halt 0))))
+                '(module (if (not (> rax 1)) (halt 1) (halt 0))))
+  (check-equal? (replace-locations '(module ((locals (x.1)) (assignment ((x.1 rax))))
+                                      (if (true) (halt 1) (halt 0))))
+                '(module (if (true) (halt 1) (halt 0))))
+  (check-equal? (replace-locations '(module ((locals (x.1)) (assignment ((x.1 rax))))
+                                      (if (> x.1 1) (halt 1) (halt 0))))
+                '(module (if (> rax 1) (halt 1) (halt 0))))
+  (check-equal? (replace-locations '(module ((locals (x.1)) (assignment ((x.1 rax))))
                                       (begin (if (true)
                                                  (begin
                                                    (set! x.1 (+ x.1 1))
@@ -95,17 +123,17 @@
                                                        (set! x.1 2)
                                                        (set! x.1 3))
                                                    (halt x.1))))))
-                '(module (begin (if (true)
-                            (begin
-                              (set! rax (+ rax 1))
-                              (if (> rax 0) (set! rax 1) (set! rax 0))
-                              (halt rax))
-                            (begin
-                              (set! rax (+ rax 2))
-                              (if (if (true) (false) (false))
-                                  (set! rax 2)
-                                  (set! rax 3))
-                              (halt rax))))))
+                '(module
+                     (begin
+                       (if (true)
+                           (begin
+                             (set! rax (+ rax 1))
+                             (if (> rax 0) (set! rax 1) (set! rax 0))
+                             (halt rax))
+                           (begin
+                             (set! rax (+ rax 2))
+                             (if (if (true) (false) (false)) (set! rax 2) (set! rax 3))
+                             (halt rax))))))
   (check-equal? (replace-locations '(module ((locals (x.1)) (assignment ((x.1 rax))))
                                       (begin (set! x.1 (+ x.1 1)) (halt x.1))))
                 '(module (begin (set! rax (+ rax 1)) (halt rax))))
