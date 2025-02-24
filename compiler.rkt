@@ -19,7 +19,8 @@
   "passes/generate-x64.rkt"
   "passes/resolve-predicates.rkt"
   "passes/optimize-predicates.rkt"
-  "passes/flatten-program.rkt")
+  "passes/flatten-program.rkt"
+  "passes/expose-basic-blocks.rkt")
 
 (require
   cpsc411/compiler-lib
@@ -47,10 +48,8 @@
 
 ;; Stubs; remove or replace with your definitions.
 (define-values (check-values-lang
-                interp-values-lang
-                expose-basic-blocks)
+                interp-values-lang)
   (values
-   values
    values
    values))
 

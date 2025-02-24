@@ -88,7 +88,7 @@
      (uncover-locals-tail t)
      `(module ,(info-set '() 'locals (set->list unique-alocs)) ,t)]))
 
-(module+ test
+(module+ test   
   (check-equal? (uncover-locals '(module () (begin (set! x.1 0) (halt x.1))))
                 '(module ((locals (x.1))) (begin (set! x.1 0) (halt x.1))))
   (match-let ([`(module ((locals (,ls ...))) ,_) (uncover-locals '(module () (begin (set! x.1 0)
