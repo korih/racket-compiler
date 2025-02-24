@@ -22,14 +22,14 @@
        (define-values (t-ust undead-out)
          (analyze-tail tail))
 
-       (define-values (rev-ust undead-in)
+       (define-values (ust undead-in)
          (for/foldr ([rev-ust (list t-ust)]
                      [undead-out undead-out])
            ([effect effects])
            (define-values (ust undead-in)
              (analyze-effects effect undead-out))
            (values (cons ust rev-ust) undead-in)))
-       (values rev-ust undead-in)]
+       (values ust undead-in)]
 
       [`(if ,pred ,t1 ,t2)
        (define-values (t1-ust t1-undead-out) (analyze-tail t1))
@@ -55,14 +55,14 @@
   (define (analyze-effects e undead-out)
     (match e
       [`(begin ,effects ...)
-       (define-values (rev-ust undead-in)
-         (for/foldr ([rev-ust '()]
-                     [undead-out undead-out])
+       (define-values (e-ust undead-in)
+         (for/foldr ([acc-ust '()]
+                     [undead-out^ undead-out])
            ([effect effects])
            (define-values (ust undead-in)
-             (analyze-effects effect undead-out))
-           (values (cons ust rev-ust) undead-in)))
-       (values rev-ust undead-in)]
+             (analyze-effects effect undead-out^))
+           (values (cons ust acc-ust) undead-in)))
+       (values e-ust undead-in)]
       [`(set! ,aloc_1 (,binop ,aloc_1 ,triv))
        (define undead-in (set-union
                           (set-add
@@ -87,13 +87,12 @@
        (values (cons ust p-ust) p-undead-out)]))
 
   ;; (asm-pred-lang-v4/locals pred) -> (ListOf undead-set-tree) (Listof undead-in-set)
-  ;; go through the tail and analyze the undead sets
-  (define (analyze-pred p undead-in)
+  ;; go through the pred and analyze the undead sets
+  (define (analyze-pred p undead-out)
     (match p
       [`(,relop ,aloc ,triv)
-       ;; reference so we know aloc and/or triv are undead here
-       (define undead-out (set-union (set-add undead-in aloc) (analyze-triv triv)))
-       (values undead-in undead-out)]
+       (define undead-in (set-union (set-add undead-out aloc) (analyze-triv triv)))
+       (values undead-out undead-in)]
       [`(not ,pred)
        (define-values (ust undead-out) (analyze-pred pred))
        (values ust undead-out)]
@@ -111,10 +110,10 @@
        (values e-ust e-undead-out)]
 
       [`(if ,p1 ,p2 ,p3)
-       (define-values (p3-ust p3-undead-out) (analyze-pred p3 undead-in))
-       (define-values (p2-ust p2-undead-out) (analyze-pred p2 undead-in))
+       (define-values (p3-ust p3-undead-in) (analyze-pred p3 undead-out))
+       (define-values (p2-ust p2-undead-in) (analyze-pred p2 undead-out))
 
-       (define pred-undead-in (set-union p3-undead-out p2-undead-out))
+       (define pred-undead-in (set-union p3-undead-in p2-undead-in))
        (define ust (list p3-ust p2-ust))
 
        (define-values (p1-ust p1-undead-out) (analyze-pred p1 pred-undead-in))
@@ -145,6 +144,7 @@
      `(module ,(compile-info info tail) ,tail)]))
 
 (module+ test
+
   (check-equal? (undead-analysis
                  '(module ((locals ()))
                     (halt x.1)))
@@ -297,15 +297,8 @@
                                               (halt c.4)))))))
                 '(module
                      ((locals (x.1 y.2 b.3 c.4))
-                      (undead-out ((x.1)
-                                   (x.1 y.2)
-                                   ((y.2 b.3)
-                                    (b.3)
-                                    (b.3 c.4)
-                                    ((c.4)
-                                     ()
-                                     ((c.4)
-                                      ()))))))
+                      (undead-out
+                       ((x.1) (x.1 y.2) ((y.2 b.3) (b.3) (b.3 c.4) ((c.4) () ((c.4) ()))))))
                    (begin
                      (set! x.1 5)
                      (set! y.2 x.1)
@@ -313,8 +306,4 @@
                        (set! b.3 x.1)
                        (set! b.3 (+ b.3 y.2))
                        (set! c.4 b.3)
-                       (if (= c.4 b.3)
-                           (halt c.4)
-                           (begin
-                             (set! x.1 c.4)
-                             (halt c.4))))))))
+                       (if (= c.4 b.3) (halt c.4) (begin (set! x.1 c.4) (halt c.4))))))))

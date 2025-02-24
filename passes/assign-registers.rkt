@@ -3,19 +3,18 @@
 (require
   cpsc411/compiler-lib
   cpsc411/graph-lib
-  cpsc411/langs/v2
-  cpsc411/langs/v2-reg-alloc
+  cpsc411/langs/v4
   rackunit)
 
 (provide assign-registers)
 
 ;; Exercise 3
-;; asm-lang-v2/conflicts -> asm-lang-v2/assignments
+;; asm-lang-v4/conflicts -> asm-lang-v4/assignments
 ;; compiles p to asm-lang-v2/assignments by attempting to fit each of the
 ;; abstract location declared in the locals set into a register, and if one
 ;; cannot be found, assigns it a frame variable instead
 (define/contract (assign-registers p)
-  (-> asm-lang-v2/conflicts? asm-lang-v2/assignments?)
+  (-> asm-pred-lang-v4/conflicts? asm-pred-lang-v4/assignments?)
 
   (define (graph-colouring-register-allocation conflict-graph registers)
     (define fvar-index 0)
