@@ -6,22 +6,22 @@
 (require
   cpsc411/compiler-lib
   cpsc411/graph-lib
-  cpsc411/langs/v2-reg-alloc
+  cpsc411/langs/v4
   rackunit)
 
 (provide conflict-analysis)
 
 ;; Exercise 2
-;; asm-lang-v2/undead -> asm-lang-v2/conflicts
-;; compiles p to asm-lang-v2/conflicts by decorating p with its conflict graph
+;; asm-pred-lang-v4/undead -> asm-pred-lang-v4/conflicts
+;; compiles p by decorating p with its conflict graph
 (define/contract (conflict-analysis p)
-  (-> asm-lang-v2/undead? asm-lang-v2/conflicts?)
+  (-> asm-pred-lang-v4/undead? asm-pred-lang-v4/conflicts?)
 
   ;; acc is Graph
   ;; the conflict graphs of abstract locations
   (define conflict-graph (void))
-  
-  ;; asm-lang-v2/undead-tail -> asm-lang-v2/conflicts-tail
+
+  ;; undead-set-tree asm-pred-lang-v4/undead-tail -> asm-pred-lang-v4/conflicts-tail
   ;; produce the tail of the program while adding conflicts to the conflict graph
   (define (conflict-analysis/tail udt tail)
     (match (cons udt tail)
@@ -30,9 +30,32 @@
        (define compiled-effects (for/list ([e fx]
                                            [udt-e undead-set-trees])
                                   (conflict-analysis/effect udt-e e)))
-       `(begin ,@compiled-effects ,(conflict-analysis/tail undead-set-tree-tail inner-tail))]))
-  
-  ;; undead-set-tree asm-lang-v2/undead-effect -> asm-lang-v2/conflicts-effect
+       `(begin ,@compiled-effects ,(conflict-analysis/tail undead-set-tree-tail inner-tail))]
+      [(cons `(,undead-set-tree-p ,undead-set-tree-t ,undead-set-tree-f) `(if ,pred ,tail-t ,tail-f))
+       `(if ,(conflict-analysis/predicate undead-set-tree-p pred)
+            ,(conflict-analysis/tail undead-set-tree-t tail-t)
+            ,(conflict-analysis/tail undead-set-tree-f tail-f))]))
+
+  ;; undead-set-tree asm-pred-lang-v4-pred -> asm-pred-lang-v4-pred
+  ;; produce the predicate while adding conflicts to the conflict graph
+  (define (conflict-analysis/predicate udt pred)
+    (match (cons udt pred)
+      [(cons '() '(true)) '(true)]
+      [(cons '() '(false)) '(false)]
+      [(cons undead-set-tree `(not ,pred)) `(not ,(conflict-analysis/predicate undead-set-tree pred))]
+      [(cons `(,udts ... ,udt-p) `(begin ,fx ... ,pred))
+       `(begin ,@(for/list ([e fx]
+                            [udt-e udts])
+                   (conflict-analysis/effect udt-e e))
+               (conflict-analysis/predicate udt-p pred))]
+      [(cons `(,udt-p ,udt-t ,udt-f) `(if ,pred ,pred ,pred))
+       `(if ,(conflict-analysis/predicate udt-p pred)
+            ,(conflict-analysis/predicate udt-t pred)
+            ,(conflict-analysis/predicate udt-f pred))]
+      [(cons '() `(,relop ,aloc ,triv))
+       `(,relop ,aloc ,triv)]))
+
+  ;; undead-set-tree asm-pred-lang-v4/undead-effect -> asm-pred-lang-v4/conflicts-effect
   ;; interp. identify abstract location conflicts and add them to the conflict graph
   (define (conflict-analysis/effect udt e)
     (match (cons udt e)
@@ -50,20 +73,24 @@
        (analyze-move-instruction undead-out
                                  aloc
                                  (get-aloc-set triv))
-       `(set! ,aloc ,triv)]))
-  
+       `(set! ,aloc ,triv)]
+      [(cons `(,udt-p ,udt-t ,udt-f) `(if ,pred ,t-e ,f-e))
+       `(if ,(conflict-analysis/predicate udt-p pred)
+            ,(conflict-analysis/effect udt-t t-e)
+            ,(conflict-analysis/effect udt-f f-e))]))
+
   ;; undead-set-tree aloc? (listof aloc?) -> (void)
   ;; interp. track the conflict resulting from the move instruction to the dest aloc in the conflict graph
   (define (analyze-move-instruction udt dest src)
     (set! conflict-graph (add-edges conflict-graph dest (set-subtract udt (list dest) src))))
-  
-  ;; asm-lang-v2/undead-triv -> (setof aloc?)
+
+  ;; asm-pred-lang-v4/undead-triv -> (setof aloc?)
   ;; interp. get the abstract location if this triv is an aloc, otherwise return an empty list
   (define (get-aloc-set triv)
     (match triv
       [`,triv #:when (aloc? triv) (list triv)]
       [_ empty]))
-  
+
   (match p
     [`(module ,info ,tail)
      (set! conflict-graph (new-graph (info-ref info 'locals)))
@@ -137,4 +164,33 @@
                                                                        (halt x.2))))))
     [`(module ((locals ,ls) (conflicts ,conflicts)) ,tail)
      (check-true (set=? (get-neighbors conflicts 'x.1) (list 'x.2)))
-     (check-true (set=? (get-neighbors conflicts 'x.2) (list 'x.1)))]))
+     (check-true (set=? (get-neighbors conflicts 'x.2) (list 'x.1)))])
+
+  (match (conflict-analysis (undead-analysis (uncover-locals '(module ()
+                                                                (begin (set! x.1 1)
+                                                                       (set! x.2 x.1)
+                                                                       (set! x2 (+ x.2 x.1))
+                                                                       (if (> x.2 2)
+                                                                           (set! x.3 3)
+                                                                           (set! x.3 4))
+                                                                       (set! x.2 (+ x.2 x.3))
+                                                                       (halt x.2))))))
+    [`(module ((locals ,ls) (conflicts ,conflicts)) ,tail)
+     (check-true (set=? (get-neighbors conflicts 'x.1) empty))
+     (check-true (set=? (get-neighbors conflicts 'x.2) (list 'x.1)))
+     (check-true (set=? (get-neighbors conflicts 'x.3) (list 'x.2)))])
+
+  (match (conflict-analysis (undead-analysis (uncover-locals '(module ()
+                                                                (if (if (begin (set! x.1 1)
+                                                                               (set! x.2 x.1)
+                                                                               (set! x.3 x.1)
+                                                                               (set! x.3 (+ x.3 x.2))
+                                                                               (true))
+                                                                        (true)
+                                                                        (false))
+                                                                    (halt x.3)
+                                                                    (halt x.2))))))
+    [`(module ((locals ,ls) (conflicts ,conflicts)) ,tail)
+     (check-true (set=? (get-neighbors conflicts 'x.1) empty))
+     (check-true (set=? (get-neighbors conflicts 'x.2) (list 'x.1)))
+     (check-true (set=? (get-neighbors conflicts 'x.3) (list 'x.2)))]))
