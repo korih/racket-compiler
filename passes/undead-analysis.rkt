@@ -13,7 +13,7 @@
 (define/contract (undead-analysis p)
   (-> asm-pred-lang-v4/locals? asm-pred-lang-v4/undead?)
 
-  ;; (asm-pred-lang-v4/locals tail) -> (ListOf undead-set-tree) (Listof undead-in-set)
+  ;; (asm-pred-lang-v4/locals tail) -> undead-set-tree undead-out-set
   ;; go through the tail and analyze the undead sets
   (define (analyze-tail t)
     (match t
@@ -50,7 +50,7 @@
                        (analyze-triv triv))
                      (values '() undead-in)]))
 
-  ;; (asm-pred-lang-v4/locals effects) -> (ListOf undead-set-tree) (Listof undead-in-set)
+  ;; (asm-pred-lang-v4/locals effects) undead-in-set -> undead-set-tree undead-out-set
   ;; look through effects and create a undead-set-tree and undead-in-set for current effect
   (define (analyze-effects e undead-out)
     (match e
@@ -84,21 +84,18 @@
 
        (define-values (p-ust p-undead-out) (analyze-pred pred effect-undead-in))
 
-       (values (cons ust p-ust) p-undead-out)]))
+       (values (cons p-ust ust) p-undead-out)]))
 
-  ;; (asm-pred-lang-v4/locals pred) -> (ListOf undead-set-tree) (Listof undead-in-set)
+  ;; (asm-pred-lang-v4/locals pred) undead-in-set -> undead-set-tree undead-out-set
   ;; go through the pred and analyze the undead sets
   (define (analyze-pred p undead-out)
     (match p
-      [`(,relop ,aloc ,triv)
-       (define undead-in (set-union (set-add undead-out aloc) (analyze-triv triv)))
-       (values undead-out undead-in)]
       [`(not ,pred)
-       (define-values (ust undead-out) (analyze-pred pred))
-       (values ust undead-out)]
+       (define-values (ust p-undead-out) (analyze-pred pred undead-out))
+       (values ust p-undead-out)]
       [`(begin ,effects ... ,pred)
        (define-values (p-out p-undead-out)
-         (analyze-pred pred))
+         (analyze-pred pred undead-out))
 
        (define-values (e-ust e-undead-out)
          (for/foldr ([ust^ (list p-out)]
@@ -119,10 +116,14 @@
        (define-values (p1-ust p1-undead-out) (analyze-pred p1 pred-undead-in))
        (values (cons p1-ust ust) p1-undead-out)] ; just call pred for each one then combine?
 
-      ;; catch case where pred is true or false
-      [_ '()]))
+      [`(,relop ,aloc ,triv)
+       (define undead-in (set-union (set-add undead-out aloc) (analyze-triv triv)))
+       (values undead-out undead-in)]
 
-  ;; (asm-pred-lang-v4/locals triv) -> (Listof undead-in-set)
+      ;; catch case where pred is true or false
+      [_ (values undead-out undead-out)]))
+
+  ;; (asm-pred-lang-v4/locals triv) -> (Listof aloc)
   ;; analyze the triv value, if its an aloc return it as a list
   ;; for the undead-in set, if not then return empty list
   (define (analyze-triv triv)
@@ -130,7 +131,7 @@
       [x #:when (aloc? x) (list x)]
       [_ '()]))
 
-  ;; info (asm-pred-lang-v4/locals tail) -> (Listof undead-in-set)
+  ;; info (asm-pred-lang-v4/locals tail) -> (asm-pred-lang-v4/undead info)
   ;; analyze the tail and add the undead set tree to the info
   (define (compile-info i tail)
     (match i
@@ -306,4 +307,59 @@
                        (set! b.3 x.1)
                        (set! b.3 (+ b.3 y.2))
                        (set! c.4 b.3)
-                       (if (= c.4 b.3) (halt c.4) (begin (set! x.1 c.4) (halt c.4))))))))
+                       (if (= c.4 b.3) (halt c.4) (begin (set! x.1 c.4) (halt c.4)))))))
+  (check-equal? (undead-analysis '(module ((locals (x.1 x.2 x.3)))
+                                    (if (if (begin (set! x.1 1)
+                                                   (set! x.2 x.1)
+                                                   (set! x.3 x.1)
+                                                   (set! x.3 (+ x.3 x.2))
+                                                   (true))
+                                            (true)
+                                            (false))
+                                        (halt x.3)
+                                        (halt x.2))))
+                '(module ((locals (x.1 x.2 x.3))
+                          (undead-out ((((x.1)
+                                         (x.1 x.2)
+                                         (x.3 x.2)
+                                         (x.2 x.3)
+                                         (x.2 x.3))
+                                        (x.2 x.3)
+                                        (x.2 x.3))
+                                       ()
+                                       ())))
+                   (if (if (begin (set! x.1 1)
+                                  (set! x.2 x.1)
+                                  (set! x.3 x.1)
+                                  (set! x.3 (+ x.3 x.2))
+                                  (true))
+                           (true)
+                           (false))
+                       (halt x.3)
+                       (halt x.2))))
+  (check-equal? (undead-analysis '(module ((locals (x.1 x.2 x.3)))
+                                    (begin (set! x.1 1)
+                                           (set! x.2 x.1)
+                                           (set! x.2 (+ x.2 x.1))
+                                           (if (> x.2 2)
+                                               (set! x.3 3)
+                                               (set! x.3 4))
+                                           (set! x.2 (+ x.2 x.3))
+                                           (halt x.2))))
+                '(module ((locals (x.1 x.2 x.3))
+                          (undead-out ((x.1)
+                                       (x.1 x.2)
+                                       (x.2)
+                                       ((x.2)
+                                        (x.3 x.2)
+                                        (x.3 x.2))
+                                       (x.2)
+                                       ())))
+                   (begin (set! x.1 1)
+                          (set! x.2 x.1)
+                          (set! x.2 (+ x.2 x.1))
+                          (if (> x.2 2)
+                              (set! x.3 3)
+                              (set! x.3 4))
+                          (set! x.2 (+ x.2 x.3))
+                          (halt x.2)))))

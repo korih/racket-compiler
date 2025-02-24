@@ -40,19 +40,19 @@
   ;; produce the predicate while adding conflicts to the conflict graph
   (define (conflict-analysis/predicate udt pred)
     (match (cons udt pred)
-      [(cons '() '(true)) '(true)]
-      [(cons '() '(false)) '(false)]
+      [(cons undead-set-tree '(true)) '(true)]
+      [(cons undead-set-tree '(false)) '(false)]
       [(cons undead-set-tree `(not ,pred)) `(not ,(conflict-analysis/predicate undead-set-tree pred))]
       [(cons `(,udts ... ,udt-p) `(begin ,fx ... ,pred))
        `(begin ,@(for/list ([e fx]
                             [udt-e udts])
                    (conflict-analysis/effect udt-e e))
-               (conflict-analysis/predicate udt-p pred))]
-      [(cons `(,udt-p ,udt-t ,udt-f) `(if ,pred ,pred ,pred))
+               ,(conflict-analysis/predicate udt-p pred))]
+      [(cons `(,udt-p ,udt-t ,udt-f) `(if ,pred ,t-pred ,f-pred))
        `(if ,(conflict-analysis/predicate udt-p pred)
-            ,(conflict-analysis/predicate udt-t pred)
-            ,(conflict-analysis/predicate udt-f pred))]
-      [(cons '() `(,relop ,aloc ,triv))
+            ,(conflict-analysis/predicate udt-t t-pred)
+            ,(conflict-analysis/predicate udt-f f-pred))]
+      [(cons undead-set-tree `(,relop ,aloc ,triv))
        `(,relop ,aloc ,triv)]))
 
   ;; undead-set-tree asm-pred-lang-v4/undead-effect -> asm-pred-lang-v4/conflicts-effect
@@ -169,7 +169,7 @@
   (match (conflict-analysis (undead-analysis (uncover-locals '(module ()
                                                                 (begin (set! x.1 1)
                                                                        (set! x.2 x.1)
-                                                                       (set! x2 (+ x.2 x.1))
+                                                                       (set! x.2 (+ x.2 x.1))
                                                                        (if (> x.2 2)
                                                                            (set! x.3 3)
                                                                            (set! x.3 4))
@@ -177,7 +177,7 @@
                                                                        (halt x.2))))))
     [`(module ((locals ,ls) (conflicts ,conflicts)) ,tail)
      (check-true (set=? (get-neighbors conflicts 'x.1) empty))
-     (check-true (set=? (get-neighbors conflicts 'x.2) (list 'x.1)))
+     (check-true (set=? (get-neighbors conflicts 'x.2) (list 'x.3)))
      (check-true (set=? (get-neighbors conflicts 'x.3) (list 'x.2)))])
 
   (match (conflict-analysis (undead-analysis (uncover-locals '(module ()
@@ -192,5 +192,5 @@
                                                                     (halt x.2))))))
     [`(module ((locals ,ls) (conflicts ,conflicts)) ,tail)
      (check-true (set=? (get-neighbors conflicts 'x.1) empty))
-     (check-true (set=? (get-neighbors conflicts 'x.2) (list 'x.1)))
+     (check-true (set=? (get-neighbors conflicts 'x.2) (list 'x.3)))
      (check-true (set=? (get-neighbors conflicts 'x.3) (list 'x.2)))]))
