@@ -2,21 +2,32 @@
 
 (require
   cpsc411/compiler-lib
-  cpsc411/langs/v4)
+  cpsc411/langs/v4
+  rackunit)
 
 (provide patch-instructions)
 
-;; para-asm-lang -> paren-x64-fvars
-;; compile program by patching instructions that have to x64 equivilent
-;; into sequences of equivilent instructions
+;; para-asm-lang-v4 -> paren-x64-fvars-v4
+;; compiles p to to Paren-x64-fvars v4 by patching each instruction that has no
+;; x64 analogue into a sequence of instructions using auxiliary register from
+;; current-patch-instructions-registers
 (define/contract (patch-instructions p)
   (-> para-asm-lang-v4? paren-x64-fvars-v4?)
 
-  ;; (para-asm-lang s) -> (paren-x64-fvars effect)
-  ;; compiles effectful operations in para-asm-lang-v2 to sequence of
-  ;; instructions equivilent in paren-x64-fvars-v2
-  (define (compile-s e)
-    (match e
+  ;; relop -> relop
+  ;; produces the negation of relop
+  (define (negate-relop relop)
+    (match relop
+      [`< `>=]
+      [`<= `>]
+      [`= `!=]
+      [`>= `<]
+      [`> `<=]
+      [`!= `=]))
+
+  ;; para-asm-lang-v4.s -> paren-x64-fvars-v4.s
+  (define (compile-s s)
+    (match s
       ;; triv is now also a label
       [`(set! ,loc (,binop ,loc ,triv))
        (cond
@@ -53,7 +64,6 @@
           `((set! ,patch-reg ,triv)
             (set! ,loc ,patch-reg))]
          [else (list `(set! ,loc ,triv))])]
-
       [`(with-label ,label ,s)
        (define s-compiled (compile-s s))
        (if (empty? (rest s-compiled))
@@ -92,23 +102,6 @@
        `(,@(compile-s set-rax)
          (jump done))]))
 
-  ;; negate a relop conditional
-  (define (negate-relop relop)
-    (match relop
-      [`< `>=]
-      [`<= `>]
-      [`= `!=]
-      [`>= `<]
-      [`> `<=]
-      [`!= `=]))
-
-  ;; compiles para-asm-lang-v2 halt to set return register in paren-x64-fvars-v2
-  (define (compile-p p)
-    (match p
-      [`(halt ,triv)
-       (define ret (current-return-value-register))
-       `(set! ,ret ,triv)]))
-
   (match p
     [`(begin ,effects ...)
      (define effects^ (for/list ([effect effects])
@@ -116,9 +109,19 @@
      `(begin ,@(apply append effects^))]))
 
 
-;; v2 tests which no longer work
 (module+ test
-  (require rackunit)
+  (check-equal? (patch-instructions '(begin
+                                       (with-label L.tmp.1
+                                         (set! rax 10))
+                                       (set! fv1 2)
+                                       (compare rax fv1)
+                                       (jump-if != L.tmp.1)))
+                '(begin
+                   (with-label L.tmp.1 (set! rax 10))
+                   (set! fv1 2)
+                   (set! r10 fv1)
+                   (compare rax r10)
+                   (jump-if != L.tmp.1)))
   (check-equal? (patch-instructions '(begin (set! fv0 0) (set! fv1 1) (compare fv0 fv1) (jump-if > L.foo.1) (halt 0) (with-label L.foo.1 (halt 1))))
                 '(begin
                    (set! fv0 0)
@@ -167,7 +170,7 @@
                          (halt rbx)
                          (with-label L.my_label.1 (halt 32))
                          (with-label L.my_label.2 (halt 42))))
-                `(begin
+                '(begin
                    (set! rbx 42)
                    (set! r10 L.my_label.1)
                    (set! fv0 r10)
@@ -175,9 +178,9 @@
                    (set! fv1 r10)
                    (compare rbx 42)
                    (set! r10 fv0)
-                   (jump-if != L.tmp.3)
+                   (jump-if != L.tmp.4)
                    (jump r10)
-                   (with-label L.tmp.3 (set! r10 r10))
+                   (with-label L.tmp.4 (set! r10 r10))
                    (set! rax rbx)
                    (jump done)
                    (with-label L.my_label.1 (set! rax 32))
@@ -215,47 +218,6 @@
                    (jump rbx)
                    (set! rax 1)
                    (jump done)))
-  #;
-  (check-equal? (patch-instructions
-                 `(begin
-                    (set! rbx 1)
-                    (compare rbx fv1)
-                    (jump-if > rbx)
-                    (halt 2)
-                    (with-label ,label (halt 1))))
-                `(begin
-                   (set! rbx 1)
-                   (set! r10 fv1)
-                   (compare rbx r10)
-                   (jump-if <= L.tmp.2)
-                   (jump rbx)
-                   (with-label L.tmp.2 (set! r10 r10))
-                   (set! rax 2)
-                   (jump done)
-                   (with-label L.tmp.1 (set! rax 1))
-                   (jump done)))
-  #;
-  (check-equal? (patch-instructions
-                 `(begin
-                    (set! rbx 1)
-                    (compare rbx 0)
-                    (jump-if > rbx)
-                    (halt 2)
-                    (with-label ,label (halt 1))))
-                `(begin
-                   (set! rbx 1)
-                   (compare rbx 0)
-                   (jump-if <= L.tmp.3)
-                   (jump rbx)
-                   (with-label L.tmp.3 (set! r10 r10))
-                   (set! rax 2)
-                   (jump done)
-                   (with-label L.tmp.1 (set! rax 1))
-                   (jump done)))
-  #;
-  (check-equal? (patch-instructions
-                 `(begin (jump ,label) (with-label ,label (halt 1)) (halt 2)))
-                `(begin (jump ,label) (with-label ,label (set! rax 1)) (jump done)(set! rax 2) (jump done)))
   (check-equal? (patch-instructions
                  '(begin (set! rbx 42) (halt rbx)))
                 '(begin (set! rbx 42) (set! rax rbx) (jump done)))
@@ -321,4 +283,19 @@
                    (set! r10 (+ r10 4))
                    (set! fv2 r10)
                    (set! rax fv2)
-                   (jump done))))
+                   (jump done)))
+  (check-equal? (patch-instructions '(begin
+                                       (with-label L.start.1 (set! rax 5))
+                                       (jump L.start.1)))
+                '(begin (with-label L.start.1 (set! rax 5)) (jump L.start.1)))
+  (check-equal? (patch-instructions '(begin
+                                       (set! fv0 10)
+                                       (set! r9 fv0)
+                                       (with-label L.init.1 (set! fv0 100))
+                                       (compare fv0 100)))
+                '(begin
+                   (set! fv0 10)
+                   (set! r9 fv0)
+                   (with-label L.init.1 (set! fv0 100))
+                   (set! r10 fv0)
+                   (compare r10 100))))
