@@ -24,7 +24,6 @@
 (require
   cpsc411/compiler-lib
   cpsc411/2c-run-time
-  cpsc411/langs/v2
   cpsc411/langs/v3)
 
 #;
