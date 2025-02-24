@@ -144,6 +144,7 @@
      `(module ,(compile-info info tail) ,tail)]))
 
 (module+ test
+
   (check-equal? (undead-analysis
                  '(module ((locals ()))
                     (halt x.1)))
@@ -296,15 +297,8 @@
                                               (halt c.4)))))))
                 '(module
                      ((locals (x.1 y.2 b.3 c.4))
-                      (undead-out ((x.1)
-                                   (x.1 y.2)
-                                   ((y.2 b.3)
-                                    (b.3)
-                                    (b.3 c.4)
-                                    ((c.4)
-                                     ()
-                                     ((c.4)
-                                      ()))))))
+                      (undead-out
+                       ((x.1) (x.1 y.2) ((y.2 b.3) (b.3) (b.3 c.4) ((c.4) () ((c.4) ()))))))
                    (begin
                      (set! x.1 5)
                      (set! y.2 x.1)
@@ -312,8 +306,4 @@
                        (set! b.3 x.1)
                        (set! b.3 (+ b.3 y.2))
                        (set! c.4 b.3)
-                       (if (= c.4 b.3)
-                           (halt c.4)
-                           (begin
-                             (set! x.1 c.4)
-                             (halt c.4))))))))
+                       (if (= c.4 b.3) (halt c.4) (begin (set! x.1 c.4) (halt c.4))))))))
