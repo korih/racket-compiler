@@ -17,7 +17,9 @@
   "passes/undead-analysis.rkt"
   "passes/uniquify.rkt"
   "passes/generate-x64.rkt"
-  "passes/resolve-predicates.rkt")
+  "passes/resolve-predicates.rkt"
+  "passes/optimize-predicates.rkt"
+  "passes/flatten-program.rkt")
 
 (require
   cpsc411/compiler-lib
@@ -36,10 +38,9 @@
  interp-paren-x64
  interp-values-lang
  check-values-lang
- optimize-predicates
  expose-basic-blocks
- resolve-predicates
- flatten-program)
+ compile-m2
+ compile-m3)
 
 ;; Template support macro; feel free to delete
 (define-syntax-rule (.... stx ...)
@@ -48,12 +49,8 @@
 ;; Stubs; remove or replace with your definitions.
 (define-values (check-values-lang
                 interp-values-lang
-                optimize-predicates
-                expose-basic-blocks
-                flatten-program)
+                expose-basic-blocks)
   (values
-   values
-   values
    values
    values
    values))
