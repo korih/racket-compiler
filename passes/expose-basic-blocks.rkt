@@ -28,67 +28,61 @@
   (define (expose-basic-blocks-tail t)
     (match t
       [`(halt ,triv) t]
-      [`(begin ,e ... ,tail)
-       (define effects (for/fold ([fx-acc empty])
-                         ([e e])
-                                 (append fx-acc (expose-basic-blocks-effect e))))
-       (define new-tail (expose-basic-blocks-tail tail))
-       (if (empty? effects)
-         new-tail
-         `(begin ,@effects ,new-tail))]
-      [`(if ,pred ,tail1 ,tail2)
-       (let* ([tail1-label (fresh-label)]
-              [tail2-label (fresh-label)])
-         (add-block `(define ,tail2-label ,(expose-basic-blocks-tail tail2)))
-         (add-block `(define ,tail1-label ,(expose-basic-blocks-tail tail1)))
-         ((expose-basic-blocks-pred pred) tail1-label tail2-label))]))
+      [`(begin ,e ... ,tail) (void)]
 
-  ;; nested-asm-lang-v4.effect -> (listof block-pred-lang-v4.effect)
-  (define (expose-basic-blocks-effect e)
-    (match e
-      [`(set! ,loc ,triv) (list `(set! ,loc ,triv))]
-      [`(set! ,loc (,binop ,loc ,triv)) (list `(set! ,loc (,binop ,loc ,triv)))]
-      [`(begin ,e ...)
-       (for/fold ([fx empty])
-         ([e e])
-                 (append fx (expose-basic-blocks-effect e)))]
-      [`(if ,pred ,e1 ,e2)
-       (let* ([merge-label (fresh-label)]
-              [lab1 (fresh-label)]
-              [lab2 (fresh-label)]
-              [updated-e1 (expose-basic-blocks-effect e1)]
-              [updated-e2 (expose-basic-blocks-effect e2)])
-         (add-block `(define ,lab1 (begin ,updated-e1 (jump ,merge-label))))
-         (add-block `(define ,lab2 (begin ,updated-e2 (jump ,merge-label))))
-         ((expose-basic-blocks-pred pred) lab1 lab2))]))
+       [`(if ,pred ,tail1 ,tail2)
+        (let* ([tail1-label (fresh-label)]
+               [tail2-label (fresh-label)])
+          (add-block `(define ,tail2-label ,(expose-basic-blocks-tail tail2)))
+          (add-block `(define ,tail1-label ,(expose-basic-blocks-tail tail1)))
+          ((expose-basic-blocks-pred pred) tail1-label tail2-label))]))
 
-  ;; nested-asm-lang-v4.pred -> (block-pred-lang-v4.trg block-pred-lang-v4.trg -> block-pred-lang-v4.tail)
-  (define (expose-basic-blocks-pred p)
-    (match p
-      ['(true)
-       (lambda (t f) `(if ,p (jump ,t) (jump ,f)))]
-      ['(false)
-       (lambda (t f) `(if ,p (jump ,t) (jump ,f)))]
-      [`(not ,pred)
-       (lambda (t f) ((expose-basic-blocks-pred pred) f t))]
-      [`(begin ,e ... ,pred)
-       (lambda (t f)
-         `(begin ,@(map expose-basic-blocks-effect e)
-                 ,((expose-basic-blocks-pred pred) t f)))]
-      [`(if ,pred1 ,pred2 ,pred3)
-       (lambda (t f)
-         (let* ([label2 (fresh-label)]
-                [label3 (fresh-label)])
-           (add-block `(define ,label3 ,((expose-basic-blocks-pred pred3) t f)))
-           (add-block `(define ,label2 ,((expose-basic-blocks-pred pred2) t f)))
-           ((expose-basic-blocks-pred pred1) label2 label3)))]
-      [`(,relop ,loc ,triv)
-       (lambda (t f) `(if (,relop ,loc ,triv) (jump ,t) (jump ,f)))]))
+;; nested-asm-lang-v4.effect block-pred-lang-v4.tail -> ((list-of block-pred-lang-v4.effect) block-pred-lang-v4.tail)
+(define (expose-basic-blocks-effect e)
+  (match e
+    [`(set! ,loc ,triv) (list `(set! ,loc ,triv))]
+    [`(set! ,loc (,binop ,loc ,triv)) (list `(set! ,loc (,binop ,loc ,triv)))]
+    [`(begin ,e ...)
+     (for/fold ([fx empty])
+               ([e e])
+       (append fx (expose-basic-blocks-effect e)))]
+    [`(if ,pred ,e1 ,e2)
+     (let* ([merge-label (fresh-label)]
+            [lab1 (fresh-label)]
+            [lab2 (fresh-label)]
+            [updated-e1 (expose-basic-blocks-effect e1)]
+            [updated-e2 (expose-basic-blocks-effect e2)])
+       (add-block `(define ,lab1 (begin ,updated-e1 (jump ,merge-label))))
+       (add-block `(define ,lab2 (begin ,updated-e2 (jump ,merge-label))))
+       ((expose-basic-blocks-pred pred) lab1 lab2))]))
 
+;; nested-asm-lang-v4.pred -> (block-pred-lang-v4.trg block-pred-lang-v4.trg -> block-pred-lang-v4.tail)
+(define (expose-basic-blocks-pred p)
   (match p
-    [`(module ,tail)
-     (add-block `(define ,(fresh-label) ,(expose-basic-blocks-tail tail)))
-     `(module ,@(unbox blocks))]))
+    ['(true)
+     (lambda (t f) `(if ,p (jump ,t) (jump ,f)))]
+    ['(false)
+     (lambda (t f) `(if ,p (jump ,t) (jump ,f)))]
+    [`(not ,pred)
+     (lambda (t f) ((expose-basic-blocks-pred pred) f t))]
+    [`(begin ,e ... ,pred)
+     (lambda (t f)
+       `(begin ,@(map expose-basic-blocks-effect e)
+               ,((expose-basic-blocks-pred pred) t f)))]
+    [`(if ,pred1 ,pred2 ,pred3)
+     (lambda (t f)
+       (let* ([label2 (fresh-label)]
+              [label3 (fresh-label)])
+         (add-block `(define ,label3 ,((expose-basic-blocks-pred pred3) t f)))
+         (add-block `(define ,label2 ,((expose-basic-blocks-pred pred2) t f)))
+         ((expose-basic-blocks-pred pred1) label2 label3)))]
+    [`(,relop ,loc ,triv)
+     (lambda (t f) `(if (,relop ,loc ,triv) (jump ,t) (jump ,f)))]))
+
+(match p
+  [`(module ,tail)
+   (add-block `(define ,(fresh-label) ,(expose-basic-blocks-tail tail)))
+   `(module ,@(unbox blocks))]))
 
 
 (module+ test
