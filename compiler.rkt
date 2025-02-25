@@ -1,8 +1,34 @@
 #lang racket
 
 (require
- cpsc411/compiler-lib
- cpsc411/2c-run-time)
+  "passes/assign-fvars.rkt"
+  "passes/assign-homes-opt.rkt"
+  "passes/assign-homes.rkt"
+  "passes/assign-registers.rkt"
+  "passes/conflict-analysis.rkt"
+  "passes/flatten-begins.rkt"
+  "passes/implement-fvars.rkt"
+  "passes/normalize-bind.rkt"
+  "passes/patch-instructions.rkt"
+  "passes/replace-locations.rkt"
+  "passes/select-instructions.rkt"
+  "passes/sequentialize-let.rkt"
+  "passes/uncover-locals.rkt"
+  "passes/undead-analysis.rkt"
+  "passes/uniquify.rkt"
+  "passes/generate-x64.rkt"
+  "passes/resolve-predicates.rkt"
+  "passes/optimize-predicates.rkt"
+  "passes/flatten-program.rkt"
+  "passes/expose-basic-blocks.rkt"
+  "passes/link-paren-x64.rkt"
+  "passes/interp-paren-x64.rkt")
+
+(require
+  cpsc411/compiler-lib
+  cpsc411/2c-run-time
+  cpsc411/langs/v3
+  cpsc411/langs/v4)
 
 (provide
  check-values-lang
