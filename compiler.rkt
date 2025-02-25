@@ -20,31 +20,19 @@
   "passes/resolve-predicates.rkt"
   "passes/optimize-predicates.rkt"
   "passes/flatten-program.rkt"
-  "passes/expose-basic-blocks.rkt")
+  "passes/expose-basic-blocks.rkt"
+  "passes/link-paren-x64.rkt"
+  "passes/interp-paren-x64.rkt")
 
 (require
   cpsc411/compiler-lib
   cpsc411/2c-run-time
-  cpsc411/langs/v3)
-
-#;
-(provide
- check-values-lang
- compile-m2
- compile-m3)
+  cpsc411/langs/v3
+  cpsc411/langs/v4)
 
 (provide
- link-paren-x64
- interp-paren-x64
  interp-values-lang
- check-values-lang
- expose-basic-blocks
- compile-m2
- compile-m3)
-
-;; Template support macro; feel free to delete
-(define-syntax-rule (.... stx ...)
-  (error "Unfinished template"))
+ check-values-lang)
 
 ;; Stubs; remove or replace with your definitions.
 (define-values (check-values-lang
@@ -52,66 +40,6 @@
   (values
    values
    values))
-
-;; Milestone 4 template
-(define (link-paren-x64 p)
-  (TODO "Design and implement link-paren-x64 for Exercise 2."))
-
-;; Exercise 3
-(define (interp-paren-x64 p)
-
-  ;; dict-of(loc -> int64) Natural (listof statement) statement -> int64
-  ;; Runs statement `s`, which is expected to be the `pc`th instruction of
-  ;; `los`, modifying the environment and incrementing the program counter,
-  ;; before executing the next instruction in `los`.
-  (define (eval-statement env pc los s)
-    (....
-     (eval-program (.... env) (.... (add1 pc)) los)))
-
-  ;; dict-of(loc -> int64) Natural (listof statements) -> int64
-  ;; Runs the program represented by `los` starting from instruction number
-  ;; indicated by the program counter `pc`, represented as a natural number.
-  ;; Program is finished when `pc` reaches the final instruction of `los`.
-  (define (eval-program env pc los)
-    (if (= pc (length los))
-        (dict-ref env 'rax)
-        (eval-statement env pc los (list-ref los pc))))
-
-  (TODO "Redesign and implement interp-paren-x64 for Exercise 3."))
-
-;; values-unique-lang-v3 -> string
-;; interp. compile values-lang-v3 to x64 assembly without register allocation
-(define/contract (compile-m2 p)
-  (-> values-unique-lang-v3? string?)
-  (parameterize ([current-pass-list (list uniquify
-                                          sequentialize-let
-                                          normalize-bind
-                                          select-instructions
-                                          assign-homes
-                                          flatten-begins
-                                          patch-instructions
-                                          implement-fvars
-                                          generate-x64
-                                          wrap-x64-run-time
-                                          wrap-x64-boilerplate)])
-    (compile p)))
-
-;; values-unique-lang-v3 -> string
-;; interp. compile values-lang-v3 to x64 assembly with register allocation
-(define/contract (compile-m3 p)
-  (-> values-unique-lang-v3? string?)
-  (parameterize ([current-pass-list (list uniquify
-                                          sequentialize-let
-                                          normalize-bind
-                                          select-instructions
-                                          assign-homes-opt
-                                          flatten-begins
-                                          patch-instructions
-                                          implement-fvars
-                                          generate-x64
-                                          wrap-x64-run-time
-                                          wrap-x64-boilerplate)])
-    (compile p)))
 
 (module+ test
   (require

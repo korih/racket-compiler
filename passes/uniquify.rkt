@@ -51,7 +51,7 @@
                                         ,(uniquify-pred f-pred env))]
       [`(,relop ,op1 ,op2) `(,relop ,(uniquify-triv op1 env) ,(uniquify-triv op2 env))]))
 
-  ;; values-lang-v3.value (Env-of aloc) -> values-lang-v3.value
+  ;; values-lang-v4.value (Env-of aloc) -> values-lang-v4.value
   (define (uniquify-value value env)
     (match value
       [`(let ([,x ,v] ...) ,body)
@@ -70,7 +70,7 @@
        `(,binop ,(uniquify-triv triv1 env) ,(uniquify-triv triv2 env))]
       [triv (uniquify-triv triv env)]))
 
-  ;; values-lang-v3.triv (Env-of aloc) -> values-lang-v3.triv
+  ;; values-lang-v4.triv (Env-of aloc) -> values-lang-v4.triv
   (define (uniquify-triv triv env)
     (match triv
       [int64 #:when (int64? int64) int64]
