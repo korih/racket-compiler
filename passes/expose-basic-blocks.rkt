@@ -29,12 +29,13 @@
     (match t
       [`(halt ,triv) t]
       [`(begin ,e ... ,tail)
-       (cond
-         [(= (length e) 0) (expose-basic-blocks-tail tail)]
-         [else
-          (let* ([effects (map expose-basic-blocks-effect e)]
-                 [updated-tail (expose-basic-blocks-tail tail)])
-            `(begin ,@effects ,updated-tail))])]
+       (define effects (for/fold ([fx-acc empty])
+                         ([e e])
+                                 (append fx-acc (expose-basic-blocks-effect e))))
+       (define new-tail (expose-basic-blocks-tail tail))
+       (if (empty? effects)
+         new-tail
+         `(begin ,@effects ,new-tail))]
       [`(if ,pred ,tail1 ,tail2)
        (let* ([tail1-label (fresh-label)]
               [tail2-label (fresh-label)])
@@ -42,13 +43,15 @@
          (add-block `(define ,tail1-label ,(expose-basic-blocks-tail tail1)))
          ((expose-basic-blocks-pred pred) tail1-label tail2-label))]))
 
-  ;; nested-asm-lang-v4.effect -> block-pred-lang-v4.tail
+  ;; nested-asm-lang-v4.effect -> (listof block-pred-lang-v4.effect)
   (define (expose-basic-blocks-effect e)
     (match e
-      [`(set! ,loc ,triv) e]
-      [`(set! ,loc (,binop ,loc ,triv)) e]
+      [`(set! ,loc ,triv) (list `(set! ,loc ,triv))]
+      [`(set! ,loc (,binop ,loc ,triv)) (list `(set! ,loc (,binop ,loc ,triv)))]
       [`(begin ,e ...)
-       (map expose-basic-blocks-effect e)]
+       (for/fold ([fx empty])
+         ([e e])
+                 (append fx (expose-basic-blocks-effect e)))]
       [`(if ,pred ,e1 ,e2)
        (let* ([merge-label (fresh-label)]
               [lab1 (fresh-label)]
@@ -87,20 +90,23 @@
      (add-block `(define ,(fresh-label) ,(expose-basic-blocks-tail tail)))
      `(module ,@(unbox blocks))]))
 
-(check-equal? (expose-basic-blocks '(module (begin (halt rax))))
-              '(module (define L.tmp.1 (halt rax))))
-(check-equal? (expose-basic-blocks '(module (begin (begin (begin (begin (set! rax 1)))) (halt rax))))
-              '(module (define L.tmp.1 (begin (set! rax 1) (halt rax)))))
-(check-equal? (expose-basic-blocks '(module (begin
-                                              (if (true) (set! rax 5) (set! rax 6))
-                                              (halt rax))))
-              '(module
-                   (define L.__main.4 (if (true) (jump L.tmp.1) (jump L.tmp.2)))
-                 (define L.tmp.1 (begin (set! rax 5) (jump L.tmp.3)))
-                 (define L.tmp.2 (begin (set! rax 6) (jump L.tmp.3)))
-                 (define L.tmp.3 (halt rax))))
 
-#;(module+ test
+(module+ test
+  (check-equal? (expose-basic-blocks '(module (begin (halt rax))))
+                '(module (define L.tmp.1 (halt rax))))
+  (check-equal? (expose-basic-blocks '(module (begin (begin (set! rax 1)) (halt rax))))
+                '(module (define L.tmp.2 (begin (set! rax 1) (halt rax)))))
+  (check-equal? (expose-basic-blocks '(module (begin (begin (begin (begin (set! rax 1)))) (halt rax))))
+                '(module (define L.tmp.3 (begin (set! rax 1) (halt rax)))))
+  (check-equal? (expose-basic-blocks '(module (begin
+                                                (if (true) (set! rax 5) (set! rax 6))
+                                                (halt rax))))
+                '(module
+                     (define L.__main.4 (if (true) (jump L.tmp.1) (jump L.tmp.2)))
+                   (define L.tmp.1 (begin (set! rax 5) (jump L.tmp.3)))
+                   (define L.tmp.2 (begin (set! rax 6) (jump L.tmp.3)))
+                   (define L.tmp.3 (halt rax))))
+
   (check-equal? (expose-basic-blocks '(module (halt 5)))
                 '(module (define L.tmp.1 (halt 5))))
   (check-equal? (expose-basic-blocks '(module (if (true) (halt 5) (halt 6))))
