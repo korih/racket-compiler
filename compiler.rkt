@@ -22,77 +22,22 @@
   "passes/flatten-program.rkt"
   "passes/expose-basic-blocks.rkt"
   "passes/link-paren-x64.rkt"
-  "passes/interp-paren-x64.rkt")
+  "passes/interp-paren-x64.rkt"
+  "passes/check-values-lang.rkt")
 
 (require
   cpsc411/compiler-lib
-  cpsc411/2c-run-time
-  cpsc411/langs/v3
-  cpsc411/langs/v4)
+  cpsc411/2c-run-time)
 
 (provide
- check-values-lang
- uniquify
- sequentialize-let
- normalize-bind
- impose-calling-conventions
- select-instructions
- assign-homes-opt
- uncover-locals
- undead-analysis
- conflict-analysis
- assign-registers
- replace-locations
- optimize-predicates
- expose-basic-blocks
- resolve-predicates
- flatten-program
- patch-instructions
- implement-fvars
- generate-x64)
+ impose-calling-conventions)
 
 ;; TODO: Fill in.
 ;; You'll want to merge milestone-4 code in
 
 ;; Stubs; remove or replace with your definitions.
-(define-values (check-values-lang
-                uniquify
-                sequentialize-let
-                normalize-bind
-                impose-calling-conventions
-                select-instructions
-                assign-homes-opt
-                uncover-locals
-                undead-analysis
-                conflict-analysis
-                assign-registers
-                replace-locations
-                optimize-predicates
-                expose-basic-blocks
-                resolve-predicates
-                flatten-program
-                patch-instructions
-                implement-fvars
-                generate-x64)
+(define-values (impose-calling-conventions)
   (values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
    values))
 
 (module+ test

@@ -9,6 +9,7 @@
          extend-env*
          extend-env
          binop?
+         relop?
          addr?)
 
 ;; Env : (Env-of X) is (List-of (list Symbol X))
@@ -48,6 +49,11 @@
 ;; produces true if op is a valid binop, which is either * or +
 (define (binop? op)
   (and (member op '(* +)) #t))
+
+;; any -> boolean
+;; produces true if op is a valid relop
+(define (relop? op)
+  (and (member op '(< <= = >= > !=)) #t))
 
 ;; any -> boolean
 ;; produces true if x is a valid address of the form (fbp - dispoffset)
