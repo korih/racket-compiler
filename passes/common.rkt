@@ -26,12 +26,6 @@
                   (cadr (first env))
                   (lookup-env (rest env) x))]))
 
-;; (Env-of X) Symbol X -> (or/c (Env-of X) #f)
-;; Produce the binding for the given symbol, or #f if no binding is found
-(define (lookup-env2 env x)
-  (with-handlers ([exn:fail? (lambda (e) #f)])
-    (lookup-env env x)))
-
 ;; (Env-of X) (List-of Symbol) (List-of X) -> (Env-of X)
 ;; Produce an environment that binds distinct symbols in x* to values in v*.
 ;; ASSUME: (= (length x*) (length v*))

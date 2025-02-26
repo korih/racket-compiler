@@ -32,66 +32,15 @@
 
 (provide
  check-values-lang
- uniquify
- sequentialize-let
- normalize-bind
- impose-calling-conventions
- select-instructions
- assign-homes-opt
- uncover-locals
- undead-analysis
- conflict-analysis
- assign-registers
- replace-locations
- optimize-predicates
- expose-basic-blocks
- resolve-predicates
- flatten-program
- patch-instructions
- implement-fvars
- generate-x64)
+ impose-calling-conventions)
 
 ;; TODO: Fill in.
 ;; You'll want to merge milestone-4 code in
 
 ;; Stubs; remove or replace with your definitions.
 (define-values (check-values-lang
-                uniquify
-                sequentialize-let
-                normalize-bind
-                impose-calling-conventions
-                select-instructions
-                assign-homes-opt
-                uncover-locals
-                undead-analysis
-                conflict-analysis
-                assign-registers
-                replace-locations
-                optimize-predicates
-                expose-basic-blocks
-                resolve-predicates
-                flatten-program
-                patch-instructions
-                implement-fvars
-                generate-x64)
+                impose-calling-conventions)
   (values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
    values
    values))
 

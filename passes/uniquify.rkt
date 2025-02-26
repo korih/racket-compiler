@@ -4,17 +4,29 @@
 
 (require
   cpsc411/compiler-lib
-  cpsc411/langs/v4
+  cpsc411/langs/v5
   rackunit)
 
 (provide uniquify)
 
-;; values-lang-v4 -> values-unique-lang-v4
-;; converts all lexical identifiers to abstract locations
+;; values-lang-v5 -> values-unique-lang-v5
+;; compiles p to Values-unique-lang v5 by resolving top-level lexical
+;; identifiers into unique labels, and all other lexical identifiers into
+;; unique abstract locations
 (define/contract (uniquify p)
-  (-> values-lang-v4? values-unique-lang-v4?)
+  (-> values-lang-v5? values-unique-lang-v5?)
 
-  ;; values-lang-v4.tail (Env-of aloc) -> values-lang-v4.tail
+  (define (uniquify-func func env)
+    (match func
+      [`(define ,funcName (lambda (,args ...) ,tail))
+       (define unique-label (fresh-label funcName))
+       (define unique-args (map fresh args))
+       (define new-env (extend-env* (extend-env env funcName unique-label)
+                                    args unique-args))
+       (values `(define ,unique-label (lambda (,@unique-args) ,(uniquify-tail tail new-env)))
+               (extend-env env funcName unique-label))]))
+
+  ;; values-lang-v5.tail (Env-of aloc) -> values-lang-v5.tail
   (define (uniquify-tail tail env)
     (match tail
       [`(let ([,x ,v] ...) ,body)
@@ -29,29 +41,32 @@
        `(if ,(uniquify-pred pred env)
             ,(uniquify-tail t-tail env)
             ,(uniquify-tail f-tail env))]
+      [`(call ,x ,trivs ...)
+       `(call ,(lookup-env env x) ,@(map (lambda (triv) (uniquify-triv triv env)) trivs))]
       [v (uniquify-value v env)]))
 
-  ;; values-lang-v4.tail (Env-of aloc) -> values-lang-v4.tail
-  ;; converts all lexical identifiers in the predicate to abstract locations
+  ;; values-lang-v5.tail (Env-of aloc) -> values-lang-v5.tail
   (define (uniquify-pred pred env)
     (match pred
       ['(true) '(true)]
       ['(false) '(false)]
       [`(not ,pred) `(not ,(uniquify-pred pred env))]
       [`(let ([,xs ,vs] ...) ,pred)
-       (define-values (bindings new-env)
-         (for/fold ([bindings-acc empty] [env-acc env])
-                   ([x xs] [v vs])
-           (define loc (fresh x))
-           (values (cons (list loc (uniquify-value v env-acc)) bindings-acc) (extend-env env-acc x loc))))
-       (displayln bindings)
-       `(let (,@bindings) ,(uniquify-pred pred new-env))]
-      [`(if ,pred ,t-pred ,f-pred) `(if ,(uniquify-pred pred env)
-                                        ,(uniquify-pred t-pred env)
-                                        ,(uniquify-pred f-pred env))]
-      [`(,relop ,op1 ,op2) `(,relop ,(uniquify-triv op1 env) ,(uniquify-triv op2 env))]))
+       (define unique-names (map fresh xs))
+       (define new-env (extend-env* env xs unique-names))
+       (define unique-binds
+         (map (lambda (uname value)
+                (list uname (uniquify-value value env)))
+              unique-names vs))
+       `(let (,@unique-binds) ,(uniquify-pred pred new-env))]
+      [`(if ,pred ,t-pred ,f-pred)
+       `(if ,(uniquify-pred pred env)
+            ,(uniquify-pred t-pred env)
+            ,(uniquify-pred f-pred env))]
+      [`(,relop ,op1 ,op2)
+       `(,relop ,(uniquify-triv op1 env) ,(uniquify-triv op2 env))]))
 
-  ;; values-lang-v4.value (Env-of aloc) -> values-lang-v4.value
+  ;; values-lang-v5.value (Env-of aloc) -> values-lang-v5.value
   (define (uniquify-value value env)
     (match value
       [`(let ([,x ,v] ...) ,body)
@@ -70,15 +85,21 @@
        `(,binop ,(uniquify-triv triv1 env) ,(uniquify-triv triv2 env))]
       [triv (uniquify-triv triv env)]))
 
-  ;; values-lang-v4.triv (Env-of aloc) -> values-lang-v4.triv
+  ;; values-lang-v5.triv (Env-of aloc) -> values-lang-v5.triv
   (define (uniquify-triv triv env)
     (match triv
       [int64 #:when (int64? int64) int64]
       [x #:when (name? x) (lookup-env env x)]))
 
   (match p
-    [`(module ,tail)
-     `(module ,(uniquify-tail tail empty-env))]))
+    [`(module ,funcs ... ,tail)
+     (define-values (updated-funcs updated-env)
+       (for/fold ([updated-funcs '()]
+                  [env empty-env])
+                 ([func funcs])
+         (define-values (updated-func new-env) (uniquify-func func env))
+         (values (cons updated-func updated-funcs) new-env)))
+     `(module ,@(reverse updated-funcs) ,(uniquify-tail tail updated-env))]))
 
 (module+ test
   (check-equal? (uniquify '(module (+ 2 2)))
@@ -143,4 +164,16 @@
                 '(module (let ([y.31 (if (if (true) (false) (true))
                                          (* 3 3)
                                          0)])
-                           (+ y.31 -1)))))
+                           (+ y.31 -1))))
+
+  (check-equal? (uniquify '(module
+                               (define f (lambda (x y) (+ x y)))
+                             (define x (lambda (z) (let ([x 1])
+                                                     (+ x z))))
+                             (if (true)
+                                 (call f 1 2)
+                                 (call x 1))))
+                '(module
+                     (define L.f.1 (lambda (x.32 y.33) (+ x.32 y.33)))
+                   (define L.x.2 (lambda (z.34) (let ((x.35 1)) (+ x.35 z.34))))
+                   (if (true) (call L.f.1 1 2) (call L.x.2 1)))))
