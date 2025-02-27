@@ -47,7 +47,7 @@
        `(if ,(normalize-bind-pred p)
             ,(normalize-bind-value v1 cont)
             ,(normalize-bind-value v2 cont))]
-      [`(,binop ,triv ,triv) (cont value)]
+      [`(,binop ,op1 ,op2) (cont value)]
       [triv (cont triv)]))
 
   ;; imp-mf-lang-v5.pred -> proc-imp-cmf-lang-v5.pred
@@ -60,13 +60,30 @@
        `(begin ,@(map normalize-bind-effect e) ,(normalize-bind-pred p))]
       [`(if ,p1 ,p2 ,p3)
        `(if ,(normalize-bind-pred p1) ,(normalize-bind-pred p2) ,(normalize-bind-pred p3))]
-      [`(,relop ,t1 ,t2) pred]))
+      [`(,relop ,op1 ,op2) pred]))
 
   (match p
     [`(module ,funcs ... ,tail)
      `(module ,@(map normalize-bind-func funcs) ,(normalize-bind-tail tail))]))
 
 (module+ test
+  (check-equal? (normalize-bind '(module
+                                     (begin
+                                       (set! x.1 (if (true)
+                                                     (begin
+                                                       (set! x.2 10)
+                                                       (set! x.3 100)
+                                                       (* x.2 x.3))
+                                                     (begin
+                                                       (set! x.4 10)
+                                                       (+ x.4 1))))
+                                       x.1)))
+                '(module
+                     (begin
+                       (if (true)
+                           (begin (set! x.2 10) (set! x.3 100) (set! x.1 (* x.2 x.3)))
+                           (begin (set! x.4 10) (set! x.1 (+ x.4 1))))
+                       x.1)))
   (check-equal? (normalize-bind '(module
                                      (define L.f.1 (lambda (x.1) (begin
                                                                    (set! x.2 (begin
