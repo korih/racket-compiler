@@ -45,8 +45,8 @@
        `(begin ,@(map normalize-bind-effect e) ,(normalize-bind-value v cont))]
       [`(if ,p ,v1 ,v2)
        `(if ,(normalize-bind-pred p)
-            ,(cont v1)
-            ,(cont v2))]
+            ,(normalize-bind-value v1 cont)
+            ,(normalize-bind-value v2 cont))]
       [`(,binop ,triv ,triv) (cont value)]
       [triv (cont triv)]))
 
@@ -91,6 +91,48 @@
                                (set! x.3 (* x.2 100)))
                            (+ x.2 x.3))))
                    (call L.f.1 10)))
+  (check-equal? (normalize-bind '(module
+                                     (begin
+                                       (set! x.1 (if (begin
+                                                       (set! x.2 (if (begin
+                                                                       (set! x.3 (begin
+                                                                                   (set! x.4 10)
+                                                                                   (* x.4 100)))
+                                                                       (set! x.5 (begin
+                                                                                   (set! x.6 100)
+                                                                                   (+ x.6 100)))
+                                                                       (> x.3 x.5))
+                                                                     (begin
+                                                                       (set! x.7 (if (not (true))
+                                                                                     10
+                                                                                     1000))
+                                                                       (+ x.7 10))
+                                                                     (begin
+                                                                       (set! x.8 (begin
+                                                                                   (set! x.9 100)
+                                                                                   (+ x.9 100)))
+                                                                       (* x.8 100))))
+                                                       (> x.2 100))
+                                                     100
+                                                     10))
+                                       (+ x.1 100))))
+                '(module
+                     (begin
+                       (if (begin
+                             (if (begin
+                                   (begin (set! x.4 10) (set! x.3 (* x.4 100)))
+                                   (begin (set! x.6 100) (set! x.5 (+ x.6 100)))
+                                   (> x.3 x.5))
+                                 (begin
+                                   (if (not (true)) (set! x.7 10) (set! x.7 1000))
+                                   (set! x.2 (+ x.7 10)))
+                                 (begin
+                                   (begin (set! x.9 100) (set! x.8 (+ x.9 100)))
+                                   (set! x.2 (* x.8 100))))
+                             (> x.2 100))
+                           (set! x.1 100)
+                           (set! x.1 10))
+                       (+ x.1 100))))                                
   (check-equal? (normalize-bind '(module (begin (set! x.6 (+ 2 3)) (set! x.7 (+ x.6 x.6)) (begin (set! y.2 5) x.6))))
                 '(module
                      (begin (set! x.6 (+ 2 3)) (set! x.7 (+ x.6 x.6)) (begin (set! y.2 5) x.6))))
