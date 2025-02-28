@@ -9,7 +9,8 @@
          extend-env*
          extend-env
          binop?
-         addr?)
+         addr?
+         rloc?)
 
 ;; ================================================
 ;; Procedure Data Definitions
@@ -84,6 +85,11 @@
      (and (frame-base-pointer-register? fbp)
           (dispoffset? dispoffset))]
     [_ #f]))
+
+;; any -> boolean
+;; produces true if rloc is a valid rloc, which is either a register or fvar
+(define (rloc? rloc)
+  (or (register? rloc) (fvar? rloc)))
 
 ;; ================================================
 ;; Tests

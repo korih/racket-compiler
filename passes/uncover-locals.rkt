@@ -1,94 +1,162 @@
 #lang racket
 
+(require "common.rkt")
+
 (require
   cpsc411/compiler-lib
-  cpsc411/langs/v4
+  cpsc411/langs/v5
   rackunit)
 
 (provide uncover-locals)
 
-;; Exercise 16
-;; asm-pred-lang-v4 -> asm-pred-lang-v4/locals
-;; compiles p to to Asm-pred-lang v4/locals by analysing which abstract
+;; asm-pred-lang-v5 -> asm-pred-lang-v5/locals
+;; compiles p to to Asm-pred-lang v5/locals by analysing which abstract
 ;; locations are used in the module and decorating the module with the set of
 ;; variables in an info field.
 (define/contract (uncover-locals p)
-  (-> asm-pred-lang-v4? asm-pred-lang-v4/locals?)
+  (-> asm-pred-lang-v5? asm-pred-lang-v5/locals?)
 
   ;; unique-alocs is (Set-of aloc)
-  ;; the unique abstract locations used in the program p
+  ;; keeps track of unique abstract locations
   (define unique-alocs (mutable-set))
 
-  ;; asm-pred-lang-v4.tail ->
+  (define (uncover-locals-func f)
+    (set-clear! unique-alocs)
+    (match f
+      [`(define ,label () ,tail)
+       (uncover-locals-tail tail)
+       `(define ,label ,(info-set '() 'locals (set->list unique-alocs)) ,tail)]))
+
+  ;; asm-pred-lang-v5.tail ->
   ;; EFFECTS: adds alocs from tail t to unique-alocs
   (define (uncover-locals-tail t)
     (match t
-      [`(halt ,tr)
-       (uncover-locals-triv tr)
-       (void)]
+      [`(halt ,op)
+       (uncover-locals-opand op)]
       [`(begin ,ef ... ,ta)
        (for-each uncover-locals-effect ef)
-       (uncover-locals-tail ta)
-       (void)]
+       (uncover-locals-tail ta)]
+      [`(jump ,trg ,locs ...)
+       (uncover-locals-trg trg)
+       (for-each uncover-locals-loc locs)]
       [`(if ,pred ,tail1 ,tail2)
        (uncover-locals-pred pred)
-       (for-each uncover-locals-tail (list tail1 tail2))
-       (void)]))
+       (for-each uncover-locals-tail (list tail1 tail2))]))
 
-  ;; asm-pred-lang-v4.effect ->
+  ;; asm-pred-lang-v5.effect ->
   ;; EFFECTS: adds alocs from effect e to unique-alocs
   (define (uncover-locals-effect e)
     (match e
-      [`(set! ,aloc1 (,binop ,aloc1 ,triv))
-       (set-add! unique-alocs aloc1)
-       (uncover-locals-triv triv)
-       (void)]
-      [`(set! ,aloc ,triv)
-       (set-add! unique-alocs aloc)
-       (uncover-locals-triv triv)
-       (void)]
+      [`(set! ,loc (,binop ,loc ,op))
+       (uncover-locals-loc loc)
+       (uncover-locals-opand op)]
+      [`(set! ,loc ,triv)
+       (uncover-locals-loc loc)
+       (uncover-locals-triv triv)]
       [`(begin ,ef ...)
-       (for-each uncover-locals-effect ef)
-       (void)]
+       (for-each uncover-locals-effect ef)]
       [`(if ,pred ,e1 ,e2)
        (uncover-locals-pred pred)
-       (for-each uncover-locals-effect (list e1 e2))
-       (void)]))
+       (for-each uncover-locals-effect (list e1 e2))]))
 
-  ;; asm-pred-lang-v4.triv ->
-  ;; EFFECTS: adds alocs from triv t to unique-alocs
-  (define (uncover-locals-triv t)
-    (match t
-      [aloc #:when (aloc? aloc) (set-add! unique-alocs aloc)]
-      [int64 #:when (int64? int64) (void)]))
-
-  ;; asm-pred-lang-v4.pred ->
+  ;; asm-pred-lang-v5.pred ->
   ;; EFFECTS: adds alocs from pred p to unique-alocs
   (define (uncover-locals-pred p)
     (match p
       [`(not ,pred)
-       (uncover-locals-pred pred)
-       (void)]
+       (uncover-locals-pred pred)]
       [`(begin ,e ... ,pred)
        (for-each uncover-locals-effect e)
-       (uncover-locals-pred pred)
-       (void)]
+       (uncover-locals-pred pred)]
       [`(if ,pred1 ,pred2 ,pred3)
-       (for-each uncover-locals-pred (list pred1 pred2 pred3))
-       (void)]
-      [`(,relop ,aloc ,triv)
-       (set-add! unique-alocs aloc)
-       (uncover-locals-triv triv)
-       (void)]
+       (for-each uncover-locals-pred (list pred1 pred2 pred3))]
+      [`(,relop ,loc ,op)
+       (uncover-locals-loc loc)
+       (uncover-locals-opand op)]
       ['(true) (void)]
       ['(false) (void)]))
 
-  (match p
-    [`(module () ,t)
-     (uncover-locals-tail t)
-     `(module ,(info-set '() 'locals (set->list unique-alocs)) ,t)]))
+  ;; asm-pred-lang-v5.triv ->
+  ;; EFFECTS: adds alocs from triv t to unique-alocs
+  (define (uncover-locals-triv t)
+    (match t
+      [label #:when (label? label) (void)]
+      [opand (uncover-locals-opand opand)]))
 
-(module+ test   
+  ;; asm-pred-lang-v5.opand ->
+  ;; EFFECTS: adds alocs from opand op to unique-alocs
+  (define (uncover-locals-opand op)
+    (match op
+      [int64 #:when (int64? int64) (void)]
+      [loc (uncover-locals-loc loc)]))
+
+  ;; asm-pred-lang-v5.loc ->
+  ;; EFFECTS: adds alocs from loc to unique-alocs
+  (define (uncover-locals-loc loc)
+    (match loc
+      [aloc #:when (aloc? aloc) (set-add! unique-alocs aloc)]
+      [rloc #:when (rloc? rloc) (void)]))
+
+  ;; asm-pred-lang-v5.trg ->
+  ;; EFFECTS: adds alocs from trg to unique-alocs
+  (define (uncover-locals-trg trg)
+    (match trg
+      [label #:when (label? label) (void)]
+      [loc (uncover-locals-loc loc)]))
+
+  (match p
+    [`(module () ,funcs ... ,t)
+     (define uncovered-funcs (map uncover-locals-func funcs))
+     (set-clear! unique-alocs)
+     (uncover-locals-tail t)
+     `(module ,(info-set '() 'locals (set->list unique-alocs)) ,@uncovered-funcs ,t)]))
+
+(module+ test
+  (check-equal? (uncover-locals '(module () (define L.f.1 () (begin (set! x.1 rdi)
+                                                                    (halt x.1)))
+                                   (begin
+                                     (set! rdi 1)
+                                     (jump L.f.1 rbp rdi))))
+                '(module
+                     ((locals ()))
+                   (define L.f.1 ((locals (x.1))) (begin (set! x.1 rdi) (halt x.1)))
+                   (begin (set! rdi 1) (jump L.f.1 rbp rdi))))
+  (check-equal? (uncover-locals '(module () (define L.f.1 () (begin
+                                                               (set! x.1 rdi)
+                                                               (halt x.1)))
+                                   (define L.g.1 () (begin
+                                                      (set! x.1 rdi)
+                                                      (set! y.1 rsi)
+                                                      (set! z.1 rdx)
+                                                      (set! rdi x.1)
+                                                      (jump L.f.1 rbp rdi)))
+                                   (if (true)
+                                       (begin
+                                         (set! rdx 3)
+                                         (set! rsi 2)
+                                         (set! rdi 1)
+                                         (jump L.g.1 rbp rdi rsi rdx))
+                                       (begin
+                                         (set! rdi 1)
+                                         (jump L.f.1 rbp rdi)))))
+                '(module
+                     ((locals ()))
+                   (define L.f.1 ((locals (x.1))) (begin (set! x.1 rdi) (halt x.1)))
+                   (define L.g.1
+                     ((locals (y.1 x.1 z.1)))
+                     (begin
+                       (set! x.1 rdi)
+                       (set! y.1 rsi)
+                       (set! z.1 rdx)
+                       (set! rdi x.1)
+                       (jump L.f.1 rbp rdi)))
+                   (if (true)
+                       (begin
+                         (set! rdx 3)
+                         (set! rsi 2)
+                         (set! rdi 1)
+                         (jump L.g.1 rbp rdi rsi rdx))
+                       (begin (set! rdi 1) (jump L.f.1 rbp rdi)))))
   (check-equal? (uncover-locals '(module () (begin (set! x.1 0) (halt x.1))))
                 '(module ((locals (x.1))) (begin (set! x.1 0) (halt x.1))))
   (match-let ([`(module ((locals (,ls ...))) ,_) (uncover-locals '(module () (begin (set! x.1 0)
