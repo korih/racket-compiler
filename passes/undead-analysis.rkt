@@ -1,5 +1,7 @@
 #lang racket
 
+(require "common.rkt")
+
 (require
   cpsc411/compiler-lib
   cpsc411/langs/v5
@@ -10,8 +12,15 @@
 ;; asm-pred-lang-v5/locals -> asm-pred-lang-v5/undead
 ;; compiles p to Asm-pred-lang v5/undead by performing undeadness analysis,
 ;; decorating the program with undead-set tree
-(define/contract (undead-analysis p)
-  (-> asm-pred-lang-v5/locals? asm-pred-lang-v5/undead?)
+(define (undead-analysis p)
+  #;(-> asm-pred-lang-v5/locals? asm-pred-lang-v5/undead?)
+
+  (define (analyze-func f)
+    (match f
+      [`(define ,label ,info ,tail)
+       (define-values (undead-tree _) (analyze-tail tail))
+       (define updated-info (info-set info 'undead-out undead-tree))
+       `(define ,label ,updated-info ,tail)]))
 
   ;; asm-pred-lang-v5/locals.tail -> (values undead-set-tree undead-set)
   (define (analyze-tail t)
@@ -34,33 +43,44 @@
        (define ust^ (list t1-ust t2-ust))
        (define-values (p-ust p-undead-out) (analyze-pred pred tail-undead-in))
        (values (cons p-ust ust^) p-undead-out)]
-      [`(halt ,triv)
-       (define undead-in (analyze-triv triv))
+      [`(jump ,trg ,locs ...)
+       (define undead-trg (analyze-trg trg))
+       (define undead-set (if (empty? undead-trg)
+                              '()
+                              (set-add '() (first undead-trg))))
+       (define undead-out (set-union undead-set locs))
+       (values undead-out undead-out)]
+      [`(halt ,op)
+       (define undead-in (analyze-opand op))
        (values '() undead-in)]))
 
   ;; asm-pred-lang-v5/locals.effect undead-set -> (values undead-set-tree undead-set)
   (define (analyze-effects e undead-out)
     (match e
       [`(begin ,effects ...)
-       (define-values (e-ust undead-in)
-         (for/foldr ([acc-ust '()]
-                     [undead-out^ undead-out])
+       (define-values (rev-ust undead-in)
+         (for/foldr ([rev-ust '()]
+                     [undead-out undead-out])
            ([effect effects])
            (define-values (ust undead-in)
-             (analyze-effects effect undead-out^))
-           (values (cons ust acc-ust) undead-in)))
-       (values e-ust undead-in)]
-      [`(set! ,aloc_1 (,binop ,aloc_1 ,triv))
-       (define undead-in (set-union
-                          (set-add
-                           (set-remove undead-out aloc_1)
-                           aloc_1)
-                          (analyze-triv triv)))
+             (analyze-effects effect undead-out))
+           (values
+            (cons ust rev-ust)
+            undead-in)))
+       (values rev-ust undead-in)]
+      [`(set! ,loc (,binop ,loc ,triv))
+       (define undead-loc (analyze-loc loc))
+       (define undead-set (if (empty? undead-loc)
+                              undead-out
+                              (set-add (set-remove undead-out (first undead-loc)) (first undead-loc))))
+       (define undead-in (set-union undead-set (analyze-triv triv)))
        (values undead-out undead-in)]
-      [`(set! ,aloc ,triv)
-       (define undead-in (set-union
-                          (set-remove undead-out aloc)
-                          (analyze-triv triv)))
+      [`(set! ,loc ,triv)
+       (define undead-loc (analyze-loc loc))
+       (define undead-set (if (empty? undead-loc)
+                              undead-out
+                              (set-remove undead-out (first undead-loc))))
+       (define undead-in (set-union undead-set (analyze-triv triv)))
        (values undead-out undead-in)]
       [`(if ,pred ,e1 ,e2)
        (define-values (e1-ust e1-undead-out) (analyze-effects e1 undead-out))
@@ -94,28 +114,113 @@
        (define ust (list p3-ust p2-ust))
        (define-values (p1-ust p1-undead-out) (analyze-pred p1 pred-undead-in))
        (values (cons p1-ust ust) p1-undead-out)]
-      [`(,relop ,aloc ,triv)
-       (define undead-in (set-union (set-add undead-out aloc) (analyze-triv triv)))
+      [`(,relop ,loc ,op)
+       (define undead-loc (analyze-loc loc))
+       (define undead-set (if (empty? undead-loc)
+                              undead-out
+                              (set-add undead-out (first undead-loc))))
+       (define undead-in (set-union undead-set (analyze-opand op)))
        (values undead-out undead-in)]
       ['(true) (values undead-out undead-out)]
       ['(false) (values undead-out undead-out)]))
 
-  ;; (asm-pred-lang-v4/locals triv) -> (Listof aloc)
-  ;; analyze the triv value, if its an aloc return it as a list
-  ;; for the undead-in set, if not then return empty list
+  ;; asm-pred-lang-v5/locals.triv -> (List-of loc)
   (define (analyze-triv triv)
     (match triv
-      [x #:when (aloc? x) (list x)]
-      [_ '()]))
+      [label #:when (label? label) '()]
+      [opand (analyze-opand opand)]))
+
+  ;; asm-pred-lang-v5/locals.loc -> (List-of loc)
+  (define (analyze-loc loc)
+    (match loc
+      [rloc #:when (rloc? rloc) (list rloc)]
+      [aloc #:when (aloc? aloc) (list aloc)]))
+
+  ;; asm-pred-lang-v5/locals.trg -> (List-of loc)
+  (define (analyze-trg trg)
+    (match trg
+      [label #:when (label? label) '()]
+      [loc (analyze-loc loc)]))
+
+  ;; asm-pred-lang-v5/locals.opand -> (List-of loc)
+  (define (analyze-opand op)
+    (match op
+      [int64 #:when (int64? int64) '()]
+      [loc (analyze-loc loc)]))
 
   (match p
-    [`(module ,info ,tail)
+    [`(module ,info ,funcs ... ,tail)
      (define-values (undead-tree _) (analyze-tail tail))
      (define updated-info (info-set info 'undead-out undead-tree))
-     `(module ,updated-info ,tail)]))
+     `(module ,updated-info ,@(map analyze-func funcs) ,tail)]))
 
 (module+ test
-
+  (check-equal? (undead-analysis '(module ((locals ()))
+                                    (define L.f.1 ((locals (x.1))) (begin (set! x.1 rdi) (halt x.1)))
+                                    (begin (set! rdi 1) (jump L.f.1 rbp rdi))))
+                '(module ((locals ()) (undead-out ((rdi rbp) (rdi rbp))))
+                   (define L.f.1
+                     ((locals (x.1)) (undead-out ((x.1) ())))
+                     (begin (set! x.1 rdi) (halt x.1)))
+                   (begin (set! rdi 1) (jump L.f.1 rbp rdi))))
+  (check-equal? (undead-analysis '(module ((locals (a.1)))
+                                    (define L.f.1 ((locals (x.1))) (begin (set! x.1 rdi) (halt x.1)))
+                                    (begin (set! a.1 L.f.1) (set! rdi 1) (jump a.1 rbp rdi))))
+                '(module
+                     ((locals (a.1)) (undead-out ((rbp a.1) (rdi rbp a.1) (rdi rbp a.1))))
+                   (define L.f.1
+                     ((locals (x.1)) (undead-out ((x.1) ())))
+                     (begin (set! x.1 rdi) (halt x.1)))
+                   (begin (set! a.1 L.f.1) (set! rdi 1) (jump a.1 rbp rdi))))
+  (check-equal? (undead-analysis '(module ((locals ()))
+                                    (define L.f.1 ((locals (x.1))) (begin (set! x.1 rdi) (halt x.1)))
+                                    (begin (set! r13 L.f.1) (set! rdi 1) (jump r13 rbp rdi))))
+                '(module
+                     ((locals ()) (undead-out ((rbp r13) (rdi rbp r13) (rdi rbp r13))))
+                   (define L.f.1
+                     ((locals (x.1)) (undead-out ((x.1) ())))
+                     (begin (set! x.1 rdi) (halt x.1)))
+                   (begin (set! r13 L.f.1) (set! rdi 1) (jump r13 rbp rdi))))
+  (check-equal? (undead-analysis '(module
+                                      ((locals ()))
+                                    (define L.f.1 ((locals (x.1))) (begin (set! x.1 rdi) (halt x.1)))
+                                    (define L.g.1
+                                      ((locals (y.1 x.1 z.1)))
+                                      (begin
+                                        (set! x.1 rdi)
+                                        (set! y.1 rsi)
+                                        (set! z.1 rdx)
+                                        (set! rdi x.1)
+                                        (jump L.f.1 rbp rdi)))
+                                    (if (true)
+                                        (begin
+                                          (set! rdx 3)
+                                          (set! rsi 2)
+                                          (set! rdi 1)
+                                          (jump L.g.1 rbp rdi rsi rdx))
+                                        (begin (set! rdi 1) (jump L.f.1 rbp rdi)))))
+                '(module
+                     ((locals ())
+                      (undead-out
+                       ((rbp)
+                        ((rdx rbp) (rdx rsi rbp) (rdx rsi rdi rbp) (rdx rsi rdi rbp))
+                        ((rdi rbp) (rdi rbp)))))
+                   (define L.f.1
+                     ((locals (x.1)) (undead-out ((x.1) ())))
+                     (begin (set! x.1 rdi) (halt x.1)))
+                   (define L.g.1
+                     ((locals (y.1 x.1 z.1))
+                      (undead-out
+                       ((rsi rdx x.1 rbp) (rdx x.1 rbp) (x.1 rbp) (rdi rbp) (rdi rbp))))
+                     (begin
+                       (set! x.1 rdi)
+                       (set! y.1 rsi)
+                       (set! z.1 rdx)
+                       (set! rdi x.1)
+                       (jump L.f.1 rbp rdi)))
+                   (if (true)
+                       (begin (set! rdx 3) (set! rsi 2) (set! rdi 1) (jump L.g.1 rbp rdi rsi rdx))
+                       (begin (set! rdi 1) (jump L.f.1 rbp rdi)))))
   (check-equal? (undead-analysis
                  '(module ((locals ()))
                     (halt x.1)))
