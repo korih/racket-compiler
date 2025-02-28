@@ -11,6 +11,33 @@
          binop?
          addr?)
 
+;; ================================================
+;; Procedure Data Definitions
+;; ================================================
+
+;; Proc-lexical-identifier is `(define ,x (lambda (,xs ...) ,tail))
+;; interp. procedures that use lexical identifiers for the funtion name and parameters
+
+(define PLI1 '(define f (lambda (x) x)))
+(define PLI2 '(define g (lambda (x y z) (let ([a (+ y z)])
+                                          (+ x a)))))
+(define PLI3 '(define h (lambda () (call f 1))))
+
+;; Proc-alocs is `(define ,label (lambda (,alocs ...) ,tail))
+;; interp. procedures that use labels for the function name and abstract locations for the parameters
+
+(define PA1 '(define L.f.1 (lambda (x.1) x.1)))
+(define PA2 '(define L.g.1 (lambda (x.1 y.1 z.1) (let ([a.1 (+ y.1 z.1)])
+                                                   (+ x.1 a.1)))))
+(define PA3 '(define L.h.1 (lambda () (call L.f.1 1))))
+
+
+                             
+
+;; ================================================
+;; Environment
+;; ================================================
+
 ;; Env : (Env-of X) is (List-of (list Symbol X))
 
 ;; empty-env : Env
@@ -38,6 +65,10 @@
 (define (extend-env env x v)
   (extend-env* env (list x) (list v)))
 
+;; ================================================
+;; Helper Functions
+;; ================================================
+
 ;; any -> boolean
 ;; produces true if op is a valid binop, which is either * or +
 (define (binop? op)
@@ -53,6 +84,10 @@
      (and (frame-base-pointer-register? fbp)
           (dispoffset? dispoffset))]
     [_ #f]))
+
+;; ================================================
+;; Tests
+;; ================================================
 
 (module+ test
   (test-case "extend-env*"
