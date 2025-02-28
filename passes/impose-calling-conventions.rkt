@@ -13,7 +13,7 @@
 (define/contract (impose-calling-conventions p)
   (-> proc-imp-cmf-lang-v5? imp-cmf-lang-v5?)
 
-  ;; (List-of opand) (List-of register) Natural -> (list (List-of imp-cmf-lang-v5.effect) (List-of imp-cmf-lang-v5.rloc))
+  ;; (List-of opand) (List-of register) Natural -> (List-of imp-cmf-lang-v5.effect) (List-of imp-cmf-lang-v5.rloc)
   (define (transform-tail-call ops regs fvidx)
     (cond
       [(empty? ops) (values '() '())]

@@ -2,16 +2,16 @@
 
 (require
   cpsc411/compiler-lib
-  cpsc411/langs/v4
+  cpsc411/langs/v5
   rackunit)
 
 (provide undead-analysis)
 
-;; asm-lang-v2/locals -> asm-lang-v2/undead
-;; compiles p to asm-lang-v2/undead by performing undeadness analysis,
+;; asm-pred-lang-v5/locals -> asm-pred-lang-v5/undead
+;; compiles p to Asm-pred-lang v5/undead by performing undeadness analysis,
 ;; decorating the program with undead-set tree
 (define/contract (undead-analysis p)
-  (-> asm-pred-lang-v4/locals? asm-pred-lang-v4/undead?)
+  (-> asm-pred-lang-v5/locals? asm-pred-lang-v5/undead?)
 
   ;; (asm-pred-lang-v4/locals tail) -> undead-set-tree undead-out-set
   ;; go through the tail and analyze the undead sets

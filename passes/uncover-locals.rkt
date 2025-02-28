@@ -121,6 +121,26 @@
                      ((locals ()))
                    (define L.f.1 ((locals (x.1))) (begin (set! x.1 rdi) (halt x.1)))
                    (begin (set! rdi 1) (jump L.f.1 rbp rdi))))
+  (check-equal? (uncover-locals '(module () (define L.f.1 () (begin (set! x.1 rdi)
+                                                                    (halt x.1)))
+                                   (begin
+                                     (set! a.1 L.f.1)
+                                     (set! rdi 1)
+                                     (jump a.1 rbp rdi))))
+                '(module
+                     ((locals (a.1)))
+                   (define L.f.1 ((locals (x.1))) (begin (set! x.1 rdi) (halt x.1)))
+                   (begin (set! a.1 L.f.1) (set! rdi 1) (jump a.1 rbp rdi))))
+  (check-equal? (uncover-locals '(module () (define L.f.1 () (begin (set! x.1 rdi)
+                                                                    (halt x.1)))
+                                   (begin
+                                     (set! r13 L.f.1)
+                                     (set! rdi 1)
+                                     (jump r13 rbp rdi))))
+                '(module
+                     ((locals ()))
+                   (define L.f.1 ((locals (x.1))) (begin (set! x.1 rdi) (halt x.1)))
+                   (begin (set! r13 L.f.1) (set! rdi 1) (jump r13 rbp rdi))))
   (check-equal? (uncover-locals '(module () (define L.f.1 () (begin
                                                                (set! x.1 rdi)
                                                                (halt x.1)))
