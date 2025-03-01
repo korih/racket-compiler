@@ -12,8 +12,8 @@
 ;; asm-pred-lang-v5/locals -> asm-pred-lang-v5/undead
 ;; compiles p to Asm-pred-lang v5/undead by performing undeadness analysis,
 ;; decorating the program with undead-set tree
-(define (undead-analysis p)
-  #;(-> asm-pred-lang-v5/locals? asm-pred-lang-v5/undead?)
+(define/contract (undead-analysis p)
+  (-> asm-pred-lang-v5/locals? asm-pred-lang-v5/undead?)
 
   (define (analyze-func f)
     (match f
