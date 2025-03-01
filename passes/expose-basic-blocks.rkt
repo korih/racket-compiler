@@ -3,28 +3,27 @@
 (require
   cpsc411/compiler-lib
   cpsc411/2c-run-time
-  cpsc411/langs/v4
+  cpsc411/langs/v5
   rackunit)
 
 (provide expose-basic-blocks)
 
-;; Exercise 10
-;; nested-asm-lang-v4 -> block-pred-lang-v4
+;; nested-asm-lang-v5 -> block-pred-lang-v5
 ;; compiles p to Block-pred-lang v4 by eliminating all nested expressions by
 ;; generating fresh basic blocks and jumps
 (define/contract (expose-basic-blocks p)
-  (-> nested-asm-lang-v4? block-pred-lang-v4?)
+  (-> nested-asm-lang-v5? block-pred-lang-v5?)
 
-  ;; blocks is (Box (List-of block-pred-lang-v4.b))
+  ;; blocks is (Box (List-of block-pred-lang-v5.b))
   ;; stores new block definitions created
   (define blocks (box '()))
 
-  ;; block-pred-lang-v4.b ->
+  ;; block-pred-lang-v5.b ->
   ;; adds blk to blocks
   (define (add-block blk)
     (set-box! blocks (cons blk (unbox blocks))))
 
-  ;; nested-asm-lang-v4-tail -> block-pred-lang-v4-tail
+  ;; nested-asm-lang-v5.tail -> block-pred-lang-v5.tail
   ;; interp. converts the tail program into a list of basic blocks
   (define (expose-basic-blocks-tail tail)
     (match tail
@@ -44,8 +43,7 @@
          (add-block `(define ,tail2-label ,(expose-basic-blocks-tail f-tail)))
          ((expose-basic-blocks-pred pred) tail1-label tail2-label))]))
 
-  ;; nested-asm-lang-v4-effect (list-of block-pred-lang-v4-effect) block-pred-lang-v4-tail -> block-pred-lang-v4-tail
-  ;; interp. returns the current tail and the current list of effects for this block
+  ;; nested-asm-lang-v5.effect (list-of block-pred-lang-v5.effect) block-pred-lang-v5.tail -> block-pred-lang-v5.tail
   (define (expose-basic-blocks-effect e bpl-fx bpl-tail)
     (match e
       [`(set! ,loc (,binop ,loc ,triv))
@@ -79,7 +77,7 @@
        (define main-tail ((expose-basic-blocks-pred pred) true-label false-label))
        (values empty main-tail)]))
 
-  ;; nested-asm-lang-v4.pred -> (block-pred-lang-v4.trg block-pred-lang-v4.trg -> block-pred-lang-v4.tail)
+  ;; nested-asm-lang-v5.pred -> (block-pred-lang-v5.trg block-pred-lang-v5.trg -> block-pred-lang-v5.tail)
   (define (expose-basic-blocks-pred p)
     (match p
       ['(true)
