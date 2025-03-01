@@ -2,85 +2,87 @@
 
 (require
   cpsc411/compiler-lib
-  cpsc411/langs/v4
+  cpsc411/langs/v5
   rackunit)
 
 (provide replace-locations)
 
-;; asm-lang-v2/assignments -> nested-asm-lang-v2
+;; asm-lang-v5/assignments -> nested-asm-lang-v5
 ;; interp. replaces the abstract locations with the concrete locations
 (define (replace-locations p)
-  (-> asm-pred-lang-v4/assignments? nested-asm-lang-v4?)
+  (-> asm-pred-lang-v5/assignments? nested-asm-lang-v5?)
 
-  ;; assignments is (Map-of aloc reg)
-  ;; the abstract locations mapped to its physical location
-  (define assignments (make-hash))
-
-  ;; asm-lang-v2/assignments.tail -> nested-asm-lang-v2.tail
-  (define (replace-locations-tail t)
+  ;; asm-lang-v5/assignments.tail (dictof asm-lang-v5/assignments.aloc asm-lang-v5/assignments.rloc)
+  ;; -> nested-asm-lang-v5.tail
+  (define (replace-locations-tail t assignments)
     (match t
       [`(halt ,triv)
-       `(halt ,(replace-locations-triv triv))]
+       `(halt ,(replace-locations-triv triv assignments))]
       [`(begin ,fx ... ,tail)
        (define compiled-fx (for/list ([e fx])
-                             (replace-locations-effect e)))
-       (define compiled-tail (replace-locations-tail tail))
+                             (replace-locations-effect e assignments)))
+       (define compiled-tail (replace-locations-tail tail assignments))
        `(begin ,@compiled-fx ,compiled-tail)]
       [`(if ,pred ,t1 ,t2)
-       (define pred^ (replace-locations-pred pred))
-       (define t1^ (replace-locations-tail t1))
-       (define t2^ (replace-locations-tail t2))
+       (define pred^ (replace-locations-pred pred assignments))
+       (define t1^ (replace-locations-tail t1 assignments))
+       (define t2^ (replace-locations-tail t2 assignments))
        `(if ,pred^ ,t1^ ,t2^)]))
 
-  ;; asm-lang-v2/assignments.effect -> nested-asm-lang-v2.effect
-  (define (replace-locations-effect e)
+  ;; asm-lang-v5/assignments.effect (dictof asm-lang-v5/assignments.aloc asm-lang-v5/assignments.rloc)
+  ;; -> nested-asm-lang-v5.effect
+  (define (replace-locations-effect e assignments)
     (match e
       [`(set! ,x (,binop ,x ,v))
        (define reg (dict-ref assignments x))
-       `(set! ,reg (,binop ,reg ,(replace-locations-triv v)))]
+       `(set! ,reg (,binop ,reg ,(replace-locations-triv v assignments)))]
       [`(set! ,x ,v)
-       `(set! ,(dict-ref assignments x) ,(replace-locations-triv v))]
+       `(set! ,(dict-ref assignments x) ,(replace-locations-triv v assignments))]
       [`(begin ,fx ... ,e)
-       (define compiled-fx (for/list ([e fx]) (replace-locations-effect e)))
-       (define compiled-e (replace-locations-effect e))
+       (define compiled-fx (for/list ([e fx]) (replace-locations-effect e assignments)))
+       (define compiled-e (replace-locations-effect e assignments))
        `(begin ,@compiled-fx ,compiled-e)]
       [`(if ,pred ,e1 ,e2)
-       (define pred^ (replace-locations-pred pred))
-       (define e1^ (replace-locations-effect e1))
-       (define e2^ (replace-locations-effect e2))
+       (define pred^ (replace-locations-pred pred assignments))
+       (define e1^ (replace-locations-effect e1 assignments))
+       (define e2^ (replace-locations-effect e2 assignments))
        `(if ,pred^ ,e1^ ,e2^)]))
 
-  (define (replace-locations-pred p)
+  ;; asm-lang-v5/assignments.pred (dictof asm-lang-v5/assignments.aloc asm-lang-v5/assignments.rloc)
+  ;; -> nested-asm-lang-v5.pred
+  (define (replace-locations-pred p assignments)
     (match p
       [`(true) `(true)]
       [`(false) `(false)]
       [`(begin ,effects ... ,pred)
        (define effects^
          (for/list ([effect effects])
-           (replace-locations-effect effect)))
-       (define pred^ (replace-locations-pred pred))
+           (replace-locations-effect effect assignments)))
+       (define pred^ (replace-locations-pred pred assignments))
        `(begin ,@effects^ ,pred^)]
-      [`(not ,pred) `(not ,(replace-locations-pred pred))]
+      [`(not ,pred) `(not ,(replace-locations-pred pred assignments))]
       [`(,relop ,aloc ,triv)
        (define reg (dict-ref assignments aloc))
        `(,relop ,reg ,triv)]
       [`(if ,p1 ,p2 ,p3)
-       (define p1^ (replace-locations-pred p1))
-       (define p2^ (replace-locations-pred p2))
-       (define p3^ (replace-locations-pred p3))
+       (define p1^ (replace-locations-pred p1 assignments))
+       (define p2^ (replace-locations-pred p2 assignments))
+       (define p3^ (replace-locations-pred p3 assignments))
        `(if ,p1^ ,p2^ ,p3^)]))
 
-  ;; asm-lang-v2/assignments.triv -> nested-asm-lang-v2.effect
-  (define (replace-locations-triv t)
+  ;; asm-lang-v5/assignments.triv (dictof asm-lang-v5/assignments.aloc asm-lang-v5/assignments.rloc)
+  ;; -> nested-asm-lang-v5.effect
+  (define (replace-locations-triv t assignments)
     (match t
       [`,x #:when (aloc? x) (dict-ref assignments x)]
       [`,x x]))
 
   (match p
     [`(module ,info ,tail)
-     (for ([pair (info-ref info 'assignment)])
-       (dict-set! assignments (first pair) (second pair)))
-     `(module ,(replace-locations-tail tail))]))
+     (define assignments (for/fold ([acc (hash)])
+                                   ([pair (info-ref info 'assignment)])
+                           (dict-set acc (first pair) (second pair))))
+     `(module ,(replace-locations-tail tail assignments))]))
 
 (module+ test
   (check-equal? (replace-locations '(module ((locals (x.1)) (assignment ((x.1 rax))))
