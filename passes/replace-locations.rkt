@@ -27,7 +27,25 @@
        (define pred^ (replace-locations-pred pred assignments))
        (define t1^ (replace-locations-tail t1 assignments))
        (define t2^ (replace-locations-tail t2 assignments))
-       `(if ,pred^ ,t1^ ,t2^)]))
+       `(if ,pred^ ,t1^ ,t2^)]
+      [`(jump ,trg ,loc ...)
+       `(jump ,(replace-locations-trg trg assignments)
+              ,@(for/list ([l loc]) (replace-locations-triv l assignments)))]))
+
+  ;; asm-pred-lang-v5/assignments.trg (dictof asm-lang-v5/assignments.aloc asm-lang-v5/assignments.rloc)
+  ;; -> nested-asm-lang-v5.trg
+  ;; interp. replaces abstract location if trg is a label
+  (define (replace-locations-trg trg assignments)
+    (match trg
+      [l #:when (label? l) l]
+      [loc (replace-locations-loc loc assignments)]))
+
+  ;; asm-pred-lang-v5/assignments.log (dictof asm-lang-v5/assignments.aloc asm-lang-v5/assignments.rloc)
+  ;; -> nested-asm-lang-v5.log
+  (define (replace-locations-loc loc assignments)
+    (match loc
+      [a #:when (aloc? a) (dict-ref assignments a)]
+      [loc loc]))
 
   ;; asm-lang-v5/assignments.effect (dictof asm-lang-v5/assignments.aloc asm-lang-v5/assignments.rloc)
   ;; -> nested-asm-lang-v5.effect
@@ -77,12 +95,25 @@
       [`,x #:when (aloc? x) (dict-ref assignments x)]
       [`,x x]))
 
+  ;; asm-lang-v5/assignments -> (dictof asm-lang-v5/assignments.aloc asm-lang-v5/assignments.rloc)
+  ;; interp. creates a dictionary of assignments
+  (define (make-assignments-dict assignments)
+    (for/fold ([acc (hash)])
+              ([pair assignments])
+      (dict-set acc (first pair) (second pair))))
+
+  ;; asm-pred-lang-v5/assignments.label asm-pred-lang-v5/assignments.info asm-pred-lang-v5/assignments.tail ->
+  ;; partial nested-asm-lang-v5/assignments.p
+  ;; interp. replaces abstract locations within the scope of the label
+  (define (replace-locations-func label info tail)
+    (define assignments (make-assignments-dict (info-ref info 'assignment)))
+    `(define ,label ,(replace-locations-tail tail assignments)))
+
   (match p
-    [`(module ,info ,tail)
-     (define assignments (for/fold ([acc (hash)])
-                                   ([pair (info-ref info 'assignment)])
-                           (dict-set acc (first pair) (second pair))))
-     `(module ,(replace-locations-tail tail assignments))]))
+    [`(module ,info (define ,labels ,infos ,tails) ... ,tail)
+     `(module ,@(for/list ([label labels] [info infos] [tail tails])
+                  (replace-locations-func label info tail))
+        ,(replace-locations-tail tail (make-assignments-dict (info-ref info 'assignment))))]))
 
 (module+ test
   (check-equal? (replace-locations '(module ((locals (x.1)) (assignment ((x.1 rax))))
@@ -147,4 +178,37 @@
                                              (set! w.1 1)
                                              (set! w.1 (+ w.1 y.1))
                                              (halt w.1))))
-                '(module (begin (set! rax 0) (set! rbx rax) (set! r9 1) (set! r9 (+ r9 rbx)) (halt r9)))))
+                '(module (begin (set! rax 0) (set! rbx rax) (set! r9 1) (set! r9 (+ r9 rbx)) (halt r9))))
+
+  (define label2 (fresh-label))
+  (check-equal? (replace-locations `(module ((locals (x.1)) (assignment ((x.1 r8))))
+                                      (define ,label2
+                                        ((locals (x.3)) (assignment ((x.3 r9))))
+                                        (begin (set! x.3 (+ x.3 1)) (halt x.3)))
+                                      (begin (set! x.1 0) (jump ,label2 x.1))))
+                `(module
+  (define ,label2 (begin (set! r9 (+ r9 1)) (halt r9)))
+  (begin (set! r8 0) (jump ,label2 r8))))
+
+  (define label1 (fresh-label))  
+  (define label3 (fresh-label))
+  (check-equal? (replace-locations `(module ((locals (x.2 x.3)) (assignment ((x.2 r7) (x.3 r8))))
+                                      (define ,label1
+                                        ((locals (x.2)) (assignment ((x.2 r7))))
+                                        (begin (set! x.2 0)
+                                          (set! x.2 (* x.2 2))
+                                          (halt x.2)))
+                                      (define ,label3
+                                        ((locals (x.3)) (assignment ((x.3 r8))))
+                                        (begin 
+                                          (set! x.3 -1)
+                                          (set! x.3 (+ x.3 2))
+                                          (halt x.3)))
+                                      (begin (set! x.2 1) (jump ,label1 x.2))))
+                `(module (define ,label1 (begin (set! r7 0)
+                                           (set! r7 (* r7 2))
+                                           (halt r7)))
+                   (define ,label3 (begin (set! r8 -1)
+                                     (set! r8 (+ r8 2))
+                                     (halt r8)))
+                   (begin (set! r7 1) (jump ,label1 r7)))))
