@@ -2,29 +2,27 @@
 
 (require
   cpsc411/compiler-lib
-  cpsc411/2c-run-time
-  cpsc411/langs/v4
+  cpsc411/langs/v5
   rackunit)
 
 (provide expose-basic-blocks)
 
-;; Exercise 10
-;; nested-asm-lang-v4 -> block-pred-lang-v4
+;; nested-asm-lang-v5 -> block-pred-lang-v5
 ;; compiles p to Block-pred-lang v4 by eliminating all nested expressions by
 ;; generating fresh basic blocks and jumps
 (define/contract (expose-basic-blocks p)
-  (-> nested-asm-lang-v4? block-pred-lang-v4?)
+  (-> nested-asm-lang-v5? block-pred-lang-v5?)
 
-  ;; blocks is (Box (List-of block-pred-lang-v4.b))
+  ;; blocks is (Box (List-of block-pred-lang-v5.b))
   ;; stores new block definitions created
   (define blocks (box '()))
 
-  ;; block-pred-lang-v4.b ->
+  ;; block-pred-lang-v5.b ->
   ;; adds blk to blocks
   (define (add-block blk)
     (set-box! blocks (cons blk (unbox blocks))))
 
-  ;; nested-asm-lang-v4-tail -> block-pred-lang-v4-tail
+  ;; nested-asm-lang-v5.tail -> block-pred-lang-v5.tail
   ;; interp. converts the tail program into a list of basic blocks
   (define (expose-basic-blocks-tail tail)
     (match tail
@@ -42,10 +40,10 @@
               [tail2-label (fresh-label)])
          (add-block `(define ,tail1-label ,(expose-basic-blocks-tail t-tail)))
          (add-block `(define ,tail2-label ,(expose-basic-blocks-tail f-tail)))
-         ((expose-basic-blocks-pred pred) tail1-label tail2-label))]))
+         ((expose-basic-blocks-pred pred) tail1-label tail2-label))]
+      [`(jump ,trg) `(jump ,trg)]))
 
-  ;; nested-asm-lang-v4-effect (list-of block-pred-lang-v4-effect) block-pred-lang-v4-tail -> block-pred-lang-v4-tail
-  ;; interp. returns the current tail and the current list of effects for this block
+  ;; nested-asm-lang-v5.effect (list-of block-pred-lang-v5.effect) block-pred-lang-v5.tail -> block-pred-lang-v5.tail
   (define (expose-basic-blocks-effect e bpl-fx bpl-tail)
     (match e
       [`(set! ,loc (,binop ,loc ,triv))
@@ -79,7 +77,7 @@
        (define main-tail ((expose-basic-blocks-pred pred) true-label false-label))
        (values empty main-tail)]))
 
-  ;; nested-asm-lang-v4.pred -> (block-pred-lang-v4.trg block-pred-lang-v4.trg -> block-pred-lang-v4.tail)
+  ;; nested-asm-lang-v5.pred -> (block-pred-lang-v5.trg block-pred-lang-v5.trg -> block-pred-lang-v5.tail)
   (define (expose-basic-blocks-pred p)
     (match p
       ['(true)
@@ -87,7 +85,10 @@
       ['(false)
        (lambda (t f) `(if ,p (jump ,t) (jump ,f)))]
       [`(not ,pred)
-       (lambda (t f) `(if (not ,pred) (jump ,t) (jump ,f)))]
+       (lambda (t f) 
+        ((expose-basic-blocks-pred pred) f t)
+         #;
+         `(if ,pred (jump ,f) (jump ,t) ))]
       [`(begin ,e ... ,pred)
        (define pred-fn (expose-basic-blocks-pred pred))
        (lambda (t f)
@@ -110,7 +111,11 @@
        (lambda (t f) `(if (,relop ,loc ,triv) (jump ,t) (jump ,f)))]))
 
   (match p
-    [`(module ,tail)
+    [`(module ,funs ... ,tail)
+     (for ([fun funs])
+       (match fun
+         [`(define ,label ,tail^)
+          (add-block `(define ,label ,(expose-basic-blocks-tail tail^)))]))
      (add-block `(define ,(fresh-label) ,(expose-basic-blocks-tail tail)))
      `(module ,@(unbox blocks))]))
 
@@ -140,7 +145,7 @@
                    (define L.tmp.10 (halt 5))))
   (check-equal? (expose-basic-blocks '(module (if (not (true)) (halt 5) (halt 6))))
                 '(module
-                     (define L.tmp.12 (if (not (true)) (jump L.tmp.13) (jump L.tmp.14)))
+                     (define L.tmp.12 (if (true) (jump L.tmp.14) (jump L.tmp.13)))
                    (define L.tmp.14 (halt 6))
                    (define L.tmp.13 (halt 5))))
   (check-equal? (expose-basic-blocks '(module (begin
@@ -249,7 +254,7 @@
   (check-equal? (expose-basic-blocks '(module (begin
                                                 (if (not (true)) (halt 1) (halt 2)))))
                 '(module
-                     (define L.tmp.47 (if (not (true)) (jump L.tmp.48) (jump L.tmp.49)))
+                     (define L.tmp.47 (if (true) (jump L.tmp.49) (jump L.tmp.48) ))
                    (define L.tmp.49 (halt 2))
                    (define L.tmp.48 (halt 1))))
   (check-equal? (expose-basic-blocks '(module (begin
@@ -257,7 +262,7 @@
                                                     (halt 1)
                                                     (halt 2)))))
                 '(module
-                     (define L.tmp.50 (if (not (true)) (jump L.tmp.53) (jump L.tmp.54)))
+                     (define L.tmp.50 (if (true) (jump L.tmp.54) (jump L.tmp.53) ))
                    (define L.tmp.53 (if (true) (jump L.tmp.51) (jump L.tmp.52)))
                    (define L.tmp.54 (if (false) (jump L.tmp.51) (jump L.tmp.52)))
                    (define L.tmp.52 (halt 2))
@@ -309,4 +314,47 @@
                    (define L.tmp.72 (begin (set! rax 5) (jump L.tmp.70)))
                    (define L.tmp.71 (begin (set! rax 2) (jump L.tmp.70)))
                    (define L.tmp.69 (halt 3))
-                   (define L.tmp.68 (halt rax)))))
+                   (define L.tmp.68 (halt rax))))
+  (check-equal? (expose-basic-blocks '(module (if (false)
+                                                  (halt 1)
+                                                  (halt 2))))
+                '(module
+                     (define L.tmp.73 (if (false) (jump L.tmp.74) (jump L.tmp.75)))
+                   (define L.tmp.75 (halt 2))
+                   (define L.tmp.74 (halt 1))))
+  (check-equal? (expose-basic-blocks '(module (if (not (false))
+                                                  (halt 1)
+                                                  (halt 2))))
+                '(module
+                     (define L.tmp.76 (if (false) (jump L.tmp.78) (jump L.tmp.77) ))
+                   (define L.tmp.78 (halt 2))
+                   (define L.tmp.77 (halt 1))))
+  (check-equal? (expose-basic-blocks '(module (if (not (if (true)
+                                                           (> r8 5)
+                                                           (< r9 5)))
+                                                  (halt 1)
+                                                  (halt 2))))
+                '(module
+                     (define L.tmp.79 (if (true) (jump L.tmp.82) (jump L.tmp.83)))
+                   (define L.tmp.82 (if (> r8 5) (jump L.tmp.81) (jump L.tmp.80)))
+                   (define L.tmp.83 (if (< r9 5) (jump L.tmp.81) (jump L.tmp.80)))
+                   (define L.tmp.81 (halt 2))
+                   (define L.tmp.80 (halt 1))))
+  (check-equal? (expose-basic-blocks '(module (define L.fun.1 (halt 1))
+                                        (begin
+                                          (set! rax 10)
+                                          (set! rax (+ rax rax))
+                                          (if (> rax 10) (set! rax 2) (set! rax 5))
+                                          (if (true) (halt rax) (halt 3)))))
+                '(module
+                     (define L.tmp.84
+                       (begin
+                         (set! rax 10)
+                         (set! rax (+ rax rax))
+                         (if (> rax 10) (jump L.tmp.88) (jump L.tmp.89))))
+                   (define L.tmp.87 (if (true) (jump L.tmp.85) (jump L.tmp.86)))
+                   (define L.tmp.89 (begin (set! rax 5) (jump L.tmp.87)))
+                   (define L.tmp.88 (begin (set! rax 2) (jump L.tmp.87)))
+                   (define L.tmp.86 (halt 3))
+                   (define L.tmp.85 (halt rax))
+                   (define L.fun.1 (halt 1)))))

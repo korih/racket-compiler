@@ -23,22 +23,12 @@
   "passes/expose-basic-blocks.rkt"
   "passes/link-paren-x64.rkt"
   "passes/interp-paren-x64.rkt"
-  "passes/check-values-lang.rkt")
+  "passes/check-values-lang.rkt"
+  "passes/impose-calling-conventions.rkt")
 
 (require
   cpsc411/compiler-lib
   cpsc411/2c-run-time)
-
-(provide
- impose-calling-conventions)
-
-;; TODO: Fill in.
-;; You'll want to merge milestone-4 code in
-
-;; Stubs; remove or replace with your definitions.
-(define-values (impose-calling-conventions)
-  (values
-   values))
 
 (module+ test
   (require

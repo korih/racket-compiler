@@ -1,18 +1,23 @@
 #lang racket
 
 (require
-  cpsc411/langs/v4
+  cpsc411/langs/v5
   rackunit)
 
 (provide sequentialize-let)
 
-;; values-unique-lang-v3 -> imp-mf-lang-v3
-;; compiles p to imp-mf-lang-v3 by picking a particular order to implement
+;; values-unique-lang-v5 -> imp-mf-lang-v5
+;; compiles p to imp-mf-lang-v5 by picking a particular order to implement
 ;; let expressions using set!
 (define/contract (sequentialize-let p)
-  (-> values-unique-lang-v4? imp-mf-lang-v4?)
+  (-> values-unique-lang-v5? imp-mf-lang-v5?)
 
-  ;; values-unique-lang-v3.tail -> imp-mf-lang-v3.tail
+  (define (sequentialize-let-func func)
+    (match func
+      [`(define ,label (lambda (,alocs ...) ,tail))
+       `(define ,label (lambda (,@alocs) ,(sequentialize-let-tail tail)))]))
+
+  ;; values-unique-lang-v5.tail -> imp-mf-lang-v5.tail
   (define (sequentialize-let-tail tail)
     (match tail
       [`(let ([,xs ,vs] ...) ,tail)
@@ -24,9 +29,10 @@
        (define t1^ (sequentialize-let-tail t1))
        (define t2^ (sequentialize-let-tail t2))
        `(if ,p^ ,t1^ ,t2^)]
+      [`(call ,triv ,opand ...) tail]
       [value (sequentialize-let-value value)]))
 
-  ;; values-unique-lang-v3.value -> imp-mf-lang-v3.value
+  ;; values-unique-lang-v5.value -> imp-mf-lang-v5.value
   (define (sequentialize-let-value v)
     (match v
       [`(let ([,xs ,vs] ...) ,v)
@@ -39,9 +45,10 @@
        (define v2^ (sequentialize-let-value v2))
        `(if ,p^ ,v1^ ,v2^)]
       ;; Using wildcard collapse case because in the other two cases, the
-      ;; expression is already in imp-mf-lang-v3.value form
+      ;; expression is already in imp-mf-lang-v5.value form
       [_ v]))
 
+  ;; values-unique-lang-v5.pred -> imp-mf-lang-v5.pred
   (define (sequentialize-let-pred p)
     (match p
       [`(let ([,xs ,vs] ...) ,pred)
@@ -61,12 +68,40 @@
        `(if ,p1^ ,p2^ ,p3^)]))
 
   (match p
-    [`(module ,tail)
-     `(module ,(sequentialize-let-tail tail))]))
+    [`(module ,funcs ... ,tail)
+     `(module ,@(map sequentialize-let-func funcs) ,(sequentialize-let-tail tail))]))
 
 (module+ test
+  (check-equal? (sequentialize-let '(module
+                                        (define L.f.1 (lambda (x.1)
+                                                        (let ([y.1 1] [z.1 2])
+                                                          (let ([a.1 (* y.1 x.1)]
+                                                                [b.1 (* z.1 x.1)])
+                                                            (+ a.1 b.1)))))
+                                      (let ([x.2 10])
+                                        (if (let ([x.3 100])
+                                              (not (!= x.2 x.3)))
+                                            (call L.f.1 x.2)
+                                            (call L.f.2 1000)))))
+                '(module
+                     (define L.f.1
+                       (lambda (x.1)
+                         (begin
+                           (set! y.1 1)
+                           (set! z.1 2)
+                           (begin
+                             (set! a.1 (* y.1 x.1))
+                             (set! b.1 (* z.1 x.1))
+                             (+ a.1 b.1)))))
+                   (begin
+                     (set! x.2 10)
+                     (if (begin
+                           (set! x.3 100)
+                           (not (!= x.2 x.3)))
+                         (call L.f.1 x.2)
+                         (call L.f.2 1000)))))
   (check-equal? (sequentialize-let '(module (if (let ([x.1 1] [y.2 2])
-                                                  (if (not (< x.1 y.2)) (> x.1 y.2) (false) ))
+                                                  (if (not (< x.1 y.2)) (> x.1 y.2) (false)))
                                                 (let ([x.2 0]
                                                       [x.3 1])
                                                   (+ x.2 x.3))
@@ -74,12 +109,12 @@
                                                       [x.5 3])
                                                   (+ x.4 x.5)))))
                 '(module
-                    (if (begin
-                          (set! x.1 1)
-                          (set! y.2 2)
-                          (if (not (< x.1 y.2)) (> x.1 y.2) (false)))
-                        (begin (set! x.2 0) (set! x.3 1) (+ x.2 x.3))
-                        (begin (set! x.4 2) (set! x.5 3) (+ x.4 x.5)))))
+                     (if (begin
+                           (set! x.1 1)
+                           (set! y.2 2)
+                           (if (not (< x.1 y.2)) (> x.1 y.2) (false)))
+                         (begin (set! x.2 0) (set! x.3 1) (+ x.2 x.3))
+                         (begin (set! x.4 2) (set! x.5 3) (+ x.4 x.5)))))
   (check-equal? (sequentialize-let '(module (if (let ([x.1 1] [y.2 2]) (> x.1 y.2))
                                                 (let ([x.2 0]
                                                       [x.3 1])

@@ -10,7 +10,12 @@
          extend-env
          binop?
          relop?
-         addr?)
+         addr?
+         rloc?)              
+
+;; ================================================
+;; Environment
+;; ================================================
 
 ;; Env : (Env-of X) is (List-of (list Symbol X))
 
@@ -27,12 +32,6 @@
                   (cadr (first env))
                   (lookup-env (rest env) x))]))
 
-;; (Env-of X) Symbol X -> (or/c (Env-of X) #f)
-;; Produce the binding for the given symbol, or #f if no binding is found
-(define (lookup-env2 env x)
-  (with-handlers ([exn:fail? (lambda (e) #f)])
-    (lookup-env env x)))
-
 ;; (Env-of X) (List-of Symbol) (List-of X) -> (Env-of X)
 ;; Produce an environment that binds distinct symbols in x* to values in v*.
 ;; ASSUME: (= (length x*) (length v*))
@@ -44,6 +43,10 @@
 ;; extend the given environment to bind x to v
 (define (extend-env env x v)
   (extend-env* env (list x) (list v)))
+
+;; ================================================
+;; Helper Functions
+;; ================================================
 
 ;; any -> boolean
 ;; produces true if op is a valid binop, which is either * or +
@@ -65,6 +68,15 @@
      (and (frame-base-pointer-register? fbp)
           (dispoffset? dispoffset))]
     [_ #f]))
+
+;; any -> boolean
+;; produces true if rloc is a valid rloc, which is either a register or fvar
+(define (rloc? rloc)
+  (or (register? rloc) (fvar? rloc)))
+
+;; ================================================
+;; Tests
+;; ================================================
 
 (module+ test
   (test-case "extend-env*"
