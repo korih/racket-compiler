@@ -9,7 +9,6 @@
 
 (provide generate-x64)
 
-;; Exercise 1
 ;; paren-x64-v4 -> string
 ;; compiles p into a valid sequence of x64 instructions, represented as a string
 (define/contract (generate-x64 p)
@@ -27,21 +26,21 @@
       [`(set! (,fbp - ,offset) ,int32)
        #:when (int32? int32)
        (format "mov QWORD [~a - ~a], ~a" fbp offset int32)]
-      [`(set! (,fbp - ,offset) ,reg)
-       #:when (register? reg)
-       (format "mov QWORD [~a - ~a], ~a" fbp offset reg)]
-      [`(set! ,reg ,loc)
-       #:when (or (register? loc) (addr? loc))
-       (format "mov ~a, ~a" reg (loc->x64 loc))]
-      [`(set! ,reg ,triv)
-       #:when (or (register? triv) (int64? triv))
-       (format "mov ~a, ~a" reg triv)]
+      [`(set! (,fbp - ,offset) ,trg)
+       (format "mov QWORD [~a - ~a], ~a" fbp offset (trg->x64 trg))]
       [`(set! ,reg (,binop ,reg ,int32))
        #:when (int32? int32)
        (format "~a ~a, ~a" (binop->ins binop) reg int32)]
       [`(set! ,reg (,binop ,reg ,loc))
        #:when (or (register? loc) (addr? loc))
        (format "~a ~a, ~a" (binop->ins binop) reg (loc->x64 loc))]
+      [`(set! ,reg ,loc)
+       #:when (or (register? loc) (addr? loc))
+       (format "mov ~a, ~a" reg (loc->x64 loc))]
+      [`(set! ,reg ,triv)
+       (cond
+         [(label? triv) (format "lea ~a, [rel ~a]" reg (triv->x64 triv))]
+         [else (format "mov ~a, ~a" reg (triv->x64 triv))])]
       [`(with-label ,label ,s)
        (format "~a:\n~a" (symbol->string label) (statement->x64 s))]
       [`(jump ,trg)
@@ -50,6 +49,24 @@
        (format "cmp ~a, ~a" reg op)]
       [`(jump-if ,relop ,label)
        (format "~a ~a" (relop->ins relop) (symbol->string label))]))
+
+  ;; paren-x64-v4.trg -> string
+  (define (trg->x64 trg)
+    (match trg
+      [label #:when (label? label) (sanitize-label label)]
+      [reg #:when (register? reg) reg]))
+
+  ;; paren-x64-v4.triv -> string
+  (define (triv->x64 triv)
+    (match triv
+      [int64 #:when (int64? int64) int64]
+      [trg (trg->x64 trg)]))
+
+  ;; paren-x64-v4.opand -> string
+  (define (opand->x64 op)
+    (match op
+      [int64 #:when (int64? int64) int64]
+      [reg #:when (register? reg) reg]))
 
   ;; paren-x64-v4.loc -> string
   (define (loc->x64 loc)
@@ -76,6 +93,22 @@
   (program->x64 p))
 
 (module+ test
+  (check-equal? (generate-x64 '(begin (set! rsi L.label.1) (with-label L.label.1 (set! rbx 18)) (set! rax rbx) (jump done)))
+                (string-join
+                 (list "lea rsi, [rel L.label.1]"
+                       "L.label.1:"
+                       "mov rbx, 18"
+                       "mov rax, rbx"
+                       "jmp done")
+                 "\n"))
+  (check-equal? (generate-x64 '(begin (set! (rbp - 8) L.label.1) (with-label L.label.1 (set! rbx 18)) (set! rax rbx) (jump done)))
+                (string-join
+                 (list "mov QWORD [rbp - 8], L.label.1"
+                       "L.label.1:"
+                       "mov rbx, 18"
+                       "mov rax, rbx"
+                       "jmp done")
+                 "\n"))
   (check-equal? (generate-x64 '(begin))
                 "")
   (check-equal? (generate-x64 '(begin (set! (rbp - 8) 42)))
@@ -137,4 +170,13 @@
                                  (set! rbx (+ rbx -1))
                                  (jump L.start.1)
                                  (with-label L.end.1 (set! rax rbx))))
-                "mov rbx, 10\ncmp rbx, 0\nL.start.1:\nje L.end.1\nadd rbx, -1\njmp L.start.1\nL.end.1:\nmov rax, rbx"))
+                (string-join
+                 (list "mov rbx, 10"
+                       "cmp rbx, 0"
+                       "L.start.1:"
+                       "je L.end.1"
+                       "add rbx, -1"
+                       "jmp L.start.1"
+                       "L.end.1:"
+                       "mov rax, rbx")
+                 "\n")))
