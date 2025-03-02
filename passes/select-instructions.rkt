@@ -69,7 +69,7 @@
     (match v
       [`(,binop ,op1 ,op2)
        (cond
-         [(int64? op1) (list `(set! ,x ,op1) `(set! ,x (,binop ,x ,op2)))]
+         [(or (int64? op1) (not (eq? x op1))) (list `(set! ,x ,op1) `(set! ,x (,binop ,x ,op2)))]
          [else (list `(set! ,x (,binop ,x ,op2)))])]
       [triv (list `(set! ,x ,triv))]))
 
@@ -162,6 +162,7 @@
                    (begin
                      (set! foo.3 1)
                      (set! x.5 1)
+                     (set! bar.4 x.5)
                      (set! bar.4 (+ bar.4 5))
                      (set! tmp.3 foo.3)
                      (set! tmp.3 (+ tmp.3 bar.4))
@@ -225,4 +226,40 @@
                      (if (begin (set! x.2 (+ x.2 1)) (= x.2 3))
                          (set! x.1 (+ x.1 x.2))
                          (set! x.1 (* x.1 x.2)))
-                     (if (if (not (> x.1 1)) (false) (true)) (halt x.1) (halt x.2))))))
+                     (if (if (not (> x.1 1)) (false) (true)) (halt x.1) (halt x.2)))))
+  (check-equal? (select-instructions '(module (begin
+                                                (set! foo.3 1)
+                                                (begin
+                                                  (begin
+                                                    (set! x.5 1)
+                                                    (set! bar.4 (+ x.5 5)))
+                                                  (+ foo.3 bar.4)))))
+                '(module
+                     ()
+                   (begin
+                     (set! foo.3 1)
+                     (set! x.5 1)
+                     (set! bar.4 x.5)
+                     (set! bar.4 (+ bar.4 5))
+                     (set! tmp.6 foo.3)
+                     (set! tmp.6 (+ tmp.6 bar.4))
+                     (halt tmp.6))))
+  (check-equal? (select-instructions '(module (begin (set! x.1 1) (set! y.1 1) (set! z.1 (+ x.1 y.1)) z.1)))
+                '(module
+                     ()
+                   (begin
+                     (set! x.1 1)
+                     (set! y.1 1)
+                     (set! z.1 x.1)
+                     (set! z.1 (+ z.1 y.1))
+                     (halt z.1))))
+  (check-equal? (select-instructions '(module (begin (set! x.6 (+ 2 3)) (set! x.7 (+ x.6 x.6)) (begin (set! y.2 5) x.6))))
+                '(module
+                     ()
+                   (begin
+                     (set! x.6 2)
+                     (set! x.6 (+ x.6 3))
+                     (set! x.7 x.6)
+                     (set! x.7 (+ x.7 x.6))
+                     (set! y.2 5)
+                     (halt x.6)))))
