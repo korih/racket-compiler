@@ -16,6 +16,30 @@
 (define/contract (uniquify p)
   (-> values-lang-v5? values-unique-lang-v5?)
 
+  ;; func is `(define ,label (lambda (,alocs ...) ,tail))
+  ;; interp. a function definition
+
+  ;; (List-of func) -> (Env-of values-unique-lang-v5.triv)
+  ;; interp. creates an environment with all the unique function labels
+  (define (initialize-env funcs)
+    (for/fold ([env empty-env])
+              ([fun funcs])
+      (match fun
+        [`(define ,funcName (lambda (,args ...) ,tail))
+         (define unique-label (fresh-label funcName))
+         (define env^ (extend-env env funcName unique-label))
+         env^])))
+
+  ;; (List-of func) (Env-of values-unique-lang-v5.triv) -> (values (List-of func) (Env-of values-unique-lang-v5.triv))
+  ;; interp. processes each function definition by assigning lexical identifiers with unique labels and abstract locations 
+  (define (process-functions funcs env)
+    (for/fold ([updated-funcs '()]
+               [updated-env env])
+              ([func funcs])
+      (define-values (updated-func new-env) (uniquify-func func updated-env))
+      (values (cons updated-func updated-funcs) new-env)))
+
+  ;; func (Env-of values-unique-lang-v5.triv) -> (values func (Env-of values-unique-lang-v5.triv))
   (define (uniquify-func func env)
     (match func
       [`(define ,funcName (lambda (,args ...) ,tail))
@@ -25,7 +49,7 @@
        (values `(define ,unique-label (lambda (,@unique-args) ,(uniquify-tail tail new-env)))
                env)]))
 
-  ;; values-lang-v5.tail (Env-of aloc) -> values-lang-v5.tail
+  ;; values-lang-v5.tail (Env-of values-unique-lang-v5.triv) -> values-lang-v5.tail
   (define (uniquify-tail tail env)
     (match tail
       [`(let ([,x ,v] ...) ,body)
@@ -44,7 +68,7 @@
        `(call ,(lookup-env env x) ,@(map (lambda (triv) (uniquify-triv triv env)) trivs))]
       [v (uniquify-value v env)]))
 
-  ;; values-lang-v5.tail (Env-of aloc) -> values-lang-v5.tail
+  ;; values-lang-v5.tail (Env-of values-unique-lang-v5.triv) -> values-lang-v5.tail
   (define (uniquify-pred pred env)
     (match pred
       ['(true) '(true)]
@@ -92,20 +116,8 @@
 
   (match p
     [`(module ,funcs ... ,tail)
-     (define defined-funs
-       (for/fold ([env empty-env])
-                 ([fun funcs])
-         (match fun
-           [`(define ,funcName (lambda (,args ...) ,tail))
-            (define unique-label (fresh-label funcName))
-            (define env^ (extend-env env funcName unique-label))
-            env^])))
-     (define-values (updated-funcs updated-env)
-       (for/fold ([updated-funcs '()]
-                  [env defined-funs])
-                 ([func funcs])
-         (define-values (updated-func new-env) (uniquify-func func env))
-         (values (cons updated-func updated-funcs) new-env)))
+     (define defined-funs (initialize-env funcs))
+     (define-values (updated-funcs updated-env) (process-functions funcs defined-funs))
      `(module ,@(reverse updated-funcs) ,(uniquify-tail tail updated-env))]))
 
 (module+ test

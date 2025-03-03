@@ -18,6 +18,9 @@
 (define/contract (conflict-analysis p)
   (-> asm-pred-lang-v5/undead? asm-pred-lang-v5/conflicts?)
 
+  ;; func-info is `(define ,label ,info ,tail)
+  ;; interp. a function definition that has metadata
+
   ;; acc is Graph
   ;; the conflict graphs of abstract locations
   (define conflict-graph (void))
@@ -27,6 +30,7 @@
   (define (analyze-move-instruction udt dest src)
     (set! conflict-graph (add-edges conflict-graph dest (set-subtract udt (list dest) src))))
 
+  ;; func-info -> func-info
   (define (conflict-analysis-func func)
     (match func
       [`(define ,label ,info ,tail)

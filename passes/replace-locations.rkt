@@ -16,6 +16,9 @@
 (define (replace-locations p)
   (-> asm-pred-lang-v5/assignments? nested-asm-lang-v5?)
 
+  ;; func is `(define ,label ,tail)
+  ;; interp. a function definition that does not have metadata
+
   ;; asm-lang-v5/assignments -> (Dict-of aloc rloc)
   ;; interp. creates a dictionary of assignments
   (define (make-assignments-dict assignments)
@@ -23,7 +26,7 @@
               ([pair assignments])
       (dict-set acc (first pair) (second pair))))
 
-  ;; asm-pred-lang-v5/assignments.label asm-pred-lang-v5/assignments.info asm-pred-lang-v5/assignments.tail -> partial nested-asm-lang-v5/assignments.p
+  ;; asm-pred-lang-v5/assignments.label asm-pred-lang-v5/assignments.info asm-pred-lang-v5/assignments.tail -> func
   (define (replace-locations-func label info tail)
     (define assignments (make-assignments-dict (info-ref info 'assignment)))
     `(define ,label ,(replace-locations-tail tail assignments)))

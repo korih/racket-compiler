@@ -16,10 +16,14 @@
 (define/contract (uncover-locals p)
   (-> asm-pred-lang-v5? asm-pred-lang-v5/locals?)
 
+  ;; func-info is `(define ,label ,info ,tail)
+  ;; interp. a function definition that has metadata
+
   ;; unique-alocs is (Set-of aloc)
   ;; keeps track of unique abstract locations
   (define unique-alocs (mutable-set))
 
+  ;; func-info -> func-info
   (define (uncover-locals-func f)
     (set-clear! unique-alocs)
     (match f

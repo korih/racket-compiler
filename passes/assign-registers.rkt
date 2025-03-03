@@ -17,6 +17,10 @@
 (define/contract (assign-registers p)
   (-> asm-pred-lang-v5/conflicts? asm-pred-lang-v5/assignments?)
 
+  ;; func-info is `(define ,label ,info ,tail)
+  ;; interp. a function definition that has metadata
+
+  ;; func-info -> func-info 
   (define (assign-registers-func func)
     (match func
       [`(define ,label ,info ,tail)
@@ -32,6 +36,7 @@
     (define fvar-index 0)
 
     ;; -> fvar
+    ;; interp. creates an fvar that is used when there are no more registers
     ;; EFFECTS: increments fvar-index by 1
     (define (make-fvar-spill)
       (define fvar (make-fvar fvar-index))
@@ -39,6 +44,7 @@
       fvar)
 
     ;; graph -> (List-of (list aloc loc))
+    ;; interp. performs the graph colouring algorithm
     (define (colour-graph graph)
       (cond
         [(null? graph) '()]

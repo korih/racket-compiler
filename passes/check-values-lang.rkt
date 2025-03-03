@@ -9,12 +9,18 @@
 
 (provide check-values-lang)
 
-(define (check-types-lang p)
+;; Any -> values-lang-v5
+;; checks the typing requirements from values-lang-v5 with p
+(define/contract (check-types-lang p)
+  (-> any/c values-lang-v5?)
 
   ;; func-args is (Map-of name natural)
   ;; keeps track of the number of arguments associated with a procedure
   (define func-args (make-hash))
 
+  ;; Any ->
+  ;; EFFECTS: raises an error if the typing requirements are not met and binds the
+  ;; number of arguments and function name in func-args
   (define (check-types-lang-func-args func)
     (match func
       [`(define ,funcName (lambda (,args ...) ,tail))
@@ -24,11 +30,15 @@
          (error 'check-types-lang (format "Duplicate argument names in function ~a: ~a" funcName args)))
        (hash-set! func-args funcName (length args))]))
 
+  ;; Any ->
+  ;; EFFECTS: raises an error if the typing requirements are not met
   (define (check-types-lang-func-tail func)
     (match func
       [`(define ,funcName (lambda (,args ...) ,tail))
        (check-types-lang-tail tail args (extend-env* empty-env (hash-keys func-args) (hash-keys func-args)))]))
 
+  ;; Any ->
+  ;; EFFECTS: raises an error if the typing requirements are not met
   (define (check-types-lang-tail tail args env)
     (match tail
       [`(let ([,xs ,vs] ...) ,t)
@@ -55,6 +65,8 @@
        (unless (int64? (check-types-lang-value value args env))
          (error 'check-types-lang (format "Must end with int64: ~a" tail)))]))
 
+  ;; Any -> Natural
+  ;; EFFECTS: raises an error if the typing requirements are not met
   (define (check-types-lang-value value args env)
     (match value
       [`(let ([,xs ,vs] ...) ,v)
@@ -76,6 +88,8 @@
        0]
       [triv (check-types-lang-triv triv args env)]))
 
+  ;; Any -> 
+  ;; EFFECTS: raises an error if the typing requirements are not met
   (define (check-types-lang-pred pred args env)
     (match pred
       ['(true) pred]
@@ -96,6 +110,8 @@
                     (int64? (check-types-lang-triv triv2 args env)))
          (error 'check-types-lang (format "Relop must have two integer operands: ~a" pred)))]))
 
+  ;; Any -> Natural
+  ;; EFFECTS: raises an error if the typing requirements are not met
   (define (check-types-lang-triv triv args env)
     (match triv
       [int64 #:when (int64? int64) int64]
@@ -111,8 +127,12 @@
      (check-types-lang-tail tail '() (extend-env* empty-env (hash-keys func-args) (hash-keys func-args)))
      p]))
 
-(define (check-syntax-lang p)
-  
+;; Any -> Any
+;; interp. checks the syntax of p with the requirements for values-lang-v5
+(define/contract (check-syntax-lang p)
+  (-> any/c any/c)
+
+  ;; Any -> Any
   (define (check-syntax-lang-func func)
     (match func
       [`(define ,funcName (lambda (,args ...) ,tail))
@@ -121,6 +141,7 @@
        func]
       [else (error 'check-syntax-lang "Invalid function definition")]))
 
+  ;; Any -> Any
   (define (check-syntax-lang-tail tail)
     (match tail
       [`(let ([,xs ,vs] ...) ,t)
@@ -142,6 +163,7 @@
        tail]
       [else (error 'check-syntax-lang (format "Invalid tail structure: ~a" tail))]))
 
+  ;; Any -> Any
   (define (check-syntax-lang-value value)
     (match value
       [`(let ([,xs ,vs] ...) ,v)
@@ -164,6 +186,7 @@
        value]
       [else (error 'check-syntax-lang (format "Invalid value structure: ~a" value))]))
 
+  ;; Any -> Any
   (define (check-syntax-lang-pred pred)
     (match pred
       ['(true) pred]
@@ -186,6 +209,7 @@
        pred]
       [else (error 'check-syntax-lang (format "Invalid pred structure: ~a" pred))]))
 
+  ;; Any -> Any
   (define (check-syntax-lang-triv triv)
     (match triv
       [int64 #:when (int64? int64) (void)]
