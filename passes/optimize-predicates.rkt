@@ -16,7 +16,7 @@
 
   ;; func is `(define ,label ,tail)
   ;; interp. a function definition
-  
+
   ;; (Env-of nested-asm-lang-v5.loc RangeValue)
   ;; invariant: env contains a mapping of the locations to their currently known value ranges
   (define env empty-env)
@@ -311,6 +311,15 @@
                                      (halt rax)
                                      (begin (set! rax -1)
                                             (halt rax))))))
-                '(module (begin (set! rax 1) (halt 1)))))
-
-
+                '(module (begin (set! rax 1) (halt 1))))
+  (check-equal? (optimize-predicates
+                 '(module (begin (set! rbx rax)
+                                 (set! rbx (+ rbx 10))
+                                 (if (> rbx 0)
+                                     (halt rbx)
+                                     (halt -1)))))
+                '(module
+                     (begin
+                       (set! rbx rax)
+                       (set! rbx (+ rbx 10))
+                       (if (> rbx 0) (halt rbx) (halt -1))))))
