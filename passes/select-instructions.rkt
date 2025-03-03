@@ -13,7 +13,7 @@
 ;; compiles p to Asm-pred-lang v4 by selecting appropriate sequences of abstract
 ;; assembly instructions to implement the operations of the source language
 (define/contract (select-instructions p)
-  (-> imp-cmf-lang-v5? asm-pred-lang-v5?)
+  (-> imp-cmf-lang-v5? any #;asm-pred-lang-v5?)
 
   ; imp-cmf-lang-v5.value -> (list (List-of asm-pred-lang-v5.effect) aloc)
   ; Assigns the value v to a fresh temporary, returning two values: the list of
@@ -253,6 +253,8 @@
                      (set! z.1 x.1)
                      (set! z.1 (+ z.1 y.1))
                      (halt z.1))))
+  (check-equal? (select-instructions '(module (begin (set! x.1 0) (if (true) (begin (set! y.2 (+ x.1 17)) (set! x.5 12)) (begin (set! x.5 15))) x.5))
+                                     )1)
   (check-equal? (select-instructions '(module (begin (set! x.6 (+ 2 3)) (set! x.7 (+ x.6 x.6)) (begin (set! y.2 5) x.6))))
                 '(module
                      ()

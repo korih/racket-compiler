@@ -19,12 +19,11 @@
   (define (uniquify-func func env)
     (match func
       [`(define ,funcName (lambda (,args ...) ,tail))
-       (define unique-label (fresh-label funcName))
+       (define unique-label (lookup-env env funcName))
        (define unique-args (map fresh args))
-       (define new-env (extend-env* (extend-env env funcName unique-label)
-                                    args unique-args))
+       (define new-env (extend-env* env args unique-args))
        (values `(define ,unique-label (lambda (,@unique-args) ,(uniquify-tail tail new-env)))
-               (extend-env env funcName unique-label))]))
+               env)]))
 
   ;; values-lang-v5.tail (Env-of aloc) -> values-lang-v5.tail
   (define (uniquify-tail tail env)
@@ -93,9 +92,17 @@
 
   (match p
     [`(module ,funcs ... ,tail)
+     (define defined-funs
+       (for/fold ([env empty-env])
+                 ([fun funcs])
+         (match fun
+           [`(define ,funcName (lambda (,args ...) ,tail))
+            (define unique-label (fresh-label funcName))
+            (define env^ (extend-env env funcName unique-label))
+            env^])))
      (define-values (updated-funcs updated-env)
        (for/fold ([updated-funcs '()]
-                  [env empty-env])
+                  [env defined-funs])
                  ([func funcs])
          (define-values (updated-func new-env) (uniquify-func func env))
          (values (cons updated-func updated-funcs) new-env)))
@@ -165,7 +172,6 @@
                                          (* 3 3)
                                          0)])
                            (+ y.31 -1))))
-
   (check-equal? (uniquify '(module
                                (define f (lambda (x y) (+ x y)))
                              (define x (lambda (z) (let ([x 1])
@@ -176,4 +182,16 @@
                 '(module
                      (define L.f.1 (lambda (x.32 y.33) (+ x.32 y.33)))
                    (define L.x.2 (lambda (z.34) (let ((x.35 1)) (+ x.35 z.34))))
-                   (if (true) (call L.f.1 1 2) (call L.x.2 1)))))
+                   (if (true) (call L.f.1 1 2) (call L.x.2 1))))
+  (check-equal? (uniquify '(module
+                               (define odd? (lambda (x) (if (= x 0) 0 (let ((y (+ x -1))) (call even? y)))))
+                             (define even? (lambda (x) (if (= x 0) 1 (let ((y (+ x -1))) (call odd? y)))))
+                             (call even? 5)))
+                '(module
+                     (define L.odd?.3
+                       (lambda (x.36)
+                         (if (= x.36 0) 0 (let ((y.37 (+ x.36 -1))) (call L.even?.4 y.37)))))
+                   (define L.even?.4
+                     (lambda (x.38)
+                       (if (= x.38 0) 1 (let ((y.39 (+ x.38 -1))) (call L.odd?.3 y.39)))))
+                   (call L.even?.4 5))))
