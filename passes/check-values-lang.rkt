@@ -10,14 +10,107 @@
 (provide check-values-lang)
 
 (define (check-types-lang p)
-  (void))
+
+  ;; func-args is (Map-of name natural)
+  ;; keeps track of the number of arguments associated with a procedure
+  (define func-args (make-hash))
+
+  (define (check-types-lang-func-args func)
+    (match func
+      [`(define ,funcName (lambda (,args ...) ,tail))
+       (when (hash-has-key? func-args funcName)
+         (error 'check-types-lang (format "Duplicate function name: ~a" funcName)))
+       (unless (equal? (length args) (length (remove-duplicates args)))
+         (error 'check-types-lang (format "Duplicate argument names in function ~a: ~a" funcName args)))
+       (hash-set! func-args funcName (length args))]))
+
+  (define (check-types-lang-func-tail func)
+    (match func
+      [`(define ,funcName (lambda (,args ...) ,tail))
+       (check-types-lang-tail tail args (extend-env* empty-env (hash-keys func-args) (hash-keys func-args)))]))
+
+  (define (check-types-lang-tail tail args env)
+    (match tail
+      [`(let ([,xs ,vs] ...) ,t)
+       (define vs^ (map (lambda (v) (check-types-lang-value v args env)) vs))
+       (define new-env (extend-env* env xs vs^))
+       (check-types-lang-tail t args new-env)]
+      [`(if ,pred ,t1 ,t2)
+       (check-types-lang-pred pred args env)
+       (check-types-lang-tail t1 args env)
+       (check-types-lang-tail t2 args env)]
+      [`(call ,x ,trivs ...)
+       (cond
+         [(not (hash-has-key? func-args (lookup-env env x)))
+          (error 'check-types-lang (format "Function not defined: ~a" x))]
+         [(not (eq? (hash-ref func-args (lookup-env env x)) (length trivs)))
+          (error 'check-types-lang "Wrong number of arguments")]
+         [else (for-each (lambda (t)
+                           (unless (int64? (check-types-lang-triv t args env))
+                             (error 'check-types-lang (format "Expected int64 but got: ~a" t))))
+                         trivs)])]
+      [value
+       (unless (int64? (check-types-lang-value value args env))
+         (error 'check-types-lang (format "Must end with int64: ~a" tail)))]))
+
+  (define (check-types-lang-value value args env)
+    (match value
+      [`(let ([,xs ,vs] ...) ,v)
+       (define vs^ (map (lambda (v) (check-types-lang-value v args env)) vs))
+       (define new-env (extend-env* env xs vs^))
+       (check-types-lang-value v args new-env)
+       0]
+      [`(if ,pred ,v1 ,v2)
+       (check-types-lang-pred pred args env)
+       (check-types-lang-value v1 args env)
+       (check-types-lang-value v2 args env)
+       0]
+      [`(,binop ,triv1 ,triv2)
+       (unless (and (int64? (check-types-lang-triv triv1 args env))
+                    (int64? (check-types-lang-triv triv2 args env)))
+         (error 'check-types-lang (format "Binop must have two integer operands: ~a" value)))
+       0]
+      [triv (check-types-lang-triv triv args env)]))
+
+  (define (check-types-lang-pred pred args env)
+    (match pred
+      ['(true) pred]
+      ['(false) pred]
+      [`(not ,p) (check-types-lang-pred p args env)]
+      [`(let ([,xs ,vs] ...) ,p)
+       (define vs^ (map (lambda (v) (check-types-lang-value v args env)) vs))
+       (define new-env (extend-env* env xs vs^))
+       (check-types-lang-pred p args new-env)]
+      [`(if ,p1 ,p2 ,p3)
+       (check-types-lang-pred p1 args env)
+       (check-types-lang-pred p2 args env)
+       (check-types-lang-pred p3 args env)]
+      [`(,relop ,triv1 ,triv2)
+       (unless (and (int64? (check-types-lang-triv triv1 args env))
+                    (int64? (check-types-lang-triv triv2 args env)))
+         (error 'check-types-lang (format "Relop must have two integer operands: ~a" pred)))]))
+
+  (define (check-types-lang-triv triv args env)
+    (match triv
+      [int64 #:when (int64? int64) int64]
+      [x #:when (name? x)
+         (if (member x args)
+             0
+             (lookup-env env x))]))
+  
+  (match p
+    [`(module ,funcs ... ,tail)
+     (for-each check-types-lang-func-args funcs)
+     (for-each check-types-lang-func-tail funcs)
+     (check-types-lang-tail tail '() (extend-env* empty-env (hash-keys func-args) (hash-keys func-args)))
+     p]))
 
 (define (check-syntax-lang p)
-
+  
   (define (check-syntax-lang-func func)
     (match func
       [`(define ,funcName (lambda (,args ...) ,tail))
-       #:when (and (symbol? funcName) (andmap symbol? args))
+       #:when (and (name? funcName) (andmap name? args))
        (check-syntax-lang-tail tail)
        func]
       [else (error 'check-syntax-lang "Invalid function definition")]))
@@ -25,7 +118,7 @@
   (define (check-syntax-lang-tail tail)
     (match tail
       [`(let ([,xs ,vs] ...) ,t)
-       #:when (andmap symbol? xs)
+       #:when (andmap name? xs)
        (for-each check-syntax-lang-value vs)
        (check-syntax-lang-tail t)
        tail]
@@ -34,9 +127,9 @@
        (check-syntax-lang-tail t1)
        (check-syntax-lang-tail t2)
        tail]
-      [`(call ,funcName ,triv ...)
-       #:when (symbol? funcName)
-       (for-each check-syntax-lang-triv triv)
+      [`(call ,funcName ,trivs ...)
+       #:when (name? funcName)
+       (for-each check-syntax-lang-triv trivs)
        tail]
       [value
        (check-syntax-lang-value value)
@@ -46,7 +139,7 @@
   (define (check-syntax-lang-value value)
     (match value
       [`(let ([,xs ,vs] ...) ,v)
-       #:when (andmap symbol? xs)
+       #:when (andmap name? xs)
        (for-each check-syntax-lang-value vs)
        (check-syntax-lang-value v)
        value]
@@ -71,7 +164,7 @@
       ['(false) pred]
       [`(not ,p) (check-syntax-lang-pred p)]
       [`(let ([,xs ,vs] ...) ,p)
-       #:when (andmap symbol? xs)
+       #:when (andmap name? xs)
        (for-each check-syntax-lang-value vs)
        (check-syntax-lang-pred p)
        pred]
@@ -89,16 +182,14 @@
 
   (define (check-syntax-lang-triv triv)
     (match triv
-      [(? integer?) (void)]
-      [(? symbol?) (void)]
-      [else (error 'check-syntax-lang (format "Invalid triv structure: ~a" triv))]))
+      [int64 #:when (int64? int64) (void)]
+      [x #:when (name? x) (void)]
+      [else (error 'check-syntax-lang (format "Invalid triv: ~a" triv))]))
 
   (match p
     [`(module ,funcs ... ,tail)
-     (for-each check-syntax-lang-func funcs)
-     (check-syntax-lang-tail tail)
-     p]
-    [else (error 'check-syntax-lang "Invalid module structure")]))
+     `(module ,@(map check-syntax-lang-func funcs) ,(check-syntax-lang-tail tail))]
+    [else (error 'check-syntax-lang (format "Invalid program structure: ~a" p))]))
 
 ;; any -> values-lang-v5
 ;; validates that p is a syntactically well-formed, well bound and well
@@ -110,6 +201,55 @@
   (check-types-lang (check-syntax-lang p)))
 
 (module+ test
+  (check-equal? (check-values-lang '(module
+                                        (define odd?
+                                          (lambda (x)
+                                            (if (= x 0)
+                                                0
+                                                (let ([y (+ x -1)])
+                                                  (call even? y)))))
+                                      (define even?
+                                        (lambda (x)
+                                          (if (= x 0)
+                                              1
+                                              (let ([y (+ x -1)])
+                                                (call odd? y)))))
+                                      (call even? 5)))
+                '(module
+                     (define odd? (lambda (x) (if (= x 0) 0 (let ((y (+ x -1))) (call even? y)))))
+                   (define even? (lambda (x) (if (= x 0) 1 (let ((y (+ x -1))) (call odd? y)))))
+                   (call even? 5)))
+  (check-exn exn:fail? (lambda () (check-values-lang '(module (define f (lambda (x) x))
+                                                        (let ([x 1])
+                                                          (call x 1))))))
+  (check-equal? (check-values-lang '(module (define f (lambda (x) x))
+                                      (let ([f f])
+                                        (call f 1))))
+                '(module (define f (lambda (x) x)) (let ((f f)) (call f 1))))
+  (check-exn exn:fail? (lambda () (check-values-lang '(module (define f (lambda (x) x))
+                                                        (let ([f 1])
+                                                          (call f f))))))
+  (check-equal? (check-values-lang '(module (define f (lambda (x) x))
+                                      (let ([x f])
+                                        (call x 1))))
+                '(module (define f (lambda (x) x)) (let ((x f)) (call x 1))))
+  (check-equal? (check-values-lang '(module (define f (lambda (x) x))
+                                      (let ([x f]
+                                            [y 1])
+                                        (call x y))))
+                '(module (define f (lambda (x) x)) (let ((x f) (y 1)) (call x y))))
+  (check-exn exn:fail? (lambda () (check-values-lang '(module
+                                                          (define g (lambda (x) (call f x)))
+                                                        (define f (lambda (x) x))
+                                                        (call g x)))))
+  (check-equal? (check-values-lang '(module
+                                        (define g (lambda (x) (call f x)))
+                                      (define f (lambda (x) x))
+                                      (call g 1)))
+                '(module
+                     (define g (lambda (x) (call f x)))
+                   (define f (lambda (x) x))
+                   (call g 1)))
   (check-equal? (check-values-lang '(module 5))
                 '(module 5))
   (check-equal? (check-values-lang '(module (+ 1 2)))
@@ -129,37 +269,14 @@
                                                 (* 10 x)))
                                           (call f 10))))
                 '(module
-                     (define f (lambda (z) (let ((y 5)) (* z y))))
+                     (define f (lambda (x) (let ((y 5)) (* x y))))
                    (if (if (let ((x 1) (y 2)) (> x y)) (not (true)) (!= 5 1))
                        (let ((x (let ((y 1)) (+ y 2)))) (if (< x 10) (+ x 5) (* 10 x)))
                        (call f 10))))
-
   (check-equal? (check-values-lang '(module (define x (lambda (y) y)) (call x 1)))
                 '(module (define x (lambda (y) y)) (call x 1)))
   (check-equal? (check-values-lang '(module (define f (lambda (x y) (+ x y))) (call f 1 2)))
                 '(module (define f (lambda (x y) (+ x y))) (call f 1 2)))
-  (check-equal? (check-values-lang '(module (define x (lambda () (< 1 2))) (call x)))
-                '(module (define x (lambda () (< 1 2))) (call x)))
-  (check-equal? (check-values-lang '(module (define x (lambda () (<= 3 3))) (call x)))
-                '(module (define x (lambda () (<= 3 3))) (call x)))
-  (check-equal? (check-values-lang '(module (define x (lambda () (= 5 5))) (call x)))
-                '(module (define x (lambda () (= 5 5))) (call x)))
-  (check-equal? (check-values-lang '(module (define x (lambda () (> 10 9))) (call x)))
-                '(module (define x (lambda () (> 10 9))) (call x)))
-  (check-equal? (check-values-lang '(module (define x (lambda () (>= 2 2))) (call x)))
-                '(module (define x (lambda () (>= 2 2))) (call x)))
-  (check-equal? (check-values-lang '(module (define x (lambda () (!= 4 5))) (call x)))
-                '(module (define x (lambda () (!= 4 5))) (call x)))
-  (check-equal? (check-values-lang '(module (define x (lambda () (true))) (call x)))
-                '(module (define x (lambda () (true))) (call x)))
-  (check-equal? (check-values-lang '(module (define x (lambda () (false))) (call x)))
-                '(module (define x (lambda () (false))) (call x)))
-  (check-equal? (check-values-lang '(module (define x (lambda () (not (true)))) (call x)))
-                '(module (define x (lambda () (not (true)))) (call x)))
-  (check-equal? (check-values-lang '(module (define x (lambda () (let ([y 10]) (< y 20)))) (call x)))
-                '(module (define x (lambda () (let ([y 10]) (< y 20)))) (call x)))
-  (check-equal? (check-values-lang '(module (define x (lambda () (if (true) (false) (true)))) (call x)))
-                '(module (define x (lambda () (if (true) (false) (true)))) (call x)))
   (check-equal? (check-values-lang '(module (define x (lambda () 42)) (call x)))
                 '(module (define x (lambda () 42)) (call x)))
   (check-equal? (check-values-lang '(module (define x (lambda () (let ([y 10]) y))) (call x)))
@@ -193,7 +310,7 @@
   (check-exn exn:fail? (lambda ()
                          (check-values-lang '(module
                                                  (define f (lambda (x) x))
-                                                 (define g (lambda (x) x))
+                                               (define g (lambda (x) x))
                                                (call f g)))))
   (check-exn exn:fail? (lambda ()
                          (check-values-lang '(module
@@ -206,13 +323,12 @@
   (check-exn exn:fail? (lambda ()
                          (check-values-lang '(module
                                                  (define f (lambda (x) x))
-                                                 (define g (lambda (x) x))
+                                               (define g (lambda (x) x))
                                                (+ f g)))))
   (check-exn exn:fail? (lambda ()
                          (check-values-lang '(module
                                                  (define f (lambda (x) x))
-                                                 (define g (lambda (x) x))
+                                               (define g (lambda (x) x))
                                                (if (> f g)
                                                    1
                                                    2))))))
-                                            
