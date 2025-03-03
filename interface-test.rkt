@@ -1,4 +1,6 @@
-#lang racket/base
+#lang racket
+
+(require rackunit)
 
 (module+ test
   (require
@@ -6,24 +8,23 @@
 
   (check-import-list
    "compiler.rkt"
-   '(uniquify
+   '(check-values-lang
+     uniquify
      sequentialize-let
-     impose-calling-conventions
      normalize-bind
+     impose-calling-conventions
      select-instructions
+     assign-homes-opt
      uncover-locals
      undead-analysis
      conflict-analysis
-     assign-call-undead-variables
-     allocate-frames
      assign-registers
      replace-locations
-     assign-frame-variables
-     implement-fvars
      optimize-predicates
      expose-basic-blocks
      resolve-predicates
      flatten-program
      patch-instructions
+     implement-fvars
 
      generate-x64)))
