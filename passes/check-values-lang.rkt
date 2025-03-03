@@ -32,6 +32,8 @@
   (define (check-types-lang-tail tail args env)
     (match tail
       [`(let ([,xs ,vs] ...) ,t)
+       (unless (equal? (length xs) (length (remove-duplicates xs)))
+         (error 'check-types-lang "Parallel bindings of the same variable are not allowed"))
        (define vs^ (map (lambda (v) (check-types-lang-value v args env)) vs))
        (define new-env (extend-env* env xs vs^))
        (check-types-lang-tail t args new-env)]
@@ -56,6 +58,8 @@
   (define (check-types-lang-value value args env)
     (match value
       [`(let ([,xs ,vs] ...) ,v)
+       (unless (equal? (length xs) (length (remove-duplicates xs)))
+         (error 'check-types-lang "Parallel bindings of the same variable are not allowed"))
        (define vs^ (map (lambda (v) (check-types-lang-value v args env)) vs))
        (define new-env (extend-env* env xs vs^))
        (check-types-lang-value v args new-env)
@@ -78,6 +82,8 @@
       ['(false) pred]
       [`(not ,p) (check-types-lang-pred p args env)]
       [`(let ([,xs ,vs] ...) ,p)
+       (unless (equal? (length xs) (length (remove-duplicates xs)))
+         (error 'check-types-lang "Parallel bindings of the same variable are not allowed"))
        (define vs^ (map (lambda (v) (check-types-lang-value v args env)) vs))
        (define new-env (extend-env* env xs vs^))
        (check-types-lang-pred p args new-env)]
@@ -201,6 +207,10 @@
   (check-types-lang (check-syntax-lang p)))
 
 (module+ test
+  (check-exn exn:fail? (lambda () (check-values-lang '(module
+                                                          (let ([x 1]
+                                                                [x 2])
+                                                            x)))))
   (check-equal? (check-values-lang '(module
                                         (define odd?
                                           (lambda (x)
