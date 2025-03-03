@@ -12,6 +12,10 @@
 (define/contract (normalize-bind p)
   (-> imp-mf-lang-v5? proc-imp-cmf-lang-v5?)
 
+  ;; func is `(define ,label (lambda (,alocs ...) ,tail))
+  ;; interp. a function definition
+
+  ;; func -> func
   (define (normalize-bind-func func)
     (match func
       [`(define ,label (lambda (,alocs ...) ,tail))

@@ -14,6 +14,9 @@
 (define/contract (optimize-predicates p)
   (-> nested-asm-lang-v5? nested-asm-lang-v5?)
 
+  ;; func is `(define ,label ,tail)
+  ;; interp. a function definition
+  
   ;; (Env-of nested-asm-lang-v5.loc RangeValue)
   ;; invariant: env contains a mapping of the locations to their currently known value ranges
   (define env empty-env)
@@ -25,6 +28,8 @@
   ;; to get eval to work
   (define ns (make-base-namespace))
 
+  ;; func is `(define ,label ,tail)
+  ;; interp. a function definition
   (define (optimize-predicates/func f)
     (match f
       [`(define ,label ,tail)

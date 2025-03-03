@@ -15,6 +15,12 @@
 (define/contract (select-instructions p)
   (-> imp-cmf-lang-v5? asm-pred-lang-v5?)
 
+  ;; func is `(define ,label ,tail)
+  ;; interp. a function definition that does not have metadata
+
+  ;; func-info is `(define ,label ,info ,tail)
+  ;; interp. a function definition that has metadata
+
   ; imp-cmf-lang-v5.value -> (list (List-of asm-pred-lang-v5.effect) aloc)
   ; Assigns the value v to a fresh temporary, returning two values: the list of
   ; statements the implement the assignment in Loc-lang, and the aloc that the
@@ -27,6 +33,7 @@
          (list (append stmts1 stmts2 (list `(set! ,loc1 (,binop ,loc1 ,loc2)))) loc1))]
       [triv (select-triv triv)]))
 
+  ;; func -> func-info
   (define (select-func f)
     (match f
       [`(define ,label ,tail)

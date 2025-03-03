@@ -13,6 +13,12 @@
 (define/contract (impose-calling-conventions p)
   (-> proc-imp-cmf-lang-v5? imp-cmf-lang-v5?)
 
+  ;; func-lambda is `(define ,label (lambda (,alocs ...) ,tail))
+  ;; interp. a function definition that uses lambdas
+
+  ;; func is `(define ,label ,tail)
+  ;; interp. a function definition that uses calling conventions for arguments
+
   ;; (List-of opand) (List-of register) Natural -> (List-of imp-cmf-lang-v5.effect) (List-of imp-cmf-lang-v5.rloc)
   (define (transform-tail-call ops regs fvidx)
     (cond
@@ -41,6 +47,7 @@
            (cons `(set! ,(first alocs) ,(make-fvar fvidx))
                  (transform-procedure (rest alocs) regs (+ fvidx 1))))]))
 
+  ;; func-lambda -> func
   (define (impose-calling-conventions-func func)
     (match func
       [`(define ,label (lambda (,alocs ...) ,tail))

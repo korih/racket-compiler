@@ -12,6 +12,10 @@
 (define/contract (sequentialize-let p)
   (-> values-unique-lang-v5? imp-mf-lang-v5?)
 
+  ;; func is `(define ,label (lambda (,alocs ...) ,tail))
+  ;; interp. a function definition
+
+  ;; func -> func
   (define (sequentialize-let-func func)
     (match func
       [`(define ,label (lambda (,alocs ...) ,tail))

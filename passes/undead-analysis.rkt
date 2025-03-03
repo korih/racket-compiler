@@ -15,6 +15,10 @@
 (define/contract (undead-analysis p)
   (-> asm-pred-lang-v5/locals? asm-pred-lang-v5/undead?)
 
+  ;; func-info is `(define ,label ,info ,tail)
+  ;; interp. a function definition that has metadata
+
+  ;; func-info -> func-info
   (define (analyze-func f)
     (match f
       [`(define ,label ,info ,tail)
