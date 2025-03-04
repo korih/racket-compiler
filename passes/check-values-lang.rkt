@@ -45,6 +45,9 @@
        (unless (equal? (length xs) (length (remove-duplicates xs)))
          (error 'check-types-lang "Parallel bindings of the same variable are not allowed"))
        (define vs^ (map (lambda (v) (check-types-lang-value v args env)) vs))
+       (map (lambda (x v) (if (hash-has-key? func-args x)
+                              (void)
+                              (hash-set! func-args x v))) xs vs^)
        (define new-env (extend-env* env xs vs^))
        (check-types-lang-tail t args new-env)]
       [`(if ,pred ,t1 ,t2)
@@ -54,7 +57,7 @@
       [`(call ,x ,trivs ...)
        (cond
          [(not (hash-has-key? func-args (lookup-env env x)))
-          (error 'check-types-lang (format "Function not defined: ~a" x))]
+          (error 'check-types-lang (format "Function not defined: ~a in env: ~a with hash: ~a" x env func-args))]
          [(not (eq? (hash-ref func-args (lookup-env env x)) (length trivs)))
           (error 'check-types-lang "Wrong number of arguments")]
          [else (for-each (lambda (t)
@@ -80,7 +83,13 @@
        (check-types-lang-pred pred args env)
        (check-types-lang-value v1 args env)
        (check-types-lang-value v2 args env)
-       0]
+       (if (and (name? v1) (name? v2))
+           (let* ([v1-length (hash-ref func-args v1)]
+                  [v2-length (hash-ref func-args v2)])
+             (if (equal? v1-length v2-length)
+                 v1
+                 0))
+           0)]
       [`(,binop ,triv1 ,triv2)
        (unless (and (int64? (check-types-lang-triv triv1 args env))
                     (int64? (check-types-lang-triv triv2 args env)))
@@ -88,7 +97,7 @@
        0]
       [triv (check-types-lang-triv triv args env)]))
 
-  ;; Any -> 
+  ;; Any ->
   ;; EFFECTS: raises an error if the typing requirements are not met
   (define (check-types-lang-pred pred args env)
     (match pred
@@ -119,7 +128,7 @@
          (if (member x args)
              0
              (lookup-env env x))]))
-  
+
   (match p
     [`(module ,funcs ... ,tail)
      (for-each check-types-lang-func-args funcs)
@@ -161,7 +170,7 @@
       [value
        (check-syntax-lang-value value)
        tail]
-      [else (error 'check-syntax-lang (format "Invalid tail structure: ~a" tail))]))
+      [_ (error 'check-syntax-lang (format "Invalid tail structure: ~a" tail))]))
 
   ;; Any -> Any
   (define (check-syntax-lang-value value)
@@ -219,7 +228,7 @@
   (match p
     [`(module ,funcs ... ,tail)
      `(module ,@(map check-syntax-lang-func funcs) ,(check-syntax-lang-tail tail))]
-    [else (error 'check-syntax-lang (format "Invalid program structure: ~a" p))]))
+    [_ (error 'check-syntax-lang (format "Invalid program structure: ~a" p))]))
 
 ;; any -> values-lang-v5
 ;; validates that p is a syntactically well-formed, well bound and well
@@ -227,7 +236,7 @@
 ;; arguments, and all binop and relop are never used with labels
 (define/contract (check-values-lang p)
   (-> any/c values-lang-v5?)
-  
+
   (check-types-lang (check-syntax-lang p)))
 
 (module+ test
@@ -336,6 +345,14 @@
                                       (define g (lambda () (call f)))
                                       (call g)))
                 '(module (define f (lambda () 1)) (define g (lambda () (call f))) (call g)))
+  (check-equal? (check-values-lang '(module
+                                        (define id1 (lambda (x) x))
+                                      (define id2 (lambda (x) x))
+                                      (let ((y (if (true) id1 id2))) (call y 5))))
+                '(module
+                     (define id1 (lambda (x) x))
+                   (define id2 (lambda (x) x))
+                   (let ((y (if (true) id1 id2))) (call y 5))))
 
   (check-exn exn:fail? (lambda ()
                          (check-values-lang '(module (define x (lambda (y) y)) x))))
