@@ -17,10 +17,6 @@
   ;; func is `(define ,label ,tail)
   ;; interp. a function definition
 
-  ;; (Env-of nested-asm-lang-v5.loc RangeValue)
-  ;; invariant: env contains a mapping of the locations to their currently known value ranges
-  (define env empty-env)
-
   ;; RangeValue is one-of:
   ;; - int64
   ;; - 'unknown
@@ -33,51 +29,88 @@
   (define (optimize-predicates/func f)
     (match f
       [`(define ,label ,tail)
-       `(define ,label ,(optimize-predicates/tail tail))]))
+       `(define ,label ,(optimize-predicates/tail tail empty-env))]))
 
   ;; nested-asm-lang-v5.tail -> nested-asm-lang-v5.tail
-  (define (optimize-predicates/tail t)
+  (define (optimize-predicates/tail t env)
     (match t
-      [`(halt ,triv) `(halt ,(try-optimize-triv/triv triv))]
+      [`(halt ,triv) `(halt ,(try-optimize-triv/triv triv env))]
       [`(begin ,fx ... ,tail)
-       `(begin ,@(map optimize-predicates/effect fx) ,(optimize-predicates/tail tail))]
+
+       (define-values (optimized-fx eff-env)
+         (for/fold ([fx^ '()]
+                    [effect-env empty-env])
+                   ([f fx])
+           (define-values (f^ env^)
+             (optimize-predicates/effect f effect-env))
+           (values (cons f^ fx^) env^)))
+
+       `(begin ,@(reverse optimized-fx) ,(optimize-predicates/tail tail eff-env))]
       [`(jump ,trg) `(jump ,trg)]
       [`(if ,pred ,t-tail ,f-tail)
        (optimize-conditional pred
-                             (optimize-predicates/tail t-tail)
-                             (optimize-predicates/tail f-tail))]))
+                             (optimize-predicates/tail t-tail env)
+                             (optimize-predicates/tail f-tail env)
+                             env)]))
 
   ;; nested-asm-lang-v5.pred nested-asm-lang-v5.tail nested-asm-lang-v5.tail -> nested-asm-lang-v5.tail
   ;; OR
   ;; nested-asm-lang-v5.pred nested-asm-lang-v5.effect nested-asm-lang-v5.effect -> nested-asm-lang-v5.effect
-  (define (optimize-conditional pred k-t k-f)
+  (define (optimize-conditional pred k-t k-f env)
     (match pred
       ['(true) k-t]
       ['(false) k-f]
-      [`(not ,pred) (optimize-conditional pred k-f k-t)]
+      [`(not ,pred) (optimize-conditional pred k-f k-t env)]
       [`(begin ,fx ... ,pred)
-       `(begin ,@(map optimize-predicates/effect fx) ,(optimize-conditional pred k-t k-f))]
+
+       (define-values (optimized-fx eff-env)
+         (for/fold ([fx^ '()]
+                    [effect-env empty-env])
+                   ([f fx])
+           (define-values (f^ env^)
+             (optimize-predicates/effect f effect-env))
+           (values (cons f^ fx^) env^)))
+
+       `(begin ,@(reverse optimized-fx) ,(optimize-conditional pred k-t k-f eff-env))]
       [`(if ,pred ,t-pred ,f-pred)
        (optimize-conditional pred
-                             (optimize-conditional t-pred k-t k-f)
-                             (optimize-conditional f-pred k-t k-f))]
-      [`(,relop ,loc ,triv) (interp-relop-conditional relop loc triv k-t k-f)]))
+                             (optimize-conditional t-pred k-t k-f env)
+                             (optimize-conditional f-pred k-t k-f env)
+                             env)]
+      [`(,relop ,loc ,triv)  (interp-relop-conditional relop loc triv k-t k-f env)]))
 
   ;; nested-asm-lang-v5.effect -> nested-asm-lang-v5.effect
-  (define (optimize-predicates/effect e)
+  (define (optimize-predicates/effect e env)
     (match e
-      [`(begin ,fx ...) `(begin ,@(map optimize-predicates/effect fx))]
+      [`(begin ,fx ...)
+
+       (define-values (optimized-fx eff-env)
+         (for/fold ([fx^ '()]
+                    [effect-env empty-env])
+                   ([f fx])
+           (define-values (f^ env^)
+             (optimize-predicates/effect f effect-env))
+           (values (cons f^ fx^) env^)))
+       (values `(begin ,@(reverse optimized-fx)) eff-env)
+       #;
+       `(begin ,@(map (lambda (f) (optimize-predicates/effect f env)) fx))]
       [`(if ,pred ,t-e ,f-e)
-       (optimize-conditional pred
-                             (optimize-predicates/effect t-e)
-                             (optimize-predicates/effect f-e))]
+       (define-values (t-e^ t-env) (optimize-predicates/effect t-e env))
+       (define-values (f-e^ f-env) (optimize-predicates/effect f-e env))
+       (values (optimize-conditional pred
+                                     t-e^
+                                     f-e^
+                                     env)
+               env)]
       [`(set! ,loc (,binop ,loc ,triv))
-       (define triv-rv (interp-triv triv))
-       (define updated-rv (interp-binop/range-value binop (interp-triv loc) triv-rv))
-       (set! env (extend-env env loc updated-rv))
-       `(set! ,loc (,binop ,loc ,(try-optimize-triv/triv triv)))]
-      [`(set! ,loc ,triv) (set! env (extend-env env loc (interp-triv triv)))
-                          `(set! ,loc ,(try-optimize-triv/triv triv))]))
+       (define triv-rv (interp-triv triv env))
+       (define updated-rv (interp-binop/range-value binop (interp-triv loc env) triv-rv))
+       (define env^ (extend-env env loc updated-rv))
+
+       (values `(set! ,loc (,binop ,loc ,(try-optimize-triv/triv triv env^))) env^)]
+      [`(set! ,loc ,triv)
+       (define env^ (extend-env env loc (interp-triv triv env)))
+       (values `(set! ,loc ,(try-optimize-triv/triv triv env^)) env^)]))
 
   ;; nested-asm-lang-v5.binop RangeValue RangeValue -> RangeValue
   ;; interp. the known abstract value resulting from the binary operation
@@ -97,7 +130,7 @@
 
   ;; nested-asm-lang-v5.triv -> RangeValue
   ;; interp. the known value or range of the triv
-  (define (interp-triv triv)
+  (define (interp-triv triv env)
     (match triv
       [x #:when (int64? x) x]
       [loc (with-handlers ([exn:fail? (lambda (_) 'unknown)])
@@ -106,9 +139,9 @@
   ;; nested-asm-lang-v5.relop nested-asm-lang-v5.loc nested-asm-lang-v5.triv nested-asm-lang-v5.tail nested-asm-lang-v5.tail -> nested-asm-lang-v5.tail
   ;; OR
   ;; nested-asm-lang-v5.relop nested-asm-lang-v5.loc nested-asm-lang-v5.triv nested-asm-lang-v5.effect nested-asm-lang-v5.effect -> nested-asm-lang-v5.effect
-  (define (interp-relop-conditional relop loc triv k-t k-f)
-    (define op1 (interp-triv loc))
-    (define op2 (interp-triv triv))
+  (define (interp-relop-conditional relop loc triv k-t k-f env)
+    (define op1 (interp-triv loc env))
+    (define op2 (interp-triv triv env))
     (cond
       [(interp-relop-optimize-true? relop op1 op2) k-t]
       [(interp-relop-optimize-false? relop op1 op2) k-f]
@@ -118,6 +151,7 @@
   ;; nested-asm-lang-v5.relop RangeValue RangeValue -> boolean
   ;; interp. true if the relop can be optimized to true
   (define (interp-relop-optimize-true? relop op1 op2)
+    ;(begin (printf op1))
     (match (cons op1 op2)
       [(cons a b) #:when (and (int64? a) (int64? b))
                   (eval (list relop a b) ns)]
@@ -135,21 +169,21 @@
 
   ;; nested-asm-lang-v5.triv -> nested-asm-lang-v5.triv
   ;; interp. optimize the triv if possible
-  (define (try-optimize-triv/triv triv)
+  (define (try-optimize-triv/triv triv env)
     (match triv
       [label #:when (label? label) label]
-      [opand (try-optimize-triv/opand opand)]))
+      [opand (try-optimize-triv/opand opand env)]))
 
   ;; nested-asm-lang-v5.opand -> nested-asm-lang-v5.triv
   ;; interp. optimize the opand if possible
-  (define (try-optimize-triv/opand opand)
+  (define (try-optimize-triv/opand opand env)
     (match opand
       [x #:when (int64? x) x]
-      [loc (try-optimize-triv/loc loc)]))
+      [loc (try-optimize-triv/loc loc env)]))
 
   ;; nested-asm-lang-v5.loc -> nested-asm-lang-v5.triv
   ;; interp. optimize the loc if possible
-  (define (try-optimize-triv/loc loc)
+  (define (try-optimize-triv/loc loc env)
     (with-handlers ([exn:fail? (lambda (_) loc)])
       (match (lookup-env env loc)
         ['unknown loc]
@@ -158,11 +192,11 @@
   (match p
     [`(module ,funcs ... ,tail)
      (define optimized-funcs (for/list ([f funcs])
-                               (define optimized-f (optimize-predicates/func f))
+                               #;
                                (set! env empty-env)
+                               (define optimized-f (optimize-predicates/func f))
                                optimized-f))
-     `(module ,@optimized-funcs ,(optimize-predicates/tail tail))]))
-
+     `(module ,@optimized-funcs ,(optimize-predicates/tail tail empty-env))]))
 
 (module+ test
   (check-equal? (optimize-predicates '(module (define L.f.1 (halt 1))
@@ -306,13 +340,6 @@
                    (define L.func.2 (begin (if (> rax 0) (halt -1) (halt 1))))
                    (begin (set! rax -1) (jump L.func.2))))
   (check-equal? (optimize-predicates
-                 '(module (begin (set! rax 1)
-                                 (if (> rax 0)
-                                     (halt rax)
-                                     (begin (set! rax -1)
-                                            (halt rax))))))
-                '(module (begin (set! rax 1) (halt 1))))
-  (check-equal? (optimize-predicates
                  '(module (begin (set! rbx rax)
                                  (set! rbx (+ rbx 10))
                                  (if (> rbx 0)
@@ -322,4 +349,20 @@
                      (begin
                        (set! rbx rax)
                        (set! rbx (+ rbx 10))
-                       (if (> rbx 0) (halt rbx) (halt -1))))))
+                       (if (> rbx 0) (halt rbx) (halt -1)))))
+  (check-equal? (optimize-predicates
+                 '(module (begin (set! rax 1)
+                                 (if (> rax 0)
+                                     (halt rax)
+                                     (begin (set! rax -1)
+                                            (halt rax))))))
+                '(module (begin (set! rax 1) (halt 1))))
+  (check-equal? (optimize-predicates '(module
+                                          (begin (set! r8 0)
+                                                 (set! r9 0)
+                                                 (if
+                                                  (not (if (true) (> r8 5) (< r9 6)))
+                                                  (set! r12 15)
+                                                  (set! r12 90))
+                                                 (halt r12))))
+                '(module (begin (set! r8 0) (set! r9 0) (set! r12 15) (halt r12)))))
