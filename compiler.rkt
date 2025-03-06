@@ -1,76 +1,47 @@
 #lang racket
 
 (require
+  "passes/assign-fvars.rkt"
+  "passes/assign-homes-opt.rkt"
+  "passes/assign-homes.rkt"
+  "passes/assign-registers.rkt"
+  "passes/conflict-analysis.rkt"
+  "passes/flatten-begins.rkt"
+  "passes/implement-fvars.rkt"
+  "passes/normalize-bind.rkt"
+  "passes/patch-instructions.rkt"
+  "passes/replace-locations.rkt"
+  "passes/select-instructions.rkt"
+  "passes/sequentialize-let.rkt"
+  "passes/uncover-locals.rkt"
+  "passes/undead-analysis.rkt"
+  "passes/uniquify.rkt"
+  "passes/generate-x64.rkt"
+  "passes/resolve-predicates.rkt"
+  "passes/optimize-predicates.rkt"
+  "passes/flatten-program.rkt"
+  "passes/expose-basic-blocks.rkt"
+  "passes/link-paren-x64.rkt"
+  "passes/interp-paren-x64.rkt"
+  "passes/impose-calling-conventions.rkt")
+
+(require
  cpsc411/compiler-lib
  cpsc411/2c-run-time)
 
 (provide
- uniquify
- sequentialize-let
- normalize-bind
- impose-calling-conventions
- select-instructions
- uncover-locals
- undead-analysis
- conflict-analysis
  assign-call-undead-variables
  allocate-frames
- assign-registers
- replace-locations
- assign-frame-variables
- implement-fvars
- optimize-predicates
- expose-basic-blocks
- resolve-predicates
- flatten-program
- patch-instructions
-
- generate-x64)
+ assign-frame-variables)
 
 ;; TODO: Fill in.
 ;; You'll want to merge milestone-5 code in
 
 ;; Stubs; remove or replace with your definitions.
-(define-values (uniquify
-                sequentialize-let
-                normalize-bind
-                impose-calling-conventions
-                select-instructions
-                assign-homes-opt
-                uncover-locals
-                undead-analysis
-                conflict-analysis
-                assign-call-undead-variables
+(define-values (assign-call-undead-variables
                 allocate-frames
-                assign-registers
-                replace-locations
-                assign-frame-variables
-                implement-fvars
-                optimize-predicates
-                expose-basic-blocks
-                resolve-predicates
-                flatten-program
-                patch-instructions
-                generate-x64)
+                assign-frame-variables)
   (values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
    values
    values
    values))
