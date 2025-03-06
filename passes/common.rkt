@@ -51,7 +51,7 @@
 ;; any -> boolean
 ;; produces true if op is a valid binop, which is either * or +
 (define (binop? op)
-  (and (member op '(* +)) #t))
+  (and (member op '(* + -)) #t))
 
 ;; any -> boolean
 ;; produces true if op is a valid relop
@@ -100,11 +100,25 @@
   (test-case "binop?"
              (check-true (binop? '*))
              (check-true (binop? '+))
-             (check-false (binop? '-))
+             (check-true (binop? '-))
+             (check-false (binop? '^))
              (check-false (binop? ""))
              (check-false (binop? "*"))
              (check-false (binop? "+"))
              (check-false (binop? 1)))
+
+  (test-case "relop?"
+             (check-true (relop? '<=))
+             (check-true (relop? '<))
+             (check-true (relop? '>))
+             (check-true (relop? '>=))
+             (check-true (relop? '=))
+             (check-true (relop? '!=))
+             (check-false (relop? '==))
+             (check-false (relop? '!))
+             (check-false (relop? "<="))
+             (check-false (relop? #t))
+             (check-false (relop? 1)))  
 
   (test-case "addr?"
              (check-true (addr? `(rbp - 8)))
@@ -117,4 +131,16 @@
              (check-false (addr? `(rbp + 8)))
              (check-false (addr? '(rbp 8)))
              (check-false (addr? '(rbp - 8 10)))
-             (check-false (addr? 42))))
+             (check-false (addr? 42)))
+
+  (test-case "rloc?"
+             (check-true (rloc? 'r15))
+             (check-true (rloc? 'rax))
+             (check-true (rloc? 'rdi))
+             (check-true (rloc? 'fv0))
+             (check-true (rloc? 'fv100))
+             (check-false (rloc? "r15"))
+             (check-false (rloc? "15"))
+             (check-false (rloc? '15))
+             (check-false (rloc? 'fv.1))
+             (check-false (rloc? "fv0"))))

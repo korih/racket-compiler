@@ -4,22 +4,22 @@
 
 (require
   cpsc411/compiler-lib
-  cpsc411/langs/v5
+  cpsc411/langs/v6
   rackunit)
 
 (provide uniquify)
 
-;; values-lang-v5 -> values-unique-lang-v5
-;; compiles p to Values-unique-lang v5 by resolving top-level lexical
+;; values-lang-v6 -> values-unique-lang-v6
+;; compiles p to Values-unique-lang v6 by resolving top-level lexical
 ;; identifiers into unique labels, and all other lexical identifiers into
 ;; unique abstract locations
 (define/contract (uniquify p)
-  (-> values-lang-v5? values-unique-lang-v5?)
+  (-> values-lang-v6? values-unique-lang-v6?)
 
   ;; func is `(define ,label (lambda (,alocs ...) ,tail))
   ;; interp. a function definition
 
-  ;; (List-of func) -> (Env-of values-unique-lang-v5.triv)
+  ;; (List-of func) -> (Env-of values-unique-lang-v6.triv)
   ;; interp. creates an environment with all the unique function labels
   (define (initialize-env funcs)
     (for/fold ([env empty-env])
@@ -30,7 +30,7 @@
          (define env^ (extend-env env funcName unique-label))
          env^])))
 
-  ;; (List-of func) (Env-of values-unique-lang-v5.triv) -> (values (List-of func) (Env-of values-unique-lang-v5.triv))
+  ;; (List-of func) (Env-of values-unique-lang-v6.triv) -> (values (List-of func) (Env-of values-unique-lang-v6.triv))
   ;; interp. processes each function definition by assigning lexical identifiers with unique labels and abstract locations 
   (define (process-functions funcs env)
     (for/fold ([updated-funcs '()]
@@ -39,7 +39,7 @@
       (define-values (updated-func new-env) (uniquify-func func updated-env))
       (values (cons updated-func updated-funcs) new-env)))
 
-  ;; func (Env-of values-unique-lang-v5.triv) -> (values func (Env-of values-unique-lang-v5.triv))
+  ;; func (Env-of values-unique-lang-v6.triv) -> (values func (Env-of values-unique-lang-v6.triv))
   (define (uniquify-func func env)
     (match func
       [`(define ,funcName (lambda (,args ...) ,tail))
@@ -49,7 +49,7 @@
        (values `(define ,unique-label (lambda (,@unique-args) ,(uniquify-tail tail new-env)))
                env)]))
 
-  ;; values-lang-v5.tail (Env-of values-unique-lang-v5.triv) -> values-lang-v5.tail
+  ;; values-lang-v6.tail (Env-of values-unique-lang-v6.triv) -> values-unique-lang-v6.tail
   (define (uniquify-tail tail env)
     (match tail
       [`(let ([,x ,v] ...) ,body)
@@ -68,7 +68,7 @@
        `(call ,(lookup-env env x) ,@(map (lambda (triv) (uniquify-triv triv env)) trivs))]
       [v (uniquify-value v env)]))
 
-  ;; values-lang-v5.tail (Env-of values-unique-lang-v5.triv) -> values-lang-v5.tail
+  ;; values-lang-v6.tail (Env-of values-unique-lang-v6.triv) -> values-unique-lang-v6.tail
   (define (uniquify-pred pred env)
     (match pred
       ['(true) '(true)]
@@ -86,10 +86,10 @@
        `(if ,(uniquify-pred pred env)
             ,(uniquify-pred t-pred env)
             ,(uniquify-pred f-pred env))]
-      [`(,relop ,op1 ,op2)
-       `(,relop ,(uniquify-triv op1 env) ,(uniquify-triv op2 env))]))
+      [`(,relop ,triv1 ,triv2)
+       `(,relop ,(uniquify-triv triv1 env) ,(uniquify-triv triv2 env))]))
 
-  ;; values-lang-v5.value (Env-of aloc) -> values-lang-v5.value
+  ;; values-lang-v6.value (Env-of values-unique-lang-v6.triv) -> values-unique-lang-v6.value
   (define (uniquify-value value env)
     (match value
       [`(let ([,x ,v] ...) ,body)
@@ -104,11 +104,13 @@
        `(if ,(uniquify-pred pred env)
             ,(uniquify-value t-value env)
             ,(uniquify-value f-value env))]
+      [`(call ,x ,trivs ...)
+       `(call ,(lookup-env env x) ,@(map (lambda (triv) (uniquify-triv triv env)) trivs))]
       [`(,binop ,triv1 ,triv2)
        `(,binop ,(uniquify-triv triv1 env) ,(uniquify-triv triv2 env))]
       [triv (uniquify-triv triv env)]))
 
-  ;; values-lang-v5.triv (Env-of aloc) -> values-lang-v5.triv
+  ;; values-lang-v6.triv (Env-of values-unique-lang-v6.triv) -> values-unique-lang-v6.triv
   (define (uniquify-triv triv env)
     (match triv
       [int64 #:when (int64? int64) int64]
@@ -206,4 +208,27 @@
                    (define L.even?.4
                      (lambda (x.38)
                        (if (= x.38 0) 1 (let ((y.39 (+ x.38 -1))) (call L.odd?.3 y.39)))))
-                   (call L.even?.4 5))))
+                   (call L.even?.4 5)))
+
+  (check-equal? (uniquify '(module
+                               (define f (lambda (x y) (+ x y)))
+                             (define x (lambda (z) (let ([x 1])
+                                                     (+ x z))))
+                             (let ([x (call f 1 2)])
+                               (let ([y (call x x)])
+                                 y))))
+                '(module
+                     (define L.f.5 (lambda (x.40 y.41) (+ x.40 y.41)))
+                   (define L.x.6 (lambda (z.42) (let ((x.43 1)) (+ x.43 z.42))))
+                   (let ((x.44 (call L.f.5 1 2))) (let ((y.45 (call x.44 x.44))) y.45))))
+  (check-equal? (uniquify '(module
+                               (define f (lambda (x y) (+ x y)))
+                             (define x (lambda (z) (let ([x 1])
+                                                     (+ x z))))
+                             (let ([a (call f 1 2)])
+                               (let ([y (call x a)])
+                                 y))))
+                '(module
+                     (define L.f.7 (lambda (x.46 y.47) (+ x.46 y.47)))
+                   (define L.x.8 (lambda (z.48) (let ((x.49 1)) (+ x.49 z.48))))
+                   (let ((a.50 (call L.f.7 1 2))) (let ((y.51 (call L.x.8 a.50))) y.51)))))
