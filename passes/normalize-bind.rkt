@@ -18,13 +18,8 @@
   ;; func -> func
   (define (normalize-bind-func func)
     (match func
-      [`(define ,label (lambda (,alocs ...) ,entry))
-       `(define ,label (lambda (,@alocs) ,(normalize-bind-entry entry)))]))
-
-  ;; imp-mf-lang-v6.entry -> proc-imp-cmf-lang-v6.entry
-  (define (normalize-bind-entry entry)
-    (match entry
-      [tail (normalize-bind-tail tail)]))
+      [`(define ,label (lambda (,alocs ...) ,tail))
+       `(define ,label (lambda (,@alocs) ,(normalize-bind-tail tail)))]))
 
   ;; imp-mf-lang-v6.tail -> proc-imp-cmf-lang-v6.tail
   (define (normalize-bind-tail tail)
@@ -73,8 +68,8 @@
       [`(,relop ,op1 ,op2) pred]))
 
   (match p
-    [`(module ,funcs ... ,entry)
-     `(module ,@(map normalize-bind-func funcs) ,(normalize-bind-entry entry))]))
+    [`(module ,funcs ... ,tail)
+     `(module ,@(map normalize-bind-func funcs) ,(normalize-bind-tail tail))]))
 
 (module+ test
   (check-equal? (normalize-bind '(module
