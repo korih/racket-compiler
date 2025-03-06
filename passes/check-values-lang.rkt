@@ -4,15 +4,15 @@
 
 (require
   cpsc411/compiler-lib
-  cpsc411/langs/v5
+  cpsc411/langs/v6
   rackunit)
 
 (provide check-values-lang)
 
-;; Any -> values-lang-v5
-;; checks the typing requirements from values-lang-v5 with p
+;; Any -> values-lang-v6
+;; checks the typing requirements from values-lang-v6 with p
 (define/contract (check-types-lang p)
-  (-> any/c values-lang-v5?)
+  (-> any/c values-lang-v6?)
 
   ;; func-args is (Map-of name natural)
   ;; keeps track of the number of arguments associated with a procedure
@@ -90,6 +90,16 @@
                  v1
                  0))
            0)]
+      [`(call ,x ,trivs ...)
+       (cond
+         [(not (hash-has-key? func-args (lookup-env env x)))
+          (error 'check-types-lang (format "Function not defined: ~a in env: ~a with hash: ~a" x env func-args))]
+         [(not (eq? (hash-ref func-args (lookup-env env x)) (length trivs)))
+          (error 'check-types-lang "Wrong number of arguments")]
+         [else (for-each (lambda (t)
+                           (unless (int64? (check-types-lang-triv t args env))
+                             (error 'check-types-lang (format "Expected int64 but got: ~a" t))))
+                         trivs)])]
       [`(,binop ,triv1 ,triv2)
        (unless (and (int64? (check-types-lang-triv triv1 args env))
                     (int64? (check-types-lang-triv triv2 args env)))
@@ -185,6 +195,10 @@
        (check-syntax-lang-value v1)
        (check-syntax-lang-value v2)
        value]
+      [`(call ,funcName ,trivs ...)
+       #:when (name? funcName)
+       (for-each check-syntax-lang-triv trivs)
+       value]
       [`(,binop ,triv1 ,triv2)
        #:when (binop? binop)
        (check-syntax-lang-triv triv1)
@@ -230,12 +244,12 @@
      `(module ,@(map check-syntax-lang-func funcs) ,(check-syntax-lang-tail tail))]
     [_ (error 'check-syntax-lang (format "Invalid program structure: ~a" p))]))
 
-;; any -> values-lang-v5
+;; any -> values-lang-v6
 ;; validates that p is a syntactically well-formed, well bound and well
-;; typed Values-lang v5: all procedure calls pass the correct number of
+;; typed Values-lang v6: all procedure calls pass the correct number of
 ;; arguments, and all binop and relop are never used with labels
 (define/contract (check-values-lang p)
-  (-> any/c values-lang-v5?)
+  (-> any/c values-lang-v6?)
 
   (check-types-lang (check-syntax-lang p)))
 
