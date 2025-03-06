@@ -25,19 +25,21 @@
   (define (resolve-predicates-tail t)
     (match t
       [`(if ,pred (jump ,trg1) (jump ,trg2))
-       ((resolve-predicates-pred pred) `(jump ,trg1) `(jump ,trg2))]
+       (resolve-predicates-pred pred `(jump ,trg1) `(jump ,trg2))]
       [`(begin ,e ... ,tail)
        `(begin ,@e ,(resolve-predicates-tail tail))]
-      ;; 
+      ;; Using a wildcard collapse case as it captures all other well-formed
+      ;; expressions without any needed transformations
       [_ t]))
 
-  ;; block-pred-lang-v4.pred -> (block-pred-lang-v4.tail block-pred-lang-v4.tail -> block-asm-lang-v4.tail)
-  (define (resolve-predicates-pred p)
+  ;; block-pred-lang-v4.pred block-pred-lang-v4.tail block-pred-lang-v4.tail -> block-asm-lang-v4.tail
+  (define (resolve-predicates-pred p t f)
     (match p
-      [`(,relop ,loc ,opand) (λ (t f) `(if ,p ,t ,f))]
-      ['(true) (λ (t f) t)]
-      ['(false) (λ (t f) f)]
-      [`(not ,pred) (λ (t f) ((resolve-predicates-pred pred) f t))]))
+      [`(,relop ,loc ,opand)
+       `(if ,p ,t ,f)]
+      ['(true) t]
+      ['(false) f]
+      [`(not ,pred) (resolve-predicates-pred pred f t)]))
 
   (match p
     [`(module ,b ...)
