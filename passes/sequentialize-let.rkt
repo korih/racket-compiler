@@ -1,16 +1,16 @@
 #lang racket
 
 (require
-  cpsc411/langs/v5
+  cpsc411/langs/v6
   rackunit)
 
 (provide sequentialize-let)
 
-;; values-unique-lang-v5 -> imp-mf-lang-v5
-;; compiles p to imp-mf-lang-v5 by picking a particular order to implement
+;; values-unique-lang-v6 -> imp-mf-lang-v6
+;; compiles p to imp-mf-lang-v6 by picking a particular order to implement
 ;; let expressions using set!
 (define/contract (sequentialize-let p)
-  (-> values-unique-lang-v5? imp-mf-lang-v5?)
+  (-> values-unique-lang-v6? imp-mf-lang-v6?)
 
   ;; func is `(define ,label (lambda (,alocs ...) ,tail))
   ;; interp. a function definition
@@ -21,7 +21,7 @@
       [`(define ,label (lambda (,alocs ...) ,tail))
        `(define ,label (lambda (,@alocs) ,(sequentialize-let-tail tail)))]))
 
-  ;; values-unique-lang-v5.tail -> imp-mf-lang-v5.tail
+  ;; values-unique-lang-v6.tail -> imp-mf-lang-v6.tail
   (define (sequentialize-let-tail tail)
     (match tail
       [`(let ([,xs ,vs] ...) ,tail)
@@ -36,7 +36,7 @@
       [`(call ,triv ,opand ...) tail]
       [value (sequentialize-let-value value)]))
 
-  ;; values-unique-lang-v5.value -> imp-mf-lang-v5.value
+  ;; values-unique-lang-v6.value -> imp-mf-lang-v6.value
   (define (sequentialize-let-value v)
     (match v
       [`(let ([,xs ,vs] ...) ,v)
@@ -52,7 +52,7 @@
       ;; expression is already in imp-mf-lang-v5.value form
       [_ v]))
 
-  ;; values-unique-lang-v5.pred -> imp-mf-lang-v5.pred
+  ;; values-unique-lang-v6.pred -> imp-mf-lang-v6.pred
   (define (sequentialize-let-pred p)
     (match p
       [`(let ([,xs ,vs] ...) ,pred)
@@ -76,6 +76,37 @@
      `(module ,@(map sequentialize-let-func funcs) ,(sequentialize-let-tail tail))]))
 
 (module+ test
+  (check-equal? (sequentialize-let '(module
+                                        (define L.f.1 (lambda (x.1 y.1)
+                                                        (let ([a.1 2] [b.1 (call L.g.1 x.1 y.1)])
+                                                          (let ([c.1 (call L.g.1 a.1 b.1)])
+                                                            (- a.1 b.1)))))
+                                      (define L.g.1 (lambda (x.2 y.2)
+                                                      (let ([z.1 (+ x.2 y.2)])
+                                                        (let ([a.2 (- y.2 x.2)])
+                                                          (* z.1 a.2)))))
+                                      (let ([x.2 (call L.f.1 1 2)])
+                                        (if (let ([x.3 (call L.g.1 1 2)])
+                                              (not (!= x.2 x.3)))
+                                            (call L.f.1 10 20)
+                                            (call L.f.1 x.2 1)))))
+                '(module
+                     (define L.f.1
+                       (lambda (x.1 y.1)
+                         (begin
+                           (set! a.1 2)
+                           (set! b.1 (call L.g.1 x.1 y.1))
+                           (begin (set! c.1 (call L.g.1 a.1 b.1)) (- a.1 b.1)))))
+                   (define L.g.1
+                     (lambda (x.2 y.2)
+                       (begin
+                         (set! z.1 (+ x.2 y.2))
+                         (begin (set! a.2 (- y.2 x.2)) (* z.1 a.2)))))
+                   (begin
+                     (set! x.2 (call L.f.1 1 2))
+                     (if (begin (set! x.3 (call L.g.1 1 2)) (not (!= x.2 x.3)))
+                         (call L.f.1 10 20)
+                         (call L.f.1 x.2 1)))))
   (check-equal? (sequentialize-let '(module
                                         (define L.f.1 (lambda (x.1)
                                                         (let ([y.1 1] [z.1 2])
