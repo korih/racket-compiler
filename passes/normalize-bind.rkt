@@ -1,27 +1,32 @@
 #lang racket
 
 (require
-  cpsc411/langs/v5
+  cpsc411/langs/v6
   rackunit)
 
 (provide normalize-bind)
 
-;; imp-mf-lang-v5 -> proc-imp-cmf-lang-v5
-;; compiles p to to to Proc-imp-cmf-lang v5 by pushing set! under begin so that
+;; imp-mf-lang-v6 -> proc-imp-cmf-lang-v6
+;; compiles p to to to Proc-imp-cmf-lang v6 by pushing set! under begin so that
 ;; the right-hand-side of each set! is simple value-producing operation
 (define/contract (normalize-bind p)
-  (-> imp-mf-lang-v5? proc-imp-cmf-lang-v5?)
+  (-> imp-mf-lang-v6? proc-imp-cmf-lang-v6?)
 
-  ;; func is `(define ,label (lambda (,alocs ...) ,tail))
+  ;; func is `(define ,label (lambda (,alocs ...) ,entry))
   ;; interp. a function definition
 
   ;; func -> func
   (define (normalize-bind-func func)
     (match func
-      [`(define ,label (lambda (,alocs ...) ,tail))
-       `(define ,label (lambda (,@alocs) ,(normalize-bind-tail tail)))]))
+      [`(define ,label (lambda (,alocs ...) ,entry))
+       `(define ,label (lambda (,@alocs) ,(normalize-bind-entry entry)))]))
 
-  ;; imp-mf-lang-v5.tail -> proc-imp-cmf-lang-v5.tail
+  ;; imp-mf-lang-v6.entry -> proc-imp-cmf-lang-v6.entry
+  (define (normalize-bind-entry entry)
+    (match entry
+      [tail (normalize-bind-tail tail)]))
+
+  ;; imp-mf-lang-v6.tail -> proc-imp-cmf-lang-v6.tail
   (define (normalize-bind-tail tail)
     (match tail
       [`(begin ,e ... ,t)
@@ -31,7 +36,7 @@
       [`(call ,triv ,opand ...) tail]
       [v (normalize-bind-value v (lambda (v) v))]))
 
-  ;; imp-mf-lang-v5.effect -> proc-imp-cmf-lang-v5.effect
+  ;; imp-mf-lang-v6.effect -> proc-imp-cmf-lang-v6.effect
   (define (normalize-bind-effect effect)
     (match effect
       [`(set! ,aloc ,v)
@@ -42,7 +47,7 @@
       [`(begin ,e ...)
        `(begin ,@(map normalize-bind-effect e))]))
 
-  ;; imp-mf-lang-v5.value (imp-mf-lang-v5.value -> proc-imp-cmf-lang-v5.effect) -> proc-imp-cmf-lang-v5.value
+  ;; imp-mf-lang-v6.value (imp-mf-lang-v6.value -> proc-imp-cmf-lang-v6.effect) -> proc-imp-cmf-lang-v6.value
   (define (normalize-bind-value value cont)
     (match value
       [`(begin ,e ... ,v)
@@ -51,10 +56,11 @@
        `(if ,(normalize-bind-pred p)
             ,(normalize-bind-value v1 cont)
             ,(normalize-bind-value v2 cont))]
+      [`(call ,triv ,ops ...) (cont value)]
       [`(,binop ,op1 ,op2) (cont value)]
       [triv (cont triv)]))
 
-  ;; imp-mf-lang-v5.pred -> proc-imp-cmf-lang-v5.pred
+  ;; imp-mf-lang-v6.pred -> proc-imp-cmf-lang-v6.pred
   (define (normalize-bind-pred pred)
     (match pred
       ['(true) pred]
@@ -67,10 +73,46 @@
       [`(,relop ,op1 ,op2) pred]))
 
   (match p
-    [`(module ,funcs ... ,tail)
-     `(module ,@(map normalize-bind-func funcs) ,(normalize-bind-tail tail))]))
+    [`(module ,funcs ... ,entry)
+     `(module ,@(map normalize-bind-func funcs) ,(normalize-bind-entry entry))]))
 
 (module+ test
+  (check-equal? (normalize-bind '(module
+                                     (define L.g.1 (lambda (x.1) x.1))
+                                   (define L.f.1 (lambda (x.1) (begin
+                                                                 (set! x.2 (begin
+                                                                             (set! x.1 (+ x.1 10))
+                                                                             (set! x.3 (call L.g.1 x.1))
+                                                                             (* x.1 x.3)))
+                                                                 (set! x.3 (if (begin
+                                                                                 (set! x.4 (begin
+                                                                                             (set! x.5 (call L.g.1 1))
+                                                                                             (+ x.5 100)))
+                                                                                 (> x.4 x.2))
+                                                                               (+ x.2 100)
+                                                                               (- x.2 100)))
+                                                                 (+ x.2 x.3))))
+                                   (begin
+                                     (set! a.1 (begin
+                                                 (set! b.1 (call L.f.1 1))
+                                                 (- b.1 b.1)))
+                                     a.1)))
+                '(module
+                     (define L.g.1 (lambda (x.1) x.1))
+                   (define L.f.1
+                     (lambda (x.1)
+                       (begin
+                         (begin
+                           (set! x.1 (+ x.1 10))
+                           (set! x.3 (call L.g.1 x.1))
+                           (set! x.2 (* x.1 x.3)))
+                         (if (begin
+                               (begin (set! x.5 (call L.g.1 1)) (set! x.4 (+ x.5 100)))
+                               (> x.4 x.2))
+                             (set! x.3 (+ x.2 100))
+                             (set! x.3 (- x.2 100)))
+                         (+ x.2 x.3))))
+                   (begin (begin (set! b.1 (call L.f.1 1)) (set! a.1 (- b.1 b.1))) a.1)))
   (check-equal? (normalize-bind '(module
                                      (begin
                                        (set! x.1 (if (true)
