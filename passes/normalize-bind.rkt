@@ -12,7 +12,7 @@
 (define/contract (normalize-bind p)
   (-> imp-mf-lang-v6? proc-imp-cmf-lang-v6?)
 
-  ;; func is `(define ,label (lambda (,alocs ...) ,entry))
+  ;; func is `(define ,label (lambda (,alocs ...) ,tail))
   ;; interp. a function definition
 
   ;; func -> func
