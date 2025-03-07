@@ -4,17 +4,17 @@
 
 (require
   cpsc411/compiler-lib
-  cpsc411/langs/v5
+  cpsc411/langs/v6
   rackunit)
 
 (provide uncover-locals)
 
-;; asm-pred-lang-v5 -> asm-pred-lang-v5/locals
-;; compiles p to to Asm-pred-lang v5/locals by analysing which abstract
+;; asm-pred-lang-v6 -> asm-pred-lang-v6/locals
+;; compiles p to to Asm-pred-lang v6/locals by analysing which abstract
 ;; locations are used in the module and decorating the module with the set of
 ;; variables in an info field.
 (define/contract (uncover-locals p)
-  (-> asm-pred-lang-v5? asm-pred-lang-v5/locals?)
+  (-> asm-pred-lang-v6? asm-pred-lang-v6/locals?)
 
   ;; func-info is `(define ,label ,info ,tail)
   ;; interp. a function definition that has metadata
@@ -27,16 +27,14 @@
   (define (uncover-locals-func f)
     (set-clear! unique-alocs)
     (match f
-      [`(define ,label () ,tail)
+      [`(define ,label ,info ,tail)
        (uncover-locals-tail tail)
-       `(define ,label ,(info-set '() 'locals (set->list unique-alocs)) ,tail)]))
+       `(define ,label ,(info-set info 'locals (set->list unique-alocs)) ,tail)]))
 
-  ;; asm-pred-lang-v5.tail ->
+  ;; asm-pred-lang-v6.tail ->
   ;; EFFECTS: adds alocs from tail t to unique-alocs
   (define (uncover-locals-tail t)
     (match t
-      [`(halt ,op)
-       (uncover-locals-opand op)]
       [`(begin ,ef ... ,ta)
        (for-each uncover-locals-effect ef)
        (uncover-locals-tail ta)]
@@ -47,7 +45,7 @@
        (uncover-locals-pred pred)
        (for-each uncover-locals-tail (list tail1 tail2))]))
 
-  ;; asm-pred-lang-v5.effect ->
+  ;; asm-pred-lang-v6.effect ->
   ;; EFFECTS: adds alocs from effect e to unique-alocs
   (define (uncover-locals-effect e)
     (match e
@@ -61,9 +59,11 @@
        (for-each uncover-locals-effect ef)]
       [`(if ,pred ,e1 ,e2)
        (uncover-locals-pred pred)
-       (for-each uncover-locals-effect (list e1 e2))]))
+       (for-each uncover-locals-effect (list e1 e2))]
+      [`(return-point ,label ,tail)
+       (uncover-locals-tail tail)]))
 
-  ;; asm-pred-lang-v5.pred ->
+  ;; asm-pred-lang-v6.pred ->
   ;; EFFECTS: adds alocs from pred p to unique-alocs
   (define (uncover-locals-pred p)
     (match p
@@ -80,28 +80,28 @@
       ['(true) (void)]
       ['(false) (void)]))
 
-  ;; asm-pred-lang-v5.triv ->
+  ;; asm-pred-lang-v6.triv ->
   ;; EFFECTS: adds alocs from triv t to unique-alocs
   (define (uncover-locals-triv t)
     (match t
       [label #:when (label? label) (void)]
       [opand (uncover-locals-opand opand)]))
 
-  ;; asm-pred-lang-v5.opand ->
+  ;; asm-pred-lang-v6.opand ->
   ;; EFFECTS: adds alocs from opand op to unique-alocs
   (define (uncover-locals-opand op)
     (match op
       [int64 #:when (int64? int64) (void)]
       [loc (uncover-locals-loc loc)]))
 
-  ;; asm-pred-lang-v5.loc ->
+  ;; asm-pred-lang-v6.loc ->
   ;; EFFECTS: adds alocs from loc to unique-alocs
   (define (uncover-locals-loc loc)
     (match loc
       [aloc #:when (aloc? aloc) (set-add! unique-alocs aloc)]
       [rloc #:when (rloc? rloc) (void)]))
 
-  ;; asm-pred-lang-v5.trg ->
+  ;; asm-pred-lang-v6.trg ->
   ;; EFFECTS: adds alocs from trg to unique-alocs
   (define (uncover-locals-trg trg)
     (match trg
@@ -109,342 +109,176 @@
       [loc (uncover-locals-loc loc)]))
 
   (match p
-    [`(module () ,funcs ... ,t)
+    [`(module ,info ,funcs ... ,t)
      (define uncovered-funcs (map uncover-locals-func funcs))
      (set-clear! unique-alocs)
      (uncover-locals-tail t)
-     `(module ,(info-set '() 'locals (set->list unique-alocs)) ,@uncovered-funcs ,t)]))
+     `(module ,(info-set info 'locals (set->list unique-alocs)) ,@uncovered-funcs ,t)]))
 
 (module+ test
   (check-equal? (uncover-locals '(module
-                                     ()
+                                     ((new-frames ()))
                                    (define L.f.1
-                                     ()
-                                     (begin (set! tmp.1 1) (set! tmp.1 (* tmp.1 2)) (halt tmp.1)))
-                                   (jump L.f.1 rbp)))
-                '(module
-                     ((locals ()))
-                   (define L.f.1
-                     ((locals (tmp.1)))
-                     (begin (set! tmp.1 1) (set! tmp.1 (* tmp.1 2)) (halt tmp.1)))
-                   (jump L.f.1 rbp)))
-  (check-equal? (uncover-locals '(module
-                                     ()
-                                   (define L.f.1
-                                     ()
-                                     (begin
-                                       (set! a.1 rdi)
-                                       (set! b.1 rsi)
-                                       (set! c.1 rdx)
-                                       (set! d.1 rcx)
-                                       (set! e.1 r8)
-                                       (set! f.1 r9)
-                                       (set! g.1 fv0)
-                                       (set! h.1 fv1)
-                                       (set! i.1 fv2)
-                                       (set! j.1 fv3)
-                                       (set! k.1 fv4)
-                                       (halt 10)))
+                                     ((new-frames ()))
+                                     (begin (set! tmp-ra.1 r15) (set! tmp.1 1) (set! tmp.1 (* tmp.1 2)) (set! rax tmp.1) (jump tmp-ra.1 rbp rax)))
                                    (begin
-                                     (set! a.1 1)
-                                     (set! b.1 2)
-                                     (set! c.1 3)
-                                     (set! d.1 4)
-                                     (set! e.1 5)
-                                     (set! f.1 6)
-                                     (set! g.1 7)
-                                     (set! h.1 8)
-                                     (set! i.1 9)
-                                     (set! j.1 10)
-                                     (set! k.1 11)
-                                     (set! fv4 k.1)
-                                     (set! fv3 j.1)
-                                     (set! fv2 i.1)
-                                     (set! fv1 h.1)
-                                     (set! fv0 g.1)
-                                     (set! r9 f.1)
-                                     (set! r8 e.1)
-                                     (set! rcx d.1)
-                                     (set! rdx c.1)
-                                     (set! rsi b.1)
-                                     (set! rdi a.1)
-                                     (jump L.f.1 rbp rdi rsi rdx rcx r8 r9 fv0 fv1 fv2 fv3 fv4))))
+                                     (set! tmp-ra.2 r15)
+                                     (set! r15 tmp-ra.2)
+                                     (jump L.f.1 rbp r15))))
                 '(module
-                     ((locals (k.1 b.1 j.1 d.1 c.1 a.1 f.1 h.1 e.1 i.1 g.1)))
+                     ((new-frames ()) (locals (tmp-ra.2)))
                    (define L.f.1
-                     ((locals (k.1 b.1 j.1 d.1 c.1 a.1 f.1 h.1 e.1 i.1 g.1)))
+                     ((new-frames ()) (locals (tmp-ra.1 tmp.1)))
                      (begin
-                       (set! a.1 rdi)
-                       (set! b.1 rsi)
-                       (set! c.1 rdx)
-                       (set! d.1 rcx)
-                       (set! e.1 r8)
-                       (set! f.1 r9)
-                       (set! g.1 fv0)
-                       (set! h.1 fv1)
-                       (set! i.1 fv2)
-                       (set! j.1 fv3)
-                       (set! k.1 fv4)
-                       (halt 10)))
-                   (begin
-                     (set! a.1 1)
-                     (set! b.1 2)
-                     (set! c.1 3)
-                     (set! d.1 4)
-                     (set! e.1 5)
-                     (set! f.1 6)
-                     (set! g.1 7)
-                     (set! h.1 8)
-                     (set! i.1 9)
-                     (set! j.1 10)
-                     (set! k.1 11)
-                     (set! fv4 k.1)
-                     (set! fv3 j.1)
-                     (set! fv2 i.1)
-                     (set! fv1 h.1)
-                     (set! fv0 g.1)
-                     (set! r9 f.1)
-                     (set! r8 e.1)
-                     (set! rcx d.1)
-                     (set! rdx c.1)
-                     (set! rsi b.1)
-                     (set! rdi a.1)
-                     (jump L.f.1 rbp rdi rsi rdx rcx r8 r9 fv0 fv1 fv2 fv3 fv4))))
+                       (set! tmp-ra.1 r15)
+                       (set! tmp.1 1)
+                       (set! tmp.1 (* tmp.1 2))
+                       (set! rax tmp.1)
+                       (jump tmp-ra.1 rbp rax)))
+                   (begin (set! tmp-ra.2 r15) (set! r15 tmp-ra.2) (jump L.f.1 rbp r15))))
   (check-equal? (uncover-locals '(module
-                                     ()
+                                     ((new-frames ((nfv.36) (nfv.35))))
                                    (define L.f.1
-                                     ()
+                                     ((new-frames ()))
                                      (begin
-                                       (set! a.1 rdi)
-                                       (set! b.1 rsi)
-                                       (set! c.1 rdx)
-                                       (set! d.1 rcx)
-                                       (set! e.1 r8)
-                                       (set! f.1 r9)
-                                       (set! a.1 (+ a.1 b.1))
-                                       (set! a.1 (+ a.1 c.1))
-                                       (set! a.1 (+ a.1 d.1))
-                                       (set! a.1 (+ a.1 e.1))
-                                       (set! a.1 (+ a.1 f.1))
-                                       (halt a.1)))
+                                       (set! tmp-ra.24 r15)
+                                       (set! x.1 fv0)
+                                       (set! y.1 fv1)
+                                       (set! rax x.1)
+                                       (set! rax (+ rax y.1))
+                                       (jump tmp-ra.24 rbp rax)))
+                                   (define L.g.1
+                                     ((new-frames
+                                       ((nfv.32 nfv.33) (nfv.30 nfv.31) (nfv.28 nfv.29) (nfv.26 nfv.27))))
+                                     (begin
+                                       (set! tmp-ra.25 r15)
+                                       (set! x.1 fv0)
+                                       (return-point L.rp.6
+                                                     (begin
+                                                       (set! nfv.26 x.1)
+                                                       (set! nfv.27 1)
+                                                       (set! r15 L.rp.6)
+                                                       (jump L.f.1 rbp r15 nfv.26 nfv.27)))
+                                       (set! y.1 rax)
+                                       (return-point L.rp.7
+                                                     (begin
+                                                       (set! nfv.28 x.1)
+                                                       (set! nfv.29 2)
+                                                       (set! r15 L.rp.7)
+                                                       (jump L.f.1 rbp r15 nfv.28 nfv.29)))
+                                       (set! z.1 rax)
+                                       (if (true)
+                                           (begin
+                                             (return-point L.rp.8
+                                                           (begin
+                                                             (set! nfv.30 y.1)
+                                                             (set! nfv.31 z.1)
+                                                             (set! r15 L.rp.8)
+                                                             (jump L.f.1 rbp r15 nfv.30 nfv.31)))
+                                             (set! a.1 rax)
+                                             (set! rax a.1)
+                                             (set! rax (* rax x.1))
+                                             (jump tmp-ra.25 rbp rax))
+                                           (begin
+                                             (return-point L.rp.9
+                                                           (begin
+                                                             (set! nfv.32 y.1)
+                                                             (set! nfv.33 x.1)
+                                                             (set! r15 L.rp.9)
+                                                             (jump L.f.1 rbp r15 nfv.32 nfv.33)))
+                                             (set! b.1 rax)
+                                             (set! rax b.1)
+                                             (set! rax (- rax z.1))
+                                             (jump tmp-ra.25 rbp rax)))))
                                    (begin
-                                     (set! r9 6)
-                                     (set! r8 5)
-                                     (set! rcx 4)
-                                     (set! rdx 3)
-                                     (set! rsi 2)
-                                     (set! rdi 1)
-                                     (jump L.f.1 rbp rdi rsi rdx rcx r8 r9))))
+                                     (set! tmp-ra.34 r15)
+                                     (return-point L.rp.10
+                                                   (begin (set! nfv.35 1) (set! r15 L.rp.10) (jump L.g.1 rbp r15 nfv.35)))
+                                     (set! x.1 rax)
+                                     (return-point L.rp.11
+                                                   (begin (set! nfv.36 2) (set! r15 L.rp.11) (jump L.g.1 rbp r15 nfv.36)))
+                                     (set! x.2 rax)
+                                     (set! rax x.1)
+                                     (set! rax (* rax x.2))
+                                     (jump tmp-ra.34 rbp rax))))
                 '(module
-                     ((locals ()))
+                     ((new-frames ((nfv.36) (nfv.35)))
+                      (locals (nfv.35 x.1 tmp-ra.34 x.2 nfv.36)))
                    (define L.f.1
-                     ((locals (b.1 e.1 c.1 d.1 a.1 f.1)))
+                     ((new-frames ()) (locals (y.1 tmp-ra.24 x.1)))
                      (begin
-                       (set! a.1 rdi)
-                       (set! b.1 rsi)
-                       (set! c.1 rdx)
-                       (set! d.1 rcx)
-                       (set! e.1 r8)
-                       (set! f.1 r9)
-                       (set! a.1 (+ a.1 b.1))
-                       (set! a.1 (+ a.1 c.1))
-                       (set! a.1 (+ a.1 d.1))
-                       (set! a.1 (+ a.1 e.1))
-                       (set! a.1 (+ a.1 f.1))
-                       (halt a.1)))
-                   (begin
-                     (set! r9 6)
-                     (set! r8 5)
-                     (set! rcx 4)
-                     (set! rdx 3)
-                     (set! rsi 2)
-                     (set! rdi 1)
-                     (jump L.f.1 rbp rdi rsi rdx rcx r8 r9))))
-  (check-equal? (uncover-locals '(module () (define L.f.1 () (begin (set! x.1 rdi)
-                                                                    (halt x.1)))
-                                   (begin
-                                     (set! rdi 1)
-                                     (jump L.f.1 rbp rdi))))
-                '(module
-                     ((locals ()))
-                   (define L.f.1 ((locals (x.1))) (begin (set! x.1 rdi) (halt x.1)))
-                   (begin (set! rdi 1) (jump L.f.1 rbp rdi))))
-  (check-equal? (uncover-locals '(module () (define L.f.1 () (begin (set! x.1 rdi)
-                                                                    (halt x.1)))
-                                   (begin
-                                     (set! a.1 L.f.1)
-                                     (set! rdi 1)
-                                     (jump a.1 rbp rdi))))
-                '(module
-                     ((locals (a.1)))
-                   (define L.f.1 ((locals (x.1))) (begin (set! x.1 rdi) (halt x.1)))
-                   (begin (set! a.1 L.f.1) (set! rdi 1) (jump a.1 rbp rdi))))
-  (check-equal? (uncover-locals '(module () (define L.f.1 () (begin (set! x.1 rdi)
-                                                                    (halt x.1)))
-                                   (begin
-                                     (set! r13 L.f.1)
-                                     (set! rdi 1)
-                                     (jump r13 rbp rdi))))
-                '(module
-                     ((locals ()))
-                   (define L.f.1 ((locals (x.1))) (begin (set! x.1 rdi) (halt x.1)))
-                   (begin (set! r13 L.f.1) (set! rdi 1) (jump r13 rbp rdi))))
-  (check-equal? (uncover-locals '(module () (define L.f.1 () (begin
-                                                               (set! x.1 rdi)
-                                                               (halt x.1)))
-                                   (define L.g.1 () (begin
-                                                      (set! x.1 rdi)
-                                                      (set! y.1 rsi)
-                                                      (set! z.1 rdx)
-                                                      (set! rdi x.1)
-                                                      (jump L.f.1 rbp rdi)))
-                                   (if (true)
-                                       (begin
-                                         (set! rdx 3)
-                                         (set! rsi 2)
-                                         (set! rdi 1)
-                                         (jump L.g.1 rbp rdi rsi rdx))
-                                       (begin
-                                         (set! rdi 1)
-                                         (jump L.f.1 rbp rdi)))))
-                '(module
-                     ((locals ()))
-                   (define L.f.1 ((locals (x.1))) (begin (set! x.1 rdi) (halt x.1)))
+                       (set! tmp-ra.24 r15)
+                       (set! x.1 fv0)
+                       (set! y.1 fv1)
+                       (set! rax x.1)
+                       (set! rax (+ rax y.1))
+                       (jump tmp-ra.24 rbp rax)))
                    (define L.g.1
-                     ((locals (y.1 x.1 z.1)))
+                     ((new-frames
+                       ((nfv.32 nfv.33) (nfv.30 nfv.31) (nfv.28 nfv.29) (nfv.26 nfv.27)))
+                      (locals
+                       (nfv.30
+                        b.1
+                        nfv.29
+                        y.1
+                        nfv.26
+                        z.1
+                        x.1
+                        a.1
+                        nfv.33
+                        nfv.27
+                        tmp-ra.25
+                        nfv.32
+                        nfv.31
+                        nfv.28)))
                      (begin
-                       (set! x.1 rdi)
-                       (set! y.1 rsi)
-                       (set! z.1 rdx)
-                       (set! rdi x.1)
-                       (jump L.f.1 rbp rdi)))
-                   (if (true)
-                       (begin
-                         (set! rdx 3)
-                         (set! rsi 2)
-                         (set! rdi 1)
-                         (jump L.g.1 rbp rdi rsi rdx))
-                       (begin (set! rdi 1) (jump L.f.1 rbp rdi)))))
-  (check-equal? (uncover-locals '(module () (begin (set! x.1 0) (halt x.1))))
-                '(module ((locals (x.1))) (begin (set! x.1 0) (halt x.1))))
-  (match-let ([`(module ((locals (,ls ...))) ,_) (uncover-locals '(module () (begin (set! x.1 0)
-                                                                                    (set! y.1 x.1)
-                                                                                    (set! y.1 (+ y.1 x.1))
-                                                                                    (halt y.1))))])
-    (check-equal? (list->set ls) (set 'x.1 'y.1)))
-  (check-equal? (uncover-locals '(module () (halt 5)))
-                '(module ((locals ())) (halt 5)))
-  (check-equal? (uncover-locals '(module () (halt x.1)))
-                '(module ((locals (x.1))) (halt x.1)))
-  (check-equal? (uncover-locals '(module () (begin (halt 1))))
-                '(module ((locals ())) (begin (halt 1))))
-  (check-equal? (uncover-locals '(module () (if (true) (halt 0) (halt 1))))
-                '(module ((locals ())) (if (true) (halt 0) (halt 1))))
-  (check-equal? (uncover-locals '(module () (if (= x.2 0) (halt 1) (halt 2))))
-                '(module ((locals (x.2))) (if (= x.2 0) (halt 1) (halt 2))))
-  (check-equal? (uncover-locals '(module ()
-                                   (if (= a.1 0)
-                                       (begin
-                                         (set! b.1 (+ b.1 1))
-                                         (halt b.1))
-                                       (begin
-                                         (set! c.1 2)
-                                         (halt c.1)))))
-                '(module
-                     ((locals (b.1 c.1 a.1)))
-                   (if (= a.1 0)
-                       (begin (set! b.1 (+ b.1 1)) (halt b.1))
-                       (begin (set! c.1 2) (halt c.1)))))
-  (check-equal? (uncover-locals '(module ()
-                                   (begin
-                                     (set! x.1 10)
+                       (set! tmp-ra.25 r15)
+                       (set! x.1 fv0)
+                       (return-point L.rp.6
                                      (begin
-                                       (set! y.1 (+ y.1 x.1))
-                                       (halt y.1)))))
-                '(module
-                     ((locals (y.1 x.1)))
-                   (begin (set! x.1 10) (begin (set! y.1 (+ y.1 x.1)) (halt y.1)))))
-  (check-equal? (uncover-locals '(module ()
-                                   (begin
-                                     (set! m.1 3)
-                                     (set! n.1 4)
-                                     (halt m.1))))
-                '(module ((locals (m.1 n.1)))
-                   (begin
-                     (set! m.1 3)
-                     (set! n.1 4)
-                     (halt m.1))))
-  (check-equal? (uncover-locals '(module ()
-                                   (begin
-                                     (set! p.1 (+ p.1 q.1))
-                                     (halt 0))))
-                '(module ((locals (q.1 p.1))) (begin (set! p.1 (+ p.1 q.1)) (halt 0))))
-  (check-equal? (uncover-locals '(module ()
-                                   (if (= x.1 0)
-                                       (if (= y.1 1)
-                                           (halt z.1)
-                                           (halt w.1))
-                                       (halt v.1))))
-                '(module
-                     ((locals (v.1 w.1 y.1 x.1 z.1)))
-                   (if (= x.1 0) (if (= y.1 1) (halt z.1) (halt w.1)) (halt v.1))))
-  (check-equal? (uncover-locals '(module ()
-                                   (if (begin (set! x.1 2) (= y.1 3))
-                                       (halt z.1)
-                                       (halt w.1))))
-                '(module
-                     ((locals (w.1 y.1 x.1 z.1)))
-                   (if (begin (set! x.1 2) (= y.1 3)) (halt z.1) (halt w.1))))
-  (check-equal? (uncover-locals '(module ()
-                                   (begin
-                                     (set! a.1 (+ a.1 c.1))
+                                       (set! nfv.26 x.1)
+                                       (set! nfv.27 1)
+                                       (set! r15 L.rp.6)
+                                       (jump L.f.1 rbp r15 nfv.26 nfv.27)))
+                       (set! y.1 rax)
+                       (return-point L.rp.7
                                      (begin
-                                       (set! d.1 (+ d.1 f.1))
-                                       (halt g.1)))))
-                '(module
-                     ((locals (c.1 d.1 a.1 g.1 f.1)))
-                   (begin (set! a.1 (+ a.1 c.1)) (begin (set! d.1 (+ d.1 f.1)) (halt g.1)))))
-  (check-equal? (uncover-locals '(module ()
-                                   (if (if (= x.1 0)
-                                           (= y.1 1)
-                                           (= z.1 2))
-                                       (halt w.1)
-                                       (halt v.1))))
-                '(module
-                     ((locals (v.1 w.1 y.1 x.1 z.1)))
-                   (if (if (= x.1 0) (= y.1 1) (= z.1 2)) (halt w.1) (halt v.1))))
-  (check-equal? (uncover-locals '(module ()
-                                   (begin
-                                     (set! a.1 10)
-                                     (if (= b.1 0)
-                                         (begin
-                                           (set! c.1 (+ c.1 e.1))
-                                           (halt f.1))
-                                         (begin
-                                           (set! g.1 20)
-                                           (halt h.1))))))
-                '(module
-                     ((locals (h.1 b.1 e.1 c.1 a.1 g.1 f.1)))
+                                       (set! nfv.28 x.1)
+                                       (set! nfv.29 2)
+                                       (set! r15 L.rp.7)
+                                       (jump L.f.1 rbp r15 nfv.28 nfv.29)))
+                       (set! z.1 rax)
+                       (if (true)
+                           (begin
+                             (return-point L.rp.8
+                                           (begin
+                                             (set! nfv.30 y.1)
+                                             (set! nfv.31 z.1)
+                                             (set! r15 L.rp.8)
+                                             (jump L.f.1 rbp r15 nfv.30 nfv.31)))
+                             (set! a.1 rax)
+                             (set! rax a.1)
+                             (set! rax (* rax x.1))
+                             (jump tmp-ra.25 rbp rax))
+                           (begin
+                             (return-point L.rp.9
+                                           (begin
+                                             (set! nfv.32 y.1)
+                                             (set! nfv.33 x.1)
+                                             (set! r15 L.rp.9)
+                                             (jump L.f.1 rbp r15 nfv.32 nfv.33)))
+                             (set! b.1 rax)
+                             (set! rax b.1)
+                             (set! rax (- rax z.1))
+                             (jump tmp-ra.25 rbp rax)))))
                    (begin
-                     (set! a.1 10)
-                     (if (= b.1 0)
-                         (begin (set! c.1 (+ c.1 e.1)) (halt f.1))
-                         (begin (set! g.1 20) (halt h.1))))))
-  (check-equal? (uncover-locals '(module ()
-                                   (begin
-                                     (if (if (true) (false) (not (= x.1 0)))
-                                         (begin
-                                           (if (< y.1 10)
-                                               (set! g.1 8)
-                                               (set! g.1 (* g.1 h.1)))
-                                           (halt i.1))
-                                         (begin
-                                           (if (>= j.1 5)
-                                               (halt k.1)
-                                               (halt m.1)))))))
-                '(module
-                     ((locals (h.1 k.1 m.1 j.1 y.1 x.1 g.1 i.1)))
-                   (begin
-                     (if (if (true) (false) (not (= x.1 0)))
-                         (begin (if (< y.1 10) (set! g.1 8) (set! g.1 (* g.1 h.1))) (halt i.1))
-                         (begin (if (>= j.1 5) (halt k.1) (halt m.1))))))))
+                     (set! tmp-ra.34 r15)
+                     (return-point L.rp.10
+                                   (begin (set! nfv.35 1) (set! r15 L.rp.10) (jump L.g.1 rbp r15 nfv.35)))
+                     (set! x.1 rax)
+                     (return-point L.rp.11
+                                   (begin (set! nfv.36 2) (set! r15 L.rp.11) (jump L.g.1 rbp r15 nfv.36)))
+                     (set! x.2 rax)
+                     (set! rax x.1)
+                     (set! rax (* rax x.2))
+                     (jump tmp-ra.34 rbp rax)))))

@@ -134,6 +134,144 @@
 
 (module+ test
   (check-equal? (select-instructions '(module
+                                          ((new-frames ((nfv.36) (nfv.35))))
+                                        (define L.f.1
+                                          ((new-frames ()))
+                                          (begin
+                                            (set! tmp-ra.24 r15)
+                                            (begin
+                                              (set! x.1 fv0)
+                                              (set! y.1 fv1)
+                                              (begin (set! rax (+ x.1 y.1)) (jump tmp-ra.24 rbp rax)))))
+                                        (define L.g.1
+                                          ((new-frames
+                                            ((nfv.32 nfv.33) (nfv.30 nfv.31) (nfv.28 nfv.29) (nfv.26 nfv.27))))
+                                          (begin
+                                            (set! tmp-ra.25 r15)
+                                            (begin
+                                              (set! x.1 fv0)
+                                              (begin
+                                                (begin
+                                                  (return-point L.rp.6
+                                                                (begin
+                                                                  (set! nfv.26 x.1)
+                                                                  (set! nfv.27 1)
+                                                                  (set! r15 L.rp.6)
+                                                                  (jump L.f.1 rbp r15 nfv.26 nfv.27)))
+                                                  (set! y.1 rax))
+                                                (begin
+                                                  (return-point L.rp.7
+                                                                (begin
+                                                                  (set! nfv.28 x.1)
+                                                                  (set! nfv.29 2)
+                                                                  (set! r15 L.rp.7)
+                                                                  (jump L.f.1 rbp r15 nfv.28 nfv.29)))
+                                                  (set! z.1 rax))
+                                                (if (true)
+                                                    (begin
+                                                      (begin
+                                                        (return-point L.rp.8
+                                                                      (begin
+                                                                        (set! nfv.30 y.1)
+                                                                        (set! nfv.31 z.1)
+                                                                        (set! r15 L.rp.8)
+                                                                        (jump L.f.1 rbp r15 nfv.30 nfv.31)))
+                                                        (set! a.1 rax))
+                                                      (begin (set! rax (* a.1 x.1)) (jump tmp-ra.25 rbp rax)))
+                                                    (begin
+                                                      (begin
+                                                        (return-point L.rp.9
+                                                                      (begin
+                                                                        (set! nfv.32 y.1)
+                                                                        (set! nfv.33 x.1)
+                                                                        (set! r15 L.rp.9)
+                                                                        (jump L.f.1 rbp r15 nfv.32 nfv.33)))
+                                                        (set! b.1 rax))
+                                                      (begin (set! rax (- b.1 z.1)) (jump tmp-ra.25 rbp rax))))))))
+                                        (begin
+                                          (set! tmp-ra.34 r15)
+                                          (begin
+                                            (begin
+                                              (return-point L.rp.10
+                                                            (begin
+                                                              (set! nfv.35 1)
+                                                              (set! r15 L.rp.10)
+                                                              (jump L.g.1 rbp r15 nfv.35)))
+                                              (set! x.1 rax))
+                                            (begin
+                                              (return-point L.rp.11
+                                                            (begin
+                                                              (set! nfv.36 2)
+                                                              (set! r15 L.rp.11)
+                                                              (jump L.g.1 rbp r15 nfv.36)))
+                                              (set! x.2 rax))
+                                            (begin (set! rax (* x.1 x.2)) (jump tmp-ra.34 rbp rax))))))
+                '(module
+                     ((new-frames ((nfv.36) (nfv.35))))
+                   (define L.f.1
+                     ((new-frames ()))
+                     (begin
+                       (set! tmp-ra.24 r15)
+                       (set! x.1 fv0)
+                       (set! y.1 fv1)
+                       (set! rax x.1)
+                       (set! rax (+ rax y.1))
+                       (jump tmp-ra.24 rbp rax)))
+                   (define L.g.1
+                     ((new-frames
+                       ((nfv.32 nfv.33) (nfv.30 nfv.31) (nfv.28 nfv.29) (nfv.26 nfv.27))))
+                     (begin
+                       (set! tmp-ra.25 r15)
+                       (set! x.1 fv0)
+                       (return-point L.rp.6
+                                     (begin
+                                       (set! nfv.26 x.1)
+                                       (set! nfv.27 1)
+                                       (set! r15 L.rp.6)
+                                       (jump L.f.1 rbp r15 nfv.26 nfv.27)))
+                       (set! y.1 rax)
+                       (return-point L.rp.7
+                                     (begin
+                                       (set! nfv.28 x.1)
+                                       (set! nfv.29 2)
+                                       (set! r15 L.rp.7)
+                                       (jump L.f.1 rbp r15 nfv.28 nfv.29)))
+                       (set! z.1 rax)
+                       (if (true)
+                           (begin
+                             (return-point L.rp.8
+                                           (begin
+                                             (set! nfv.30 y.1)
+                                             (set! nfv.31 z.1)
+                                             (set! r15 L.rp.8)
+                                             (jump L.f.1 rbp r15 nfv.30 nfv.31)))
+                             (set! a.1 rax)
+                             (set! rax a.1)
+                             (set! rax (* rax x.1))
+                             (jump tmp-ra.25 rbp rax))
+                           (begin
+                             (return-point L.rp.9
+                                           (begin
+                                             (set! nfv.32 y.1)
+                                             (set! nfv.33 x.1)
+                                             (set! r15 L.rp.9)
+                                             (jump L.f.1 rbp r15 nfv.32 nfv.33)))
+                             (set! b.1 rax)
+                             (set! rax b.1)
+                             (set! rax (- rax z.1))
+                             (jump tmp-ra.25 rbp rax)))))
+                   (begin
+                     (set! tmp-ra.34 r15)
+                     (return-point L.rp.10
+                                   (begin (set! nfv.35 1) (set! r15 L.rp.10) (jump L.g.1 rbp r15 nfv.35)))
+                     (set! x.1 rax)
+                     (return-point L.rp.11
+                                   (begin (set! nfv.36 2) (set! r15 L.rp.11) (jump L.g.1 rbp r15 nfv.36)))
+                     (set! x.2 rax)
+                     (set! rax x.1)
+                     (set! rax (* rax x.2))
+                     (jump tmp-ra.34 rbp rax))))
+  (check-equal? (select-instructions '(module
                                           ((new-frames (())))
                                         (define L.f.1
                                           ((new-frames ()))
