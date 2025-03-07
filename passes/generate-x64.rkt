@@ -4,23 +4,23 @@
 
 (require
   cpsc411/compiler-lib
-  cpsc411/langs/v4
+  cpsc411/langs/v6
   rackunit)
 
 (provide generate-x64)
 
-;; paren-x64-v4 -> string
+;; paren-x64-v6 -> string
 ;; compiles p into a valid sequence of x64 instructions, represented as a string
 (define/contract (generate-x64 p)
-  (-> paren-x64-v4? string?)
+  (-> paren-x64-v6? string?)
 
-  ;; paren-x64-v4 -> string
+  ;; paren-x64-v6 -> string
   (define (program->x64 p)
     (match p
       [`(begin ,s ...)
        (string-join (map statement->x64 s) "\n")]))
 
-  ;; paren-x64-v4.s -> string
+  ;; paren-x64-v6.s -> string
   (define (statement->x64 s)
     (match s
       [`(set! (,fbp - ,offset) ,int32)
@@ -50,35 +50,36 @@
       [`(jump-if ,relop ,label)
        (format "~a ~a" (relop->ins relop) (symbol->string label))]))
 
-  ;; paren-x64-v4.trg -> string
+  ;; paren-x64-v6.trg -> string
   (define (trg->x64 trg)
     (match trg
       [label #:when (label? label) (sanitize-label label)]
       [reg #:when (register? reg) reg]))
 
-  ;; paren-x64-v4.triv -> string
+  ;; paren-x64-v6.triv -> string
   (define (triv->x64 triv)
     (match triv
       [int64 #:when (int64? int64) int64]
       [trg (trg->x64 trg)]))
 
-  ;; paren-x64-v4.opand -> string
+  ;; paren-x64-v6.opand -> string
   (define (opand->x64 op)
     (match op
       [int64 #:when (int64? int64) int64]
       [reg #:when (register? reg) reg]))
 
-  ;; paren-x64-v4.loc -> string
+  ;; paren-x64-v6.loc -> string
   (define (loc->x64 loc)
     (match loc
       [reg #:when (register? reg) reg]
       [`(,fbp - ,offset) (format "QWORD [~a - ~a]" fbp offset)]))
 
-  ;; paren-x64-v4.binop -> string
+  ;; paren-x64-v6.binop -> string
   (define (binop->ins b)
     (match b
       ['+ "add"]
-      ['* "imul"]))
+      ['* "imul"]
+      ['- "sub"]))
 
   ;; paren-x64-v4.relop -> string
   (define (relop->ins relop)
@@ -93,6 +94,8 @@
   (program->x64 p))
 
 (module+ test
+  (check-equal? (generate-x64 '(begin (set! rax (- rax 1))))
+                "sub rax, 1")
   (check-equal? (generate-x64 '(begin (set! rsi L.label.1) (with-label L.label.1 (set! rbx 18)) (set! rax rbx) (jump done)))
                 (string-join
                  (list "lea rsi, [rel L.label.1]"
