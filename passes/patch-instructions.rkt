@@ -1,18 +1,20 @@
 #lang racket
 
+(require "common.rkt")
+
 (require
   cpsc411/compiler-lib
-  cpsc411/langs/v4
+  cpsc411/langs/v6
   rackunit)
 
 (provide patch-instructions)
 
-;; para-asm-lang-v4 -> paren-x64-fvars-v4
-;; compiles p to to Paren-x64-fvars v4 by patching each instruction that has no
+;; para-asm-lang-v6 -> paren-x64-v6
+;; compiles p to to Paren-x64 v6 by patching each instruction that has no
 ;; x64 analogue into a sequence of instructions using auxiliary register from
 ;; current-patch-instructions-registers
 (define/contract (patch-instructions p)
-  (-> para-asm-lang-v4? paren-x64-fvars-v4?)
+  (-> para-asm-lang-v6? paren-x64-v6?)
 
   ;; relop -> relop
   ;; produces the negation of relop
@@ -25,14 +27,14 @@
       [`> `<=]
       [`!= `=]))
 
-  ;; para-asm-lang-v4.s -> paren-x64-fvars-v4.s
+  ;; para-asm-lang-v6.s -> paren-x64-v6.s
   (define (compile-s s)
     (match s
-      ;; triv is now also a label
       [`(set! ,loc (,binop ,loc ,triv))
        (cond
-         ;; check if fvar and triv are valid in there positions
-         [(and (fvar? loc) (not (int32? triv)))
+         ;; if loc is an addr and triv is a label, loc, or larger than int32,
+         ;; then both loc and triv must be stored in temporary registers
+         [(and (addr? loc) (not (int32? triv)))
           (define patch-reg-1 (first (current-patch-instructions-registers)))
           (define patch-reg-2 (second (current-patch-instructions-registers)))
           `((set! ,patch-reg-1 ,loc)
@@ -40,14 +42,16 @@
             (set! ,patch-reg-1 (,binop ,patch-reg-1 ,patch-reg-2))
             (set! ,loc ,patch-reg-1))]
 
-         ;; check fvar since we know triv is now int32 when loc is fvar
-         [(and (fvar? loc) (int32? triv))
+         ;; if loc is an addr and triv is an int32, then only loc needs to be
+         ;; stored in a temporary register
+         [(and (addr? loc) (int32? triv))
           (define patch-reg-1 (first (current-patch-instructions-registers)))
           `((set! ,patch-reg-1 ,loc)
             (set! ,patch-reg-1 (,binop ,patch-reg-1 ,triv))
             (set! ,loc ,patch-reg-1))]
 
-         ;; check triv since we know loc is not fvar
+         ;; if loc is a register and triv is larger than int32, then triv
+         ;; needs to be stored in a temporary register
          [(and (not (int32? triv)) (int64? triv))
           (define patch-reg-1 (first (current-patch-instructions-registers)))
           `((set! ,patch-reg-1 ,triv)
@@ -55,10 +59,11 @@
          [else (list `(set! ,loc (,binop ,loc ,triv)))])]
       [`(set! ,loc ,triv)
        (cond
-         ;; if loc is fvar and we are not moving an int32 or reg there
-         [(and (fvar? loc)
+         ;; if loc is an addr and triv is a label, loc, or larger than int32,
+         ;; then triv must be stored in a temporary register
+         [(and (addr? loc)
                (or (and (not (int32? triv)) (int64? triv))
-                   (fvar? triv)
+                   (addr? triv)
                    (label? triv)))
           (define patch-reg (first (current-patch-instructions-registers)))
           `((set! ,patch-reg ,triv)
@@ -71,22 +76,22 @@
            `((with-label ,label ,(first s-compiled)) ,@(rest s-compiled)))]
       [`(jump ,trg)
        (define reg (first (current-patch-instructions-registers)))
-       (if (fvar? trg)
+       (if (addr? trg)
            `((set! ,reg ,trg) (jump ,reg))
            `((jump ,trg)))]
       [`(compare ,loc ,op)
        (define reg (first (current-patch-instructions-registers)))
        (define reg2 (second (current-patch-instructions-registers)))
        (cond
-         [(and (fvar? loc) (fvar? op)) `((set! ,reg2 ,op)(set! ,reg ,loc) (compare ,reg ,reg2))]
-         [(fvar? loc) `((set! ,reg ,loc) (compare ,reg ,op))]
-         [(fvar? op) `((set! ,reg ,op) (compare ,loc ,reg))]
+         [(and (addr? loc) (addr? op)) `((set! ,reg2 ,op)(set! ,reg ,loc) (compare ,reg ,reg2))]
+         [(addr? loc) `((set! ,reg ,loc) (compare ,reg ,op))]
+         [(addr? op) `((set! ,reg ,op) (compare ,loc ,reg))]
          [else `((compare ,loc ,op))])]
       [`(jump-if ,relop ,trg)
        (define label (fresh-label))
        (define reg (first (current-patch-instructions-registers)))
        (cond
-         [(fvar? trg)
+         [(addr? trg)
           `((set! ,reg ,trg)
             (jump-if ,(negate-relop relop) ,label)
             (jump ,reg)
@@ -111,18 +116,25 @@
 
 (module+ test
   (check-equal? (patch-instructions '(begin
-                                       (with-label L.tmp.1
-                                         (set! rax 10))
-                                       (set! fv1 2)
-                                       (compare rax fv1)
+                                       (with-label L.tmp.1 (set! rax 10))
+                                       (set! (rbp - 8) 2)
+                                       (compare rax (rbp - 8))
                                        (jump-if != L.tmp.1)))
                 '(begin
                    (with-label L.tmp.1 (set! rax 10))
-                   (set! fv1 2)
-                   (set! r10 fv1)
+                   (set! (rbp - 8) 2)
+                   (set! r10 (rbp - 8))
                    (compare rax r10)
                    (jump-if != L.tmp.1)))
-  (check-equal? (patch-instructions '(begin (set! fv0 0) (set! fv1 1) (compare fv0 fv1) (jump-if > L.foo.1) (halt 0) (with-label L.foo.1 (halt 1))))
+  (check-equal? (patch-instructions '(begin
+                                       (set! (rbp - 0) 0)
+                                       (set! (rbp - 8) 1)
+                                       (set! r11 (rbp - 8))
+                                       (set! r10 (rbp - 0))
+                                       (compare r10 r11)
+                                       (jump-if > L.foo.1)
+                                       (jump done)
+                                       (with-label L.foo.1 (jump done))))
                 '(begin
                    (set! fv0 0)
                    (set! fv1 1)
