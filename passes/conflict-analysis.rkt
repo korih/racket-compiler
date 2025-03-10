@@ -7,16 +7,16 @@
 (require
   cpsc411/compiler-lib
   cpsc411/graph-lib
-  cpsc411/langs/v5
+  cpsc411/langs/v6
   rackunit)
 
 (provide conflict-analysis)
 
-;; asm-pred-lang-v5/undead -> asm-pred-lang-v5/conflicts
+;; asm-pred-lang-v6/undead -> asm-pred-lang-v6/conflicts
 ;; compiles p to Asm-pred-lang v5/conflicts by performing conflict analysis and
 ;; decorating programs with their conflict graph
 (define/contract (conflict-analysis p)
-  (-> asm-pred-lang-v5/undead? asm-pred-lang-v5/conflicts?)
+  (-> asm-pred-lang-v6/undead? asm-pred-lang-v6/conflicts?)
 
   ;; func-info is `(define ,label ,info ,tail)
   ;; interp. a function definition that has metadata
@@ -37,15 +37,14 @@
        (set! conflict-graph (new-graph (info-ref info 'locals)))
        (define udt (info-ref info 'undead-out))
        (define analyzed-tail (conflict-analysis-tail udt tail))
-       (define updated-info (info-set (info-remove info 'undead-out)
+       (define updated-info (info-set info
                                       'conflicts
                                       conflict-graph))
        `(define ,label ,updated-info ,tail)]))
 
-  ;; undead-set-tree asm-pred-lang-v5/undead.tail -> asm-pred-lang-v5/conflicts.tail
+  ;; undead-set-tree asm-pred-lang/undead.tail -> asm-pred-lang/conflicts.tail
   (define (conflict-analysis-tail udt tail)
     (match (cons udt tail)
-      [(cons '() `(halt ,opand)) `(halt ,opand)]
       [(cons `(,undead-set-trees ... ,undead-set-tree-tail) `(begin ,fx ... ,inner-tail))
        (define compiled-effects (for/list ([e fx]
                                            [udt-e undead-set-trees])
@@ -63,7 +62,7 @@
             ,(conflict-analysis-tail undead-set-tree-t tail-t)
             ,(conflict-analysis-tail undead-set-tree-f tail-f))]))
 
-  ;; undead-set-tree asm-pred-lang-v5/undead.effect -> asm-pred-lang-v5/conflicts.effect
+  ;; undead-set-tree asm-pred-lang/undead.effect -> asm-pred-lang/conflicts.effect
   (define (conflict-analysis-effect udt e)
     (match (cons udt e)
       [(cons `(,undead-set-trees ... ,last-undead-set-tree) `(begin ,fx ... ,effect))
@@ -80,9 +79,11 @@
       [(cons `(,udt-p ,udt-t ,udt-f) `(if ,pred ,t-e ,f-e))
        `(if ,(conflict-analysis-pred udt-p pred)
             ,(conflict-analysis-effect udt-t t-e)
-            ,(conflict-analysis-effect udt-f f-e))]))
+            ,(conflict-analysis-effect udt-f f-e))]
+      [(cons `(,udt-inner ,udt-outer) `(return-point ,label ,tail))
+       `(return-point ,label ,(conflict-analysis-tail udt-outer tail))]))
 
-  ;; undead-set-tree asm-pred-lang-v5/undead.pred -> asm-pred-lang-v5/conflicts.pred
+  ;; undead-set-tree asm-pred-lang/undead.pred -> asm-pred-lang/conflicts.pred
   (define (conflict-analysis-pred udt pred)
     (match (cons udt pred)
       [(cons undead-set-tree '(true)) '(true)]
@@ -101,25 +102,25 @@
       [(cons undead-set-tree `(,relop ,aloc ,triv))
        `(,relop ,aloc ,triv)]))
 
-  ;; asm-pred-lang-v5/undead.triv -> (List-of loc)
+  ;; asm-pred-lang/undead.triv -> (List-of loc)
   (define (conflict-analysis-triv triv)
     (match triv
       [label #:when (label? label) '()]
       [opand (conflict-analysis-opand opand)]))
 
-  ;; asm-pred-lang-v5/undead.loc -> (List-of loc)
+  ;; asm-pred-lang/undead.loc -> (List-of loc)
   (define (conflict-analysis-loc loc)
     (match loc
       [rloc #:when (rloc? rloc) (list rloc)]
       [aloc #:when (aloc? aloc) (list aloc)]))
 
-  ;; asm-pred-lang-v5/undead.trg -> (List-of loc)
+  ;; asm-pred-lang/undead.trg -> (List-of loc)
   (define (conflict-analysis-trg trg)
     (match trg
       [label #:when (label? label) '()]
       [loc (conflict-analysis-loc loc)]))
 
-  ;; asm-pred-lang-v5/undead.opand -> (List-of loc)
+  ;; asm-pred-lang/undead.opand -> (List-of loc)
   (define (conflict-analysis-opand op)
     (match op
       [int64 #:when (int64? int64) '()]
@@ -131,14 +132,133 @@
      (set! conflict-graph (new-graph (info-ref info 'locals)))
      (define udt (info-ref info 'undead-out))
      (define analyzed-tail (conflict-analysis-tail udt tail))
-     (define updated-info (info-set (info-remove info 'undead-out)
+     (define updated-info (info-set info
                                     'conflicts
                                     conflict-graph))
      `(module ,updated-info ,@updated-funcs ,tail)]))
 
+(check-equal? (conflict-analysis '(module
+                                      ((new-frames ())
+                                       (locals (ra.12))
+                                       (call-undead ())
+                                       (undead-out ((ra.12 rbp) (ra.12 fv0 rbp) (fv0 r15 rbp) (fv0 r15 rbp))))
+                                    (define L.fact.4
+                                      ((new-frames ((nfv.16)))
+                                       (locals (ra.13 x.9 tmp.14 tmp.15 new-n.10 nfv.16 factn-1.11 tmp.17))
+                                       (undead-out
+                                        ((r15 x.9 rbp)
+                                         (x.9 ra.13 rbp)
+                                         ((x.9 ra.13 rbp)
+                                          ((ra.13 rax rbp) (rax rbp))
+                                          ((tmp.14 x.9 ra.13 rbp)
+                                           (tmp.14 tmp.15 x.9 ra.13 rbp)
+                                           (tmp.15 x.9 ra.13 rbp)
+                                           (new-n.10 x.9 ra.13 rbp)
+                                           ((rax x.9 ra.13 rbp) ((nfv.16 rbp) (nfv.16 r15 rbp) (nfv.16 r15 rbp)))
+                                           (x.9 factn-1.11 ra.13 rbp)
+                                           (factn-1.11 tmp.17 ra.13 rbp)
+                                           (tmp.17 ra.13 rbp)
+                                           (ra.13 rax rbp)
+                                           (rax rbp)))))
+                                       (call-undead (x.9 ra.13)))
+                                      (begin
+                                        (set! x.9 fv0)
+                                        (set! ra.13 r15)
+                                        (if (= x.9 0)
+                                            (begin (set! rax 1) (jump ra.13 rbp rax))
+                                            (begin
+                                              (set! tmp.14 -1)
+                                              (set! tmp.15 x.9)
+                                              (set! tmp.15 (+ tmp.15 tmp.14))
+                                              (set! new-n.10 tmp.15)
+                                              (return-point L.rp.6
+                                                            (begin
+                                                              (set! nfv.16 new-n.10)
+                                                              (set! r15 L.rp.6)
+                                                              (jump L.fact.4 rbp r15 nfv.16)))
+                                              (set! factn-1.11 rax)
+                                              (set! tmp.17 x.9)
+                                              (set! tmp.17 (* tmp.17 factn-1.11))
+                                              (set! rax tmp.17)
+                                              (jump ra.13 rbp rax)))))
+                                    (begin
+                                      (set! ra.12 r15)
+                                      (set! fv0 5)
+                                      (set! r15 ra.12)
+                                      (jump L.fact.4 rbp r15 fv0))))
+              '(module
+                   ((new-frames ())
+                    (locals (ra.12))
+                    (call-undead ())
+                    (undead-out ((ra.12 rbp) (ra.12 fv0 rbp) (fv0 r15 rbp) (fv0 r15 rbp)))
+                    (conflicts
+                     ((ra.12 (fv0 rbp))
+                      (rbp (r15 fv0 ra.12))
+                      (fv0 (r15 ra.12 rbp))
+                      (r15 (fv0 rbp)))))
+                 (define L.fact.4
+                   ((new-frames ((nfv.16)))
+                    (locals (ra.13 x.9 tmp.14 tmp.15 new-n.10 nfv.16 factn-1.11 tmp.17))
+                    (undead-out
+                     ((r15 x.9 rbp)
+                      (x.9 ra.13 rbp)
+                      ((x.9 ra.13 rbp)
+                       ((ra.13 rax rbp) (rax rbp))
+                       ((tmp.14 x.9 ra.13 rbp)
+                        (tmp.14 tmp.15 x.9 ra.13 rbp)
+                        (tmp.15 x.9 ra.13 rbp)
+                        (new-n.10 x.9 ra.13 rbp)
+                        ((rax x.9 ra.13 rbp)
+                         ((nfv.16 rbp) (nfv.16 r15 rbp) (nfv.16 r15 rbp)))
+                        (x.9 factn-1.11 ra.13 rbp)
+                        (factn-1.11 tmp.17 ra.13 rbp)
+                        (tmp.17 ra.13 rbp)
+                        (ra.13 rax rbp)
+                        (rax rbp)))))
+                    (call-undead (x.9 ra.13))
+                    (conflicts
+                     ((tmp.17 (factn-1.11 ra.13 rbp))
+                      (factn-1.11 (tmp.17 x.9 ra.13 rbp))
+                      (nfv.16 (r15 rbp))
+                      (new-n.10 (x.9 ra.13 rbp))
+                      (tmp.15 (x.9 tmp.14 ra.13 rbp))
+                      (tmp.14 (tmp.15 x.9 ra.13 rbp))
+                      (x.9 (factn-1.11 new-n.10 tmp.15 tmp.14 ra.13 r15 rbp))
+                      (ra.13 (tmp.17 factn-1.11 new-n.10 tmp.15 tmp.14 rax x.9 rbp))
+                      (rbp
+                       (tmp.17 factn-1.11 r15 nfv.16 new-n.10 tmp.15 tmp.14 rax ra.13 x.9))
+                      (r15 (nfv.16 rbp x.9))
+                      (rax (ra.13 rbp)))))
+                   (begin
+                     (set! x.9 fv0)
+                     (set! ra.13 r15)
+                     (if (= x.9 0)
+                         (begin (set! rax 1) (jump ra.13 rbp rax))
+                         (begin
+                           (set! tmp.14 -1)
+                           (set! tmp.15 x.9)
+                           (set! tmp.15 (+ tmp.15 tmp.14))
+                           (set! new-n.10 tmp.15)
+                           (return-point L.rp.6
+                                         (begin
+                                           (set! nfv.16 new-n.10)
+                                           (set! r15 L.rp.6)
+                                           (jump L.fact.4 rbp r15 nfv.16)))
+                           (set! factn-1.11 rax)
+                           (set! tmp.17 x.9)
+                           (set! tmp.17 (* tmp.17 factn-1.11))
+                           (set! rax tmp.17)
+                           (jump ra.13 rbp rax)))))
+                 (begin
+                   (set! ra.12 r15)
+                   (set! fv0 5)
+                   (set! r15 ra.12)
+                   (jump L.fact.4 rbp r15 fv0)))
+              )
+#;
 (module+ test
   (check-equal? (conflict-analysis '(module
-                                        ((locals ()) (undead-out (rbp)))
+                                        ((new-frame ())(locals ()) (call-undead ()) (undead-out (rbp)))
                                       (define L.f.1
                                         ((locals (tmp.1)) (undead-out ((tmp.1) (tmp.1) ())))
                                         (begin (set! tmp.1 1) (set! tmp.1 (* tmp.1 2)) (halt tmp.1)))
@@ -643,6 +763,7 @@
                          (set! rdi 1)
                          (jump L.g.1 rbp rdi rsi rdx))
                        (begin (set! rdi 1) (jump L.f.1 rbp rdi)))))
+
   (check-equal? (conflict-analysis '(module ((locals (x.1)) (undead-out ((x.1) ()))) (begin (set! x.1 42) (halt x.1))))
                 '(module ((locals (x.1)) (conflicts ((x.1 ())))) (begin (set! x.1 42) (halt x.1))))
   (match (conflict-analysis '(module ((locals (v.1 w.2 x.3 y.4 z.5 t.6 p.1))
