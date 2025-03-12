@@ -4,6 +4,7 @@
   "passes/assign-fvars.rkt"
   "passes/assign-homes-opt.rkt"
   "passes/assign-homes.rkt"
+  "passes/assign-call-undead-variables.rkt"
   "passes/assign-registers.rkt"
   "passes/conflict-analysis.rkt"
   "passes/flatten-begins.rkt"
@@ -30,7 +31,6 @@
  cpsc411/2c-run-time)
 
 (provide
- assign-call-undead-variables
  allocate-frames
  assign-frame-variables)
 
