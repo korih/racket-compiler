@@ -1,0 +1,331 @@
+#lang racket
+
+(require
+  cpsc411/compiler-lib
+  cpsc411/langs/v6)
+
+(provide allocate-frames)
+
+;; asm-pred-lang-v6/pre-framed -> asm-pred-lang-v6/framed
+;; Allocated frames for each non-tail call, and assign
+;; all new-frame variables to frame variables in the new frame.
+(define/contract (allocate-frames p)
+  (-> asm-pred-lang-v6/pre-framed? any #;asm-pred-lang-v6/framed?)
+
+  ;; info -> info
+  ;; remove new-frames and call-undead while adding new assignments
+  (define (compile-info i)
+    ;; new frames for assignment
+    (define new-frames (if (empty? (info-ref i 'new-frames))
+                           '()
+                           (first (info-ref i 'new-frames))))
+    (define locals^ (remove* new-frames (info-ref i 'locals)))
+    ;; existing assignments
+    (define assignments (map cadr (info-ref i 'assignment)))
+    ;; all variables that could conflict with assignments
+    (define conflicts (map car (info-ref i 'conflicts)))
+    ;; all frame variables
+    (define conflict-frame-variables (append assignments conflicts))
+    (define new-assignments (for/fold ([assignments^ (info-ref i 'assignment)])
+                                      ([frame new-frames])
+                              (define frame-assignment (for/or ([i (in-naturals)])
+                                                         (define fvar (string->symbol (format "fv~a" i)))
+                                                         (cond
+                                                           [(member fvar conflict-frame-variables) #f]
+                                                           [else (set! conflict-frame-variables (cons fvar conflict-frame-variables))
+                                                                 `(,frame ,fvar)])))
+                              (append assignments^ `(,frame-assignment))))
+
+    (define info^ i)
+    (set! info^ (info-remove info^ 'undead-out))
+    (set! info^ (info-remove info^ 'call-undead))
+    (set! info^ (info-remove info^ 'new-frames))
+    (set! info^ (info-set info^ 'locals (reverse locals^))) ;reverse so it matches tests
+    (info-set info^ 'assignment new-assignments))
+
+  ;; funs -> funs
+  ;; compile the function definition
+  (define (compile-fun f)
+    (match f
+      [`(define ,label ,info ,tail) (define info^ (compile-info info))
+                                    (define tail^ (compile-tail tail info^))
+                                    `(define ,label ,info^ ,tail^)]))
+
+  ;; asm-pred-lang-v6/pre-framed.tail info -> asm-pred-lang-v6/framed.tail
+  ;; compile the tails
+  (define (compile-tail t info)
+    (match t
+      [`(jump ,trg ,locs ...) `(jump ,trg ,@locs)]
+      [`(begin ,effects ... ,tail) (define effects^ (for/fold ([compiled-effects '()])
+                                                              ([effect effects])
+                                                      (append compiled-effects (compile-effect effect info))))
+
+                                   (define tail^ (compile-tail tail info))
+                                   `(begin ,@effects^ ,tail^)]
+      [`(if ,pred ,t1 ,t2) (define pred^ (compile-pred pred info))
+                           (define t1^ (compile-tail t1 info))
+                           (define t2^ (compile-tail t2 info))
+                           `(if ,pred^ ,t1^ ,t2^)]))
+
+  ;; asm-pred-lang-v6/pre-framed.effect -> asm-pred-lang-v6/framed.effect
+  ;; compile the effects, looking for return-points to set stack
+  (define (compile-effect e info)
+    (define frame-size (* 8 (length (info-ref info 'assignment))))
+    (match e
+      [`(begin ,effects ...) (define effects^ (for/fold ([compiled-effects '()])
+                                                        ([effect effects])
+                                                (append compiled-effects (compile-effect effect info))))
+                             `((begin ,@effects^))]
+
+      [`(return-point ,label ,tail) (define tail^ (compile-tail tail info))
+                                    (define fbp (current-frame-base-pointer-register))
+                                    `((begin
+                                        (set! ,fbp (- ,fbp ,frame-size))
+                                        (return-point ,label ,tail^)
+                                        (set! ,fbp (+ ,fbp ,frame-size))))]
+
+      [`(if ,pred ,e1 ,e2) (define pred^ (compile-pred pred info))
+                           (define e1^ (compile-effect e1 info))
+                           (define e2^ (compile-effect e2 info))
+                           `((if ,pred^ ,@e1^ ,@e2^))]
+      ;; no other cases that can have return-point
+      [_ `(,e)]))
+
+  ;; asm-pred-lang-v6/pre-framed.pred -> asm-pred-lang-v6/framed.pred
+  ;; compile the preds
+  (define (compile-pred p info)
+    (match p
+      [`(begin ,effects ... ,pred) (define effects^ (for/fold ([compiled-effects '()])
+                                                              ([effect effects])
+                                                      (append compiled-effects (compile-effect effect info))))
+                                   (define pred^ (compile-pred pred info))
+                                   `(begin ,@effects^ ,pred^)]
+      ;; all other cases can't have an effect
+      [_ `,p]))
+
+  (match p
+    [`(module ,info ,funs ... ,tail) (define info^ (compile-info info))
+                                     (define funs^ (map compile-fun funs))
+                                     (define tail^ (compile-tail tail info))
+                                     `(module ,info^ ,@funs^ ,tail^)]))
+
+(module+ test
+  (require rackunit)
+
+  (check-equal? (allocate-frames '(module
+                                      ((new-frames ())
+                                       (locals (tmp-ra.10))
+                                       (call-undead ())
+                                       (undead-out
+                                        ((tmp-ra.10 rbp)
+                                         (tmp-ra.10 fv1 rbp)
+                                         (tmp-ra.10 fv1 fv0 rbp)
+                                         (fv1 fv0 r15 rbp)
+                                         (fv1 fv0 r15 rbp)))
+                                       (conflicts
+                                        ((tmp-ra.10 (fv0 fv1 rbp))
+                                         (rbp (r15 fv0 fv1 tmp-ra.10))
+                                         (fv1 (r15 fv0 rbp tmp-ra.10))
+                                         (fv0 (r15 rbp fv1 tmp-ra.10))
+                                         (r15 (rbp fv0 fv1))))
+                                       (assignment ()))
+                                    (define L.swap.1
+                                      ((new-frames ((nfv.8 nfv.9)))
+                                       (locals (y.2 x.1 z.3 nfv.9 nfv.8))
+                                       (undead-out
+                                        ((fv0 fv1 tmp-ra.7 rbp)
+                                         (fv1 x.1 tmp-ra.7 rbp)
+                                         (y.2 x.1 tmp-ra.7 rbp)
+                                         ((y.2 x.1 tmp-ra.7 rbp)
+                                          ((tmp-ra.7 rax rbp) (rax rbp))
+                                          (((rax tmp-ra.7 rbp)
+                                            ((y.2 nfv.9 rbp)
+                                             (nfv.9 nfv.8 rbp)
+                                             (nfv.9 nfv.8 r15 rbp)
+                                             (nfv.9 nfv.8 r15 rbp)))
+                                           (z.3 tmp-ra.7 rbp)
+                                           (tmp-ra.7 rax rbp)
+                                           (rax rbp)))))
+                                       (call-undead (tmp-ra.7))
+                                       (conflicts
+                                        ((y.2 (rbp tmp-ra.7 x.1 nfv.9))
+                                         (x.1 (y.2 rbp tmp-ra.7 fv1))
+                                         (tmp-ra.7 (y.2 x.1 rbp fv1 fv0 rax z.3))
+                                         (z.3 (rbp tmp-ra.7))
+                                         (nfv.9 (r15 nfv.8 rbp y.2))
+                                         (nfv.8 (r15 rbp nfv.9))
+                                         (rbp (y.2 x.1 tmp-ra.7 rax z.3 r15 nfv.8 nfv.9))
+                                         (r15 (rbp nfv.8 nfv.9))
+                                         (rax (rbp tmp-ra.7))
+                                         (fv0 (tmp-ra.7))
+                                         (fv1 (x.1 tmp-ra.7))))
+                                       (assignment ((tmp-ra.7 fv2))))
+                                      (begin
+                                        (set! tmp-ra.7 r15)
+                                        (set! x.1 fv0)
+                                        (set! y.2 fv1)
+                                        (if (< y.2 x.1)
+                                            (begin (set! rax x.1) (jump tmp-ra.7 rbp rax))
+                                            (begin
+                                              (return-point L.rp.3
+                                                            (begin
+                                                              (set! nfv.9 x.1)
+                                                              (set! nfv.8 y.2)
+                                                              (set! r15 L.rp.3)
+                                                              (jump L.swap.1 rbp r15 nfv.8 nfv.9)))
+                                              (set! z.3 rax)
+                                              (set! rax z.3)
+                                              (jump tmp-ra.7 rbp rax)))))
+                                    (begin
+                                      (set! tmp-ra.10 r15)
+                                      (set! fv1 2)
+                                      (set! fv0 1)
+                                      (set! r15 tmp-ra.10)
+                                      (jump L.swap.1 rbp r15 fv0 fv1))))
+                '(module
+                     ((locals (tmp-ra.10))
+                      (conflicts
+                       ((tmp-ra.10 (fv0 fv1 rbp))
+                        (rbp (r15 fv0 fv1 tmp-ra.10))
+                        (fv1 (r15 fv0 rbp tmp-ra.10))
+                        (fv0 (r15 rbp fv1 tmp-ra.10))
+                        (r15 (rbp fv0 fv1))))
+                      (assignment ()))
+                   (define L.swap.1
+                     ((locals (z.3 x.1 y.2))
+                      (conflicts
+                       ((y.2 (rbp tmp-ra.7 x.1 nfv.9))
+                        (x.1 (y.2 rbp tmp-ra.7 fv1))
+                        (tmp-ra.7 (y.2 x.1 rbp fv1 fv0 rax z.3))
+                        (z.3 (rbp tmp-ra.7))
+                        (nfv.9 (r15 nfv.8 rbp y.2))
+                        (nfv.8 (r15 rbp nfv.9))
+                        (rbp (y.2 x.1 tmp-ra.7 rax z.3 r15 nfv.8 nfv.9))
+                        (r15 (rbp nfv.8 nfv.9))
+                        (rax (rbp tmp-ra.7))
+                        (fv0 (tmp-ra.7))
+                        (fv1 (x.1 tmp-ra.7))))
+                      (assignment ((tmp-ra.7 fv2) (nfv.8 fv3) (nfv.9 fv4))))
+                     (begin
+                       (set! tmp-ra.7 r15)
+                       (set! x.1 fv0)
+                       (set! y.2 fv1)
+                       (if (< y.2 x.1)
+                           (begin (set! rax x.1) (jump tmp-ra.7 rbp rax))
+                           (begin
+                             (begin
+                               (set! rbp (- rbp 24))
+                               (return-point L.rp.3
+                                             (begin
+                                               (set! nfv.9 x.1)
+                                               (set! nfv.8 y.2)
+                                               (set! r15 L.rp.3)
+                                               (jump L.swap.1 rbp r15 nfv.8 nfv.9)))
+                               (set! rbp (+ rbp 24)))
+                             (set! z.3 rax)
+                             (set! rax z.3)
+                             (jump tmp-ra.7 rbp rax)))))
+                   (begin
+                     (set! tmp-ra.10 r15)
+                     (set! fv1 2)
+                     (set! fv0 1)
+                     (set! r15 tmp-ra.10)
+                     (jump L.swap.1 rbp r15 fv0 fv1))))
+
+  (check-equal? (allocate-frames '(module
+                                      ((locals (y.2 x.1))
+                                       (call-undead ())
+                                       (new-frames (()))
+                                       (undead-out ((x.1 r15) (x.1 y.2 r15) ((x.1 y.2 r15) ((r15) ()) ((r15) ()))))
+                                       (conflicts ((y.2 (r15)) (x.1 (r15)) (r15 (rax y.2 x.1)) (rax (r15))))
+                                       (assignment ()))
+                                    (begin
+                                      (set! x.1 3)
+                                      (set! y.2 x.1)
+                                      (if (> y.2 x.1)
+                                          (begin (set! rax x.1) (jump r15))
+                                          (begin (set! rax y.2) (jump r15))))))
+                '(module
+                     ((locals (x.1 y.2))
+                      (conflicts ((y.2 (r15)) (x.1 (r15)) (r15 (rax y.2 x.1)) (rax (r15))))
+                      (assignment ()))
+                   (begin
+                     (set! x.1 3)
+                     (set! y.2 x.1)
+                     (if (> y.2 x.1)
+                         (begin (set! rax x.1) (jump r15))
+                         (begin (set! rax y.2) (jump r15))))))
+
+  (check-equal? (allocate-frames '(module
+                                      ((locals (y.2 x.1))
+                                       (call-undead ())
+                                       (new-frames (()))
+                                       (undead-out ((x.1 r15) (x.1 y.2 r15) ((x.1 y.2 r15) ((r15) ()) ((r15) ()))))
+                                       (conflicts ((y.2 (r15)) (x.1 (r15)) (r15 (rax y.2 x.1)) (rax (r15))))
+                                       (assignment ()))
+                                    (begin
+                                      (set! x.1 3)
+                                      (set! y.2 x.1)
+                                      (if (begin
+                                            (set! x.1 4)
+                                            (set! y.2 3)
+                                            (> x.1 y.2))
+                                          (set! x.1 5)
+                                          (set! x.1 10))
+                                      (if (> y.2 x.1)
+                                          (begin (set! rax x.1) (jump r15))
+                                          (begin (set! rax y.2) (jump r15))))))
+
+                '(module
+                     ((locals (x.1 y.2))
+                      (conflicts ((y.2 (r15)) (x.1 (r15)) (r15 (rax y.2 x.1)) (rax (r15))))
+                      (assignment ()))
+                   (begin
+                     (set! x.1 3)
+                     (set! y.2 x.1)
+                     (if (begin (set! x.1 4) (set! y.2 3) (> x.1 y.2))
+                         (set! x.1 5)
+                         (set! x.1 10))
+                     (if (> y.2 x.1)
+                         (begin (set! rax x.1) (jump r15))
+                         (begin (set! rax y.2) (jump r15))))))
+
+  (check-equal? (allocate-frames '(module
+                                      ((locals (y.2 x.1))
+                                       (call-undead ())
+                                       (new-frames (()))
+                                       (undead-out ((x.1 r15) (x.1 y.2 r15) ((x.1 y.2 r15) ((r15) ()) ((r15) ()))))
+                                       (conflicts ((y.2 (r15)) (x.1 (r15)) (r15 (rax y.2 x.1)) (rax (r15))))
+                                       (assignment ()))
+                                    (begin
+                                      (set! x.1 3)
+                                      (set! y.2 x.1)
+                                      (if (begin
+                                            (set! x.1 4)
+                                            (return-point L.rp.1 (jump L.haha.2))
+                                            (> x.1 y.2))
+                                          (set! x.1 5)
+                                          (set! x.1 10))
+                                      (if (> y.2 x.1)
+                                          (begin (set! rax x.1) (jump r15))
+                                          (begin (set! rax y.2) (jump r15))))))
+
+                '(module
+                     ((locals (x.1 y.2))
+                      (conflicts ((y.2 (r15)) (x.1 (r15)) (r15 (rax y.2 x.1)) (rax (r15))))
+                      (assignment ()))
+                   (begin
+                     (set! x.1 3)
+                     (set! y.2 x.1)
+                     (if (begin
+                           (set! x.1 4)
+                           (begin
+                             (set! rbp (- rbp 0))
+                             (return-point L.rp.1 (jump L.haha.2))
+                             (set! rbp (+ rbp 0)))
+                           (> x.1 y.2))
+                         (set! x.1 5)
+                         (set! x.1 10))
+                     (if (> y.2 x.1)
+                         (begin (set! rax x.1) (jump r15))
+                         (begin (set! rax y.2) (jump r15)))))))
