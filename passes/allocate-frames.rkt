@@ -10,7 +10,7 @@
 ;; Allocated frames for each non-tail call, and assign
 ;; all new-frame variables to frame variables in the new frame.
 (define/contract (allocate-frames p)
-  (-> asm-pred-lang-v6/pre-framed? any #;asm-pred-lang-v6/framed?)
+  (-> asm-pred-lang-v6/pre-framed? asm-pred-lang-v6/framed?)
 
   ;; info -> info
   ;; remove new-frames and call-undead while adding new assignments

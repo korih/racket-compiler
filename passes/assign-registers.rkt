@@ -5,17 +5,17 @@
 (require
   cpsc411/compiler-lib
   cpsc411/graph-lib
-  cpsc411/langs/v5
+  cpsc411/langs/v6
   rackunit)
 
 (provide assign-registers)
 
-;; asm-lang-v5/conflicts -> asm-lang-v5/assignments
+;; asm-lang-v6/framed -> asm-lang-v6/spilled
 ;; perform graph-colouring register allocation, compiling p to
-;; Asm-pred-lang v5/assignments by decorating programs with their register
+;; Asm-pred-lang.v6/spilled by decorating programs with their register
 ;; assignments
 (define/contract (assign-registers p)
-  (-> asm-pred-lang-v5/conflicts? asm-pred-lang-v5/assignments?)
+  (-> asm-pred-lang-v6/framed? asm-pred-lang-v6/spilled?)
 
   ;; func-info is `(define ,label ,info ,tail)
   ;; interp. a function definition that has metadata

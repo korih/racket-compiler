@@ -11,7 +11,7 @@
 ;; Compiles Asm-pred-lang-v6/conflicts to Asm-pred-lang-v6/pre-framed by
 ;; pre-assigning all variables in the call-undead sets to frame variables
 (define/contract (assign-call-undead-variables p)
-  (-> asm-pred-lang-v6/conflicts? any #;asm-pred-lang-v6/pre-framed?)
+  (-> asm-pred-lang-v6/conflicts? asm-pred-lang-v6/pre-framed?)
 
   ;; call-undead-set (Graph of conflicts) assignments -> assignments
   ;; recursive call over call-undead-set that produces an assignment
