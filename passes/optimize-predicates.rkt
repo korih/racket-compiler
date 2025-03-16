@@ -4,7 +4,7 @@
 
 (require
   cpsc411/compiler-lib
-  cpsc411/langs/v5
+  cpsc411/langs/v6
   rackunit)
 
 (provide optimize-predicates)
@@ -12,7 +12,7 @@
 ;; nested-asm-lang-v5 -> nested-asm-lang-v5
 ;; optimizes p by analyzing and simplifying predicates
 (define/contract (optimize-predicates p)
-  (-> nested-asm-lang-v5? nested-asm-lang-v5?)
+  (-> nested-asm-lang-v6? nested-asm-lang-v6?)
 
   ;; func is `(define ,label ,tail)
   ;; interp. a function definition
@@ -34,7 +34,6 @@
   ;; nested-asm-lang-v5.tail -> nested-asm-lang-v5.tail
   (define (optimize-predicates/tail t env)
     (match t
-      [`(halt ,triv) `(halt ,(try-optimize-triv/triv triv env))]
       [`(begin ,fx ... ,tail)
 
        (define-values (optimized-fx eff-env)
@@ -110,7 +109,9 @@
        (values `(set! ,loc (,binop ,loc ,(try-optimize-triv/triv triv env^))) env^)]
       [`(set! ,loc ,triv)
        (define env^ (extend-env env loc (interp-triv triv env)))
-       (values `(set! ,loc ,(try-optimize-triv/triv triv env^)) env^)]))
+       (values `(set! ,loc ,(try-optimize-triv/triv triv env^)) env^)]
+      [`(return-point ,label ,tail) (define tail^ (optimize-predicates/tail tail env))
+                                    (values `(return-point ,label ,tail^) env)]))
 
   ;; nested-asm-lang-v5.binop RangeValue RangeValue -> RangeValue
   ;; interp. the known abstract value resulting from the binary operation
@@ -199,14 +200,14 @@
      `(module ,@optimized-funcs ,(optimize-predicates/tail tail empty-env))]))
 
 (module+ test
-  (check-equal? (optimize-predicates '(module (define L.f.1 (halt 1))
+
+  (check-equal? (optimize-predicates '(module (define L.f.1 (jump done))
                                         (jump L.f.1)))
-                '(module (define L.f.1 (halt 1)) (jump L.f.1)))
+                '(module (define L.f.1 (jump done)) (jump L.f.1)))
   (check-equal? (optimize-predicates '(module
-                                          (define L.f.1 (begin (set! rsp 1) (set! rsp (* rsp 2)) (halt rsp)))
+                                          (define L.f.1 (begin (set! rsp 1) (set! rsp (* rsp 2)) (jump done)))
                                         (jump L.f.1)))
-                '(module
-                     (define L.f.1 (begin (set! rsp 1) (set! rsp (* rsp 2)) (halt 2)))
+                '(module (define L.f.1 (begin (set! rsp 1) (set! rsp (* rsp 2)) (jump done)))
                    (jump L.f.1)))
   (check-equal? (optimize-predicates '(module
                                           (define L.f.1
@@ -222,7 +223,7 @@
                                               (set! rsi (+ rsi rbx))
                                               (set! rsi (+ rsi rsp))
                                               (set! rsi (+ rsi rdi))
-                                              (halt rsi)))
+                                              (jump done)))
                                         (begin
                                           (set! r9 6)
                                           (set! r8 5)
@@ -245,7 +246,7 @@
                          (set! rsi (+ rsi rbx))
                          (set! rsi (+ rsi rsp))
                          (set! rsi (+ rsi rdi))
-                         (halt rsi)))
+                         (jump done)))
                    (begin
                      (set! r9 6)
                      (set! r8 5)
@@ -255,7 +256,7 @@
                      (set! rdi 1)
                      (jump L.f.1))))
   (check-equal? (optimize-predicates '(module
-                                          (define L.f.1 (begin (set! rsp rdi) (halt rsp)))
+                                          (define L.f.1 (begin (set! rsp rdi) (jump done)))
                                         (define L.g.1
                                           (begin
                                             (set! rbx rdi)
@@ -267,7 +268,7 @@
                                             (begin (set! rdx 3) (set! rsi 2) (set! rdi 1) (jump L.g.1))
                                             (begin (set! rdi 1) (jump L.f.1)))))
                 '(module
-                     (define L.f.1 (begin (set! rsp rdi) (halt rsp)))
+                     (define L.f.1 (begin (set! rsp rdi) (jump done)))
                    (define L.g.1
                      (begin
                        (set! rbx rdi)
@@ -276,51 +277,51 @@
                        (set! rdi rbx)
                        (jump L.f.1)))
                    (begin (set! rdx 3) (set! rsi 2) (set! rdi 1) (jump L.g.1))))
-  (check-equal? (optimize-predicates '(module (if (true) (halt 0) (halt 1)))) '(module (halt 0)))
-  (check-equal? (optimize-predicates '(module (if (false) (begin (set! rax 1) (halt rax)) (halt 0))))
-                '(module (halt 0)))
-  (check-equal? (optimize-predicates '(module (if (not (true)) (halt 0) (begin (set! rax 1) (halt rax)))))
-                '(module (begin (set! rax 1) (halt 1))))
-  (check-equal? (optimize-predicates '(module (if (if (true) (false) (true)) (halt 0) (halt 1))))
-                '(module (halt 1)))
-  (check-equal? (optimize-predicates '(module (begin (set! rax 1) (if (> rax 0) (halt 0) (halt 1)))))
-                '(module (begin (set! rax 1) (halt 0))))
-  (check-equal? (optimize-predicates '(module (begin (set! rbx 1) (if (< rbx 1) (halt 0) (halt 3)))))
-                '(module (begin (set! rbx 1) (halt 3))))
-  (check-equal? (optimize-predicates `(module (begin (set! rbx rax) (if (<= rbx ,(max-int 64)) (halt 12) (halt 133)))))
+  (check-equal? (optimize-predicates '(module (if (true) (jump done) (jump done)))) '(module (jump done)))
+  (check-equal? (optimize-predicates '(module (if (false) (begin (set! rax 1) (jump done)) (jump done))))
+                '(module (jump done)))
+  (check-equal? (optimize-predicates '(module (if (not (true)) (jump done) (begin (set! rax 1) (jump done)))))
+                '(module (begin (set! rax 1) (jump done))))
+  (check-equal? (optimize-predicates '(module (if (if (true) (false) (true)) (jump done) (jump done))))
+                '(module (jump done)))
+  (check-equal? (optimize-predicates '(module (begin (set! rax 1) (if (> rax 0) (jump done) (jump done)))))
+                '(module (begin (set! rax 1) (jump done))))
+  (check-equal? (optimize-predicates '(module (begin (set! rbx 1) (if (< rbx 1) (jump done) (jump done)))))
+                '(module (begin (set! rbx 1) (jump done))))
+  (check-equal? (optimize-predicates `(module (begin (set! rbx rax) (if (<= rbx ,(max-int 64)) (jump done) (jump done)))))
                 '(module
                      (begin
                        (set! rbx rax)
-                       (if (<= rbx 9223372036854775807) (halt 12) (halt 133)))))
+                       (if (<= rbx 9223372036854775807) (jump done) (jump done)))))
   (check-equal? (optimize-predicates '(module (begin (set! rbx rax)
                                                      (if (= rbx rax)
-                                                         (begin (set! rax rcx) (halt rax))
-                                                         (halt rax)))))
+                                                         (begin (set! rax rcx) (jump done))
+                                                         (jump done)))))
                 '(module
                      (begin
                        (set! rbx rax)
-                       (if (= rbx rax) (begin (set! rax rcx) (halt rax)) (halt rax)))))
-  (check-equal? (optimize-predicates '(module (begin (set! rbx 33) (if (= rbx 44) (halt -1) (halt 0)))))
-                '(module (begin (set! rbx 33) (halt 0))))
-  (check-equal? (optimize-predicates '(module (begin (set! rbx rcx) (if (= rbx 5) (halt 0) (halt 1)))))
-                '(module (begin (set! rbx rcx) (if (= rbx 5) (halt 0) (halt 1)))))
-  (check-equal? (optimize-predicates '(module (begin (set! rbx 33) (if (= rbx 44) (halt -1) (halt 3)))))
-                '(module (begin (set! rbx 33) (halt 3))))
+                       (if (= rbx rax) (begin (set! rax rcx) (jump done)) (jump done)))))
+  (check-equal? (optimize-predicates '(module (begin (set! rbx 33) (if (= rbx 44) (jump done) (jump done)))))
+                '(module (begin (set! rbx 33) (jump done))))
+  (check-equal? (optimize-predicates '(module (begin (set! rbx rcx) (if (= rbx 5) (jump done) (jump done)))))
+                '(module (begin (set! rbx rcx) (if (= rbx 5) (jump done) (jump done)))))
+  (check-equal? (optimize-predicates '(module (begin (set! rbx 33) (if (= rbx 44) (jump done) (jump done)))))
+                '(module (begin (set! rbx 33) (jump done))))
   (check-equal? (optimize-predicates `(module (begin (set! rcx rbx)
                                                      (if (begin (set! rcx (+ rcx 10))
                                                                 (< rcx ,(+ (min-int 64) 10)))
-                                                         (halt 35)
-                                                         (halt 99)))))
+                                                         (jump done)
+                                                         (jump done)))))
                 '(module
                      (begin
                        (set! rcx rbx)
                        (begin (set! rcx (+ rcx 10))
                               (if (< rcx -9223372036854775798)
-                                  (halt 35)
-                                  (halt 99))))))
+                                  (jump done)
+                                  (jump done))))))
   (check-equal? (optimize-predicates '(module
                                           (define L.f.1 (begin (set! rbx 3) (set! rax rbx) (jump L.f.2)))
-                                        (define L.f.2 (halt rax))
+                                        (define L.f.2 (jump done))
                                         (begin
                                           (set! rbx 5)
                                           (set! rcx 4)
@@ -328,35 +329,35 @@
                                           (jump L.f.2))))
                 '(module
                      (define L.f.1 (begin (set! rbx 3) (set! rax 3) (jump L.f.2)))
-                   (define L.f.2 (halt rax))
+                   (define L.f.2 (jump done))
                    (begin (set! rbx 5) (set! rcx 4) (set! rax 4) (jump L.f.2))))
   (check-equal? (optimize-predicates '(module (define L.func.1 (begin (set! rax 1) (jump L.func.2)))
-                                        (define L.func.2 (begin (if (> rax 0) (halt -1) (halt 1))))
+                                        (define L.func.2 (begin (if (> rax 0) (jump done) (jump done))))
                                         (begin
                                           (set! rax -1)
                                           (jump L.func.2))))
                 '(module
                      (define L.func.1 (begin (set! rax 1) (jump L.func.2)))
-                   (define L.func.2 (begin (if (> rax 0) (halt -1) (halt 1))))
+                   (define L.func.2 (begin (if (> rax 0) (jump done) (jump done))))
                    (begin (set! rax -1) (jump L.func.2))))
   (check-equal? (optimize-predicates
                  '(module (begin (set! rbx rax)
                                  (set! rbx (+ rbx 10))
                                  (if (> rbx 0)
-                                     (halt rbx)
-                                     (halt -1)))))
+                                     (jump done)
+                                     (jump done)))))
                 '(module
                      (begin
                        (set! rbx rax)
                        (set! rbx (+ rbx 10))
-                       (if (> rbx 0) (halt rbx) (halt -1)))))
+                       (if (> rbx 0) (jump done) (jump done)))))
   (check-equal? (optimize-predicates
                  '(module (begin (set! rax 1)
                                  (if (> rax 0)
-                                     (halt rax)
+                                     (jump done)
                                      (begin (set! rax -1)
-                                            (halt rax))))))
-                '(module (begin (set! rax 1) (halt 1))))
+                                            (jump done))))))
+                '(module (begin (set! rax 1) (jump done))))
   (check-equal? (optimize-predicates '(module
                                           (begin (set! r8 0)
                                                  (set! r9 0)
@@ -364,5 +365,5 @@
                                                   (not (if (true) (> r8 5) (< r9 6)))
                                                   (set! r12 15)
                                                   (set! r12 90))
-                                                 (halt r12))))
-                '(module (begin (set! r8 0) (set! r9 0) (set! r12 15) (halt r12)))))
+                                                 (jump done))))
+                '(module (begin (set! r8 0) (set! r9 0) (set! r12 15) (jump done)))))
