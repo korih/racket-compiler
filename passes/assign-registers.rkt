@@ -38,7 +38,7 @@
 
     (define assigned-alocs (map car assignments))
     (define graph^ (for/fold ([new-graph conflict-graph])
-                     ([assignment assigned-alocs])
+                             ([assignment assigned-alocs])
                      (remove-vertex new-graph assignment)))
 
     ;; graph -> (List-of (list aloc loc))
@@ -64,7 +64,7 @@
          (define available-registers
            (filter (lambda (r) (not (member r used-registers))) registers))
          (define new-location
-           (cond 
+           (cond
              [(null? available-registers) '()]
              [else (car available-registers)]))
          (cond
@@ -863,4 +863,222 @@
                      (set! x.53 rax)
                      (set! rdi x.53)
                      (set! r15 tmp-ra.146)
-                     (jump L.id.20 rbp r15 rdi)))))
+                     (jump L.id.20 rbp r15 rdi))))
+
+  (check-equal? (assign-registers
+                 '(module ((locals (v.1 w.2 x.3 y.4 z.5 t.6 p.1))
+                           (conflicts
+                            ((x.3 (z.5 p.1 y.4 v.1 w.2))
+                             (w.2 (z.5 p.1 y.4 v.1 x.3))
+                             (v.1 (w.2 x.3))
+                             (y.4 (t.6 z.5 p.1 w.2 x.3))
+                             (p.1 (t.6 z.5 y.4 w.2 x.3))
+                             (z.5 (t.6 p.1 y.4 w.2 x.3))
+                             (t.6 (z.5 p.1 y.4))))
+                           (assignment ()))
+                    (begin
+                      (set! v.1 1)
+                      (set! w.2 46)
+                      (set! x.3 v.1)
+                      (set! p.1 7)
+                      (set! x.3 (+ x.3 p.1))
+                      (set! y.4 x.3)
+                      (set! p.1 4)
+                      (set! y.4 (+ y.4 p.1))
+                      (set! z.5 x.3)
+                      (set! z.5 (+ z.5 w.2))
+                      (set! t.6 y.4)
+                      (set! p.1 -1)
+                      (set! t.6 (* t.6 p.1))
+                      (set! z.5 (+ z.5 t.6))
+                      (jump done z.5))))
+                '(module
+                     ((locals ())
+                      (conflicts
+                       ((x.3 (z.5 p.1 y.4 v.1 w.2))
+                        (w.2 (z.5 p.1 y.4 v.1 x.3))
+                        (v.1 (w.2 x.3))
+                        (y.4 (t.6 z.5 p.1 w.2 x.3))
+                        (p.1 (t.6 z.5 y.4 w.2 x.3))
+                        (z.5 (t.6 p.1 y.4 w.2 x.3))
+                        (t.6 (z.5 p.1 y.4))))
+                      (assignment
+                       ((v.1 rsp) (t.6 rdx) (x.3 rsi) (w.2 rdx) (y.4 rcx) (p.1 rbx) (z.5 rsp))))
+                   (begin
+                     (set! v.1 1)
+                     (set! w.2 46)
+                     (set! x.3 v.1)
+                     (set! p.1 7)
+                     (set! x.3 (+ x.3 p.1))
+                     (set! y.4 x.3)
+                     (set! p.1 4)
+                     (set! y.4 (+ y.4 p.1))
+                     (set! z.5 x.3)
+                     (set! z.5 (+ z.5 w.2))
+                     (set! t.6 y.4)
+                     (set! p.1 -1)
+                     (set! t.6 (* t.6 p.1))
+                     (set! z.5 (+ z.5 t.6))
+                     (jump done z.5))))
+
+
+  (check-equal? (parameterize ([current-assignable-registers '()])
+                  (assign-registers
+                   '(module ((locals (x.1))
+                             (conflicts ((x.1 ())))
+                             (assignment ()))
+                      (begin
+                        (set! x.1 42)
+                        (jump done x.1)))))
+                '(module
+                     ((locals (x.1)) (conflicts ((x.1 ()))) (assignment ()))
+                   (begin (set! x.1 42) (jump done x.1))))
+
+
+  (check-equal? (parameterize ([current-assignable-registers '(r9)])
+                  (assign-registers
+                   '(module ((locals (x.1))
+                             (conflicts ((x.1 ())))
+                             (assignment ()))
+                      (begin
+                        (set! x.1 42)
+                        (jump done x.1)))))
+                '(module
+                     ((locals ()) (conflicts ((x.1 ()))) (assignment ((x.1 r9))))
+                   (begin (set! x.1 42) (jump done x.1))))
+
+  (check-equal? (assign-registers
+                 '(module ((locals (x.1))
+                           (conflicts ((x.1 ())))
+                           (assignment ()))
+                    (begin
+                      (set! x.1 42)
+                      (jump done x.1))))
+                '(module
+                     ((locals ()) (conflicts ((x.1 ()))) (assignment ((x.1 rsp))))
+                   (begin (set! x.1 42) (jump done x.1))))
+
+  (check-equal? (assign-registers '(module
+                                       ((locals ())
+                                        (conflicts
+                                         ((rdx (rdi rsi rbp))
+                                          (rbp (rdi rsi rdx))
+                                          (rsi (rdi rdx rbp))
+                                          (rdi (rdx rsi rbp))))
+                                        (assignment ()))
+                                     (define L.f.1
+                                       ((locals (x.1))
+                                        (conflicts ((x.1 ())))
+                                        (assignment ()))
+                                       (begin (set! x.1 rdi) (jump done x.1)))
+                                     (define L.g.1
+                                       ((locals (y.1 x.1 z.1))
+                                        (conflicts
+                                         ((z.1 (x.1 rbp))
+                                          (x.1 (z.1 y.1 rsi rdx rbp))
+                                          (y.1 (rdx x.1 rbp))
+                                          (rbp (rdi z.1 y.1 x.1))
+                                          (rdx (y.1 x.1))
+                                          (rsi (x.1))
+                                          (rdi (rbp))))
+                                        (assignment ()))
+                                       (begin
+                                         (set! x.1 rdi)
+                                         (set! y.1 rsi)
+                                         (set! z.1 rdx)
+                                         (set! rdi x.1)
+                                         (jump L.f.1 rbp rdi)))
+                                     (if (true)
+                                         (begin
+                                           (set! rdx 3)
+                                           (set! rsi 2)
+                                           (set! rdi 1)
+                                           (jump L.g.1 rbp rdi rsi rdx))
+                                         (begin (set! rdi 1) (jump L.f.1 rbp rdi)))))
+                '(module
+                     ((locals ())
+                      (conflicts
+                       ((rdx (rdi rsi rbp))
+                        (rbp (rdi rsi rdx))
+                        (rsi (rdi rdx rbp))
+                        (rdi (rdx rsi rbp))))
+                      (assignment ()))
+                   (define L.f.1
+                     ((locals ())
+                      (conflicts ((x.1 ())))
+                      (assignment ((x.1 rsp))))
+                     (begin (set! x.1 rdi) (jump done x.1)))
+                   (define L.g.1
+                     ((locals ())
+                      (conflicts
+                       ((z.1 (x.1 rbp))
+                        (x.1 (z.1 y.1 rsi rdx rbp))
+                        (y.1 (rdx x.1 rbp))
+                        (rbp (rdi z.1 y.1 x.1))
+                        (rdx (y.1 x.1))
+                        (rsi (x.1))
+                        (rdi (rbp))))
+                      (assignment ((z.1 rsp) (x.1 rbx) (y.1 rsp))))
+                     (begin
+                       (set! x.1 rdi)
+                       (set! y.1 rsi)
+                       (set! z.1 rdx)
+                       (set! rdi x.1)
+                       (jump L.f.1 rbp rdi)))
+                   (if (true)
+                       (begin
+                         (set! rdx 3)
+                         (set! rsi 2)
+                         (set! rdi 1)
+                         (jump L.g.1 rbp rdi rsi rdx))
+                       (begin (set! rdi 1) (jump L.f.1 rbp rdi)))))
+
+  (check-equal? (assign-registers '(module
+                                       ((locals ())
+                                        (conflicts ((r13 (rdi rbp)) (rbp (rdi r13)) (rdi (rbp r13))))
+                                        (assignment ()))
+                                     (define L.f.1
+                                       ((locals (x.1)) (conflicts ((x.1 ()))) (assignment ()))
+                                       (begin (set! x.1 rdi) (jump done x.1)))
+                                     (begin (set! r13 L.f.1) (set! rdi 1) (jump r13 rbp rdi))))
+                '(module
+                     ((locals ())
+                      (conflicts ((r13 (rdi rbp)) (rbp (rdi r13)) (rdi (rbp r13))))
+                      (assignment ()))
+                   (define L.f.1
+                     ((locals ()) (conflicts ((x.1 ()))) (assignment ((x.1 rsp))))
+                     (begin (set! x.1 rdi) (jump done x.1)))
+                   (begin (set! r13 L.f.1) (set! rdi 1) (jump r13 rbp rdi))))
+
+  (check-equal? (assign-registers '(module
+                                       ((locals (a.1))
+                                        (conflicts ((a.1 (rdi rbp)) (rbp (rdi a.1)) (rdi (rbp a.1))))
+                                        (assignment ()))
+                                     (define L.f.1
+                                       ((locals (x.1)) (conflicts ((x.1 ()))) (assignment ()))
+                                       (begin (set! x.1 rdi) (jump done x.1)))
+                                     (begin (set! a.1 L.f.1) (set! rdi 1) (jump a.1 rbp rdi))))
+                '(module
+                     ((locals ())
+                      (conflicts ((a.1 (rdi rbp)) (rbp (rdi a.1)) (rdi (rbp a.1))))
+                      (assignment ((a.1 rsp))))
+                   (define L.f.1
+                     ((locals ()) (conflicts ((x.1 ())))(assignment ((x.1 rsp))))
+                     (begin (set! x.1 rdi) (jump done x.1)))
+                   (begin (set! a.1 L.f.1) (set! rdi 1) (jump a.1 rbp rdi))))
+
+
+  (check-equal? (assign-registers '(module
+                                       ((locals ())
+                                        (conflicts ((rdi (rbp)) (rbp (rdi))))
+                                        (assignment ()))
+                                     (define L.f.1
+                                       ((locals (x.1)) (conflicts ((x.1 ()))) (assignment ()))
+                                       (begin (set! x.1 rdi) (jump x.1)))
+                                     (begin (set! rdi 1) (jump L.f.1 rbp rdi))))
+                '(module
+                     ((locals ()) (conflicts ((rdi (rbp)) (rbp (rdi)))) (assignment ()))
+                   (define L.f.1
+                     ((locals ()) (conflicts ((x.1 ()))) (assignment ((x.1 rsp))))
+                     (begin (set! x.1 rdi) (jump x.1)))
+                   (begin (set! rdi 1) (jump L.f.1 rbp rdi)))))
