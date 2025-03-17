@@ -24,7 +24,10 @@
   "passes/expose-basic-blocks.rkt"
   "passes/link-paren-x64.rkt"
   "passes/interp-paren-x64.rkt"
-  "passes/impose-calling-conventions.rkt")
+  "passes/impose-calling-conventions.rkt"
+  "passes/assign-call-undead-variables.rkt"
+  "passes/allocate-frames.rkt"
+  "passes/assign-frame-variables.rkt")
 
 (require
  cpsc411/compiler-lib
@@ -38,13 +41,6 @@
 ;; You'll want to merge milestone-5 code in
 
 ;; Stubs; remove or replace with your definitions.
-(define-values (assign-call-undead-variables
-                allocate-frames
-                assign-frame-variables)
-  (values
-   values
-   values
-   values))
 
 (module+ test
   (require
