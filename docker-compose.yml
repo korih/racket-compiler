@@ -1,0 +1,7 @@
+services:
+  cpsc411:
+    build: .
+    image: cpsc411
+    container_name: cpsc411    
+    volumes: 
+      - ./:/app/workspace
