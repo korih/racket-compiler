@@ -328,4 +328,53 @@
                          (set! x.1 10))
                      (if (> y.2 x.1)
                          (begin (set! rax x.1) (jump r15))
-                         (begin (set! rax y.2) (jump r15)))))))
+                         (begin (set! rax y.2) (jump r15))))))
+
+  (check-equal? (allocate-frames '(module ((new-frames ()) (locals (tmp-ra.137)) (call-undead ()) (undead-out ((tmp-ra.137 rbp) (tmp-ra.137 rdi rbp) (rdi r15 rbp) (rbp r15 rdi))) (conflicts ((tmp-ra.137 (rdi rbp)) (rbp (r15 rdi tmp-ra.137)) (rdi (r15 tmp-ra.137 rbp)) (r15 (rdi rbp)))) (assignment ())) (define L.fact.21 ((new-frames (())) (locals (y.57 z.56)) (undead-out ((rdi rbp tmp-ra.136) (x.55 rbp tmp-ra.136) ((x.55 rbp tmp-ra.136) ((rax rbp tmp-ra.136) (rbp rax)) ((z.56 tmp-ra.136 x.55 rbp) (tmp-ra.136 x.55 z.56 rbp) ((rax x.55 rbp tmp-ra.136) ((rdi rbp) (rdi r15 rbp) (rbp r15 rdi))) (x.55 y.57 rbp tmp-ra.136) (y.57 rax rbp tmp-ra.136) (rax rbp tmp-ra.136) (rbp rax))))) (call-undead (x.55 tmp-ra.136)) (conflicts ((y.57 (rax x.55 rbp tmp-ra.136)) (x.55 (y.57 z.56 rbp tmp-ra.136)) (z.56 (x.55 tmp-ra.136 rbp)) (tmp-ra.136 (y.57 z.56 rax x.55 rdi rbp)) (rbp (y.57 r15 rdi z.56 rax x.55 tmp-ra.136)) (rdi (r15 rbp tmp-ra.136)) (rax (y.57 rbp tmp-ra.136)) (r15 (rdi rbp)))) (assignment ((tmp-ra.136 fv0) (x.55 fv0)))) (begin (set! tmp-ra.136 r15) (set! x.55 rdi) (if (= x.55 0) (begin (set! rax 1) (jump tmp-ra.136 rbp rax)) (begin (set! z.56 x.55) (set! z.56 (+ z.56 -1)) (return-point L.rp.32 (begin (set! rdi z.56) (set! r15 L.rp.32) (jump L.fact.21 rbp r15 rdi))) (set! y.57 rax) (set! rax x.55) (set! rax (* rax y.57)) (jump tmp-ra.136 rbp rax))))) (begin (set! tmp-ra.137 r15) (set! rdi 10) (set! r15 tmp-ra.137) (jump L.fact.21 rbp r15 rdi))))
+                '(module
+                     ((locals (tmp-ra.137))
+                      (conflicts
+                       ((tmp-ra.137 (rdi rbp))
+                        (rbp (r15 rdi tmp-ra.137))
+                        (rdi (r15 tmp-ra.137 rbp))
+                        (r15 (rdi rbp))))
+                      (assignment ()))
+                   (define L.fact.21
+                     ((locals (z.56 y.57))
+                      (conflicts
+                       ((y.57 (rax x.55 rbp tmp-ra.136))
+                        (x.55 (y.57 z.56 rbp tmp-ra.136))
+                        (z.56 (x.55 tmp-ra.136 rbp))
+                        (tmp-ra.136 (y.57 z.56 rax x.55 rdi rbp))
+                        (rbp (y.57 r15 rdi z.56 rax x.55 tmp-ra.136))
+                        (rdi (r15 rbp tmp-ra.136))
+                        (rax (y.57 rbp tmp-ra.136))
+                        (r15 (rdi rbp))))
+                      (assignment ((tmp-ra.136 fv0) (x.55 fv0))))
+                     (begin
+                       (set! tmp-ra.136 r15)
+                       (set! x.55 rdi)
+                       (if (= x.55 0)
+                           (begin (set! rax 1) (jump tmp-ra.136 rbp rax))
+                           (begin
+                             (set! z.56 x.55)
+                             (set! z.56 (+ z.56 -1))
+                             (begin
+                               (set! rbp (- rbp 16))
+                               (return-point L.rp.32
+                                             (begin
+                                               (set! rdi z.56)
+                                               (set! r15 L.rp.32)
+                                               (jump L.fact.21 rbp r15 rdi)))
+                               (set! rbp (+ rbp 16)))
+                             (set! y.57 rax)
+                             (set! rax x.55)
+                             (set! rax (* rax y.57))
+                             (jump tmp-ra.136 rbp rax)))))
+                   (begin
+                     (set! tmp-ra.137 r15)
+                     (set! rdi 10)
+                     (set! r15 tmp-ra.137)
+                     (jump L.fact.21 rbp r15 rdi))))
+
+  )
