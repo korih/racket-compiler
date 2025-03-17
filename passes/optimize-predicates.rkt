@@ -12,7 +12,7 @@
 ;; nested-asm-lang-v5 -> nested-asm-lang-v5
 ;; optimizes p by analyzing and simplifying predicates
 (define/contract (optimize-predicates p)
-  (-> nested-asm-lang-v6? nested-asm-lang-v6?)
+  (-> nested-asm-lang-fvars-v6? nested-asm-lang-fvars-v6?)
 
   ;; func is `(define ,label ,tail)
   ;; interp. a function definition
@@ -200,6 +200,22 @@
      `(module ,@optimized-funcs ,(optimize-predicates/tail tail empty-env))]))
 
 (module+ test
+  (check-equal? (optimize-predicates '(module
+                                          (begin
+                                            (set! fv2 0)
+                                            (set! fv0 0)
+                                            (set! fv1 fv2)
+                                            (set! fv0 (+ fv0 fv2))
+                                            (set! fv0 (+ fv0 fv1))
+                                            (begin (set! rax fv0) (jump r15)))))
+                '(module
+                     (begin
+                       (set! fv2 0)
+                       (set! fv0 0)
+                       (set! fv1 fv2)
+                       (set! fv0 (+ fv0 fv2))
+                       (set! fv0 (+ fv0 fv1))
+                       (begin (set! rax fv0) (jump r15)))))
 
   (check-equal? (optimize-predicates '(module (define L.f.1 (jump done))
                                         (jump L.f.1)))
