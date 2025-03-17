@@ -40,8 +40,6 @@
 ;; TODO: Fill in.
 ;; You'll want to merge milestone-5 code in
 
-;; Stubs; remove or replace with your definitions.
-
 (module+ test
   (require
    rackunit
