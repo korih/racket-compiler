@@ -31,7 +31,8 @@
   "passes/impose-calling-conventions.rkt"
   "passes/assign-call-undead-variables.rkt"
   "passes/allocate-frames.rkt"
-  "passes/assign-frame-variables.rkt")
+  "passes/assign-frame-variables.rkt"
+  "passes/implement-safe-primops.rkt")
 
 (provide
  implement-safe-primops
@@ -42,11 +43,9 @@
 ;; You'll want to merge milestone-6 code in
 
 ;; Stubs; remove or replace with your definitions.
-(define-values (implement-safe-primops
-                specify-representation
+(define-values (specify-representation
                 remove-complex-opera*)
   (values
-   values
    values
    values))
 
