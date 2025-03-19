@@ -172,7 +172,7 @@
   (check-equal? (implement-safe-primops '(module (call fixnum? 1)))
                 '(module
                      (define L.fixnum?.9 (lambda (tmp.17) (fixnum? tmp.17)))
-                   (call L.fixnum?.9 1)))
+                   (call L.fixnum?.9 1))) 
   (check-equal? (implement-safe-primops '(module
                                              (define L.odd?.4
                                                (lambda (x.45)
@@ -202,4 +202,28 @@
                        (if (call L.eq?.10 x.47 0)
                            1
                            (let ((y.48 (call L.+.11 x.47 -1))) (call L.odd?.4 y.48)))))
-                   (call L.even?.5 5))))
+                   (call L.even?.5 5)))
+  (check-equal? (implement-safe-primops '(module (let ([x.1 #t]
+                                                       [x.2 #f]
+                                                       [x.3 empty]
+                                                       [x.4 (void)]
+                                                       [x.5 (error 255)]
+                                                       [x.6 #\x])
+                                                   (if (call not (call boolean? x.1))
+                                                       (call + (call error? x.5) (call empty? x.3))
+                                                       (call ascii-char? x.6)))))
+                '(module
+                     (define L.ascii-char?.6 (lambda (tmp.21) (ascii-char? tmp.21)))
+                   (define L.+.5
+                     (lambda (tmp.3 tmp.4)
+                       (if (fixnum? tmp.4)
+                           (if (fixnum? tmp.3) (unsafe-fx+ tmp.3 tmp.4) (error 2))
+                           (error 2))))
+                   (define L.empty?.4 (lambda (tmp.19) (empty? tmp.19)))
+                   (define L.error?.3 (lambda (tmp.22) (error? tmp.22)))
+                   (define L.not.2 (lambda (tmp.23) (not tmp.23)))
+                   (define L.boolean?.1 (lambda (tmp.18) (boolean? tmp.18)))
+                   (let ((x.1 #t) (x.2 #f) (x.3 empty) (x.4 (void)) (x.5 (error 255)) (x.6 #\x))
+                     (if (call L.not.2 (call L.boolean?.1 x.1))
+                         (call L.+.5 (call L.error?.3 x.5) (call L.empty?.4 x.3))
+                         (call L.ascii-char?.6 x.6)))))

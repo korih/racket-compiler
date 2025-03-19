@@ -32,21 +32,18 @@
   "passes/assign-call-undead-variables.rkt"
   "passes/allocate-frames.rkt"
   "passes/assign-frame-variables.rkt"
-  "passes/implement-safe-primops.rkt")
+  "passes/implement-safe-primops.rkt"
+  "passes/specify-representation.rkt")
 
 (provide
- implement-safe-primops
- specify-representation
  remove-complex-opera*)
 
 ;; TODO: Fill in.
 ;; You'll want to merge milestone-6 code in
 
 ;; Stubs; remove or replace with your definitions.
-(define-values (specify-representation
-                remove-complex-opera*)
+(define-values (remove-complex-opera*)
   (values
-   values
    values))
 
 (module+ test
