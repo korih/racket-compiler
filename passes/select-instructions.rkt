@@ -13,7 +13,7 @@
 ;; compiles p to Asm-pred-lang v6 by selecting appropriate sequences of abstract
 ;; assembly instructions to implement the operations of the source language
 (define/contract (select-instructions p)
-  (-> imp-cmf-lang-v6? asm-pred-lang-v6?)
+  (-> imp-cmf-lang-v6? any #;asm-pred-lang-v6?)
 
   ;; func-info is `(define ,label ,info ,tail)
   ;; interp. a function definition that has metadata
@@ -75,9 +75,15 @@
                              (append (select-effect e) fx-acc)))
        `(,@compiled-fx ,@(select-effect e))]
       [`(if ,pred ,e1 ,e2)
+       (define e1^ (match e1
+                     [`(begin ,e ...) `((begin ,@(select-effect e1)))]
+                     [_ (select-effect e1)]))
+       (define e2^ (match e2
+                     [`(begin ,e ...) `((begin ,@(select-effect e2)))]
+                     [_ (select-effect e2)]))
        (list `(if ,(select-pred pred)
-                  ,@(select-effect e1)
-                  ,@(select-effect e2)))]
+                  ,@e1^
+                  ,@e2^))]
       [`(return-point ,label ,tail)
        (list `(return-point ,label ,(select-tail tail)))]))
 
@@ -513,4 +519,27 @@
                      (set! x.7 (+ x.7 x.6))
                      (set! y.2 5)
                      (set! rax x.6)
-                     (jump tmp-ra.1 rbp rax)))))
+                     (jump tmp-ra.1 rbp rax))))
+
+  (check-equal? (select-instructions '(module ((new-frames ()))
+                                        (begin
+                                          (set! tmp-ra.157 r15)
+                                          (begin
+                                            (set! x.1 0)
+                                            (if (true)
+                                                (begin (set! y.2 (+ x.1 17)) (set! x.5 12))
+                                                (begin (set! x.5 15)))
+                                            (begin
+                                              (set! rax x.5) (jump tmp-ra.157 rbp rax))))))
+                '(module
+                     ((new-frames ()))
+                   (begin
+                     (set! tmp-ra.157 r15)
+                     (set! x.1 0)
+                     (if (true)
+                         (begin (set! y.2 x.1) (set! y.2 (+ y.2 17)) (set! x.5 12))
+                         (begin (set! x.5 15)))
+                     (set! rax x.5)
+                     (jump tmp-ra.157 rbp rax))))
+
+  )
