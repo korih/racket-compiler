@@ -13,7 +13,7 @@
 ;; compiles p to Asm-pred-lang v6 by selecting appropriate sequences of abstract
 ;; assembly instructions to implement the operations of the source language
 (define/contract (select-instructions p)
-  (-> imp-cmf-lang-v6? any #;asm-pred-lang-v6?)
+  (-> imp-cmf-lang-v6? asm-pred-lang-v6?)
 
   ;; func-info is `(define ,label ,info ,tail)
   ;; interp. a function definition that has metadata
