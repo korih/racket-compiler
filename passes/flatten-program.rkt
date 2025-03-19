@@ -2,7 +2,7 @@
 
 (require
   cpsc411/compiler-lib
-  cpsc411/langs/v4
+  cpsc411/langs/v6
   rackunit)
 
 (provide flatten-program)
@@ -10,7 +10,7 @@
 ;; block-asm-lang-v4 -> para-asm-lang-v4
 ;; interp. flatten begin statements in the program
 (define/contract (flatten-program p)
-  (-> block-asm-lang-v4? para-asm-lang-v4?)
+  (-> block-asm-lang-v6? para-asm-lang-v6?)
 
   ;; block-asm-lang-v4-b -> (list para-asm-lang-v4-s)
   ;; convert b expressions to flattened s expressions
@@ -42,30 +42,30 @@
 (test-case
  "flatten-program"
  (let ([x (fresh-label)])
-   (check-equal? (flatten-program `(module (define ,x (halt 1)))) `(begin (with-label ,x (halt 1)))))
+   (check-equal? (flatten-program `(module (define ,x (jump ,x)))) `(begin (with-label ,x (jump ,x)))))
  (let ([x (fresh-label)])
-   (check-equal? (flatten-program `(module (define ,x (begin (set! rbx 1) (halt rbx)))))
-                 `(begin (with-label ,x (set! rbx 1)) (halt rbx))))
+   (check-equal? (flatten-program `(module (define ,x (begin (set! rbx 1) (jump ,x)))))
+                 `(begin (with-label ,x (set! rbx 1)) (jump ,x))))
  (let ([x (fresh-label)])
-   (check-equal? (flatten-program `(module (define ,x (begin (set! rax 0) (begin (set! rbx 1) (halt rbx))))))
-                 `(begin (with-label ,x (set! rax 0)) (set! rbx 1) (halt rbx))))
+   (check-equal? (flatten-program `(module (define ,x (begin (set! rax 0) (begin (set! rbx 1) (jump ,x))))))
+                 `(begin (with-label ,x (set! rax 0)) (set! rbx 1) (jump ,x))))
  (let ([x (fresh-label)])
-   (check-equal? (flatten-program `(module (define ,x (begin (begin (set! rax 0) (halt rax))))))
-                 `(begin (with-label ,x (set! rax 0)) (halt rax))))
+   (check-equal? (flatten-program `(module (define ,x (begin (begin (set! rax 0) (jump ,x))))))
+                 `(begin (with-label ,x (set! rax 0)) (jump ,x))))
  (let ([x (fresh-label)]
        [y (fresh-label)])
-   (check-equal? (flatten-program `(module (define ,x (jump ,y)) (define ,y (halt 0))))
-                 `(begin (with-label ,x (jump ,y)) (with-label ,y (halt 0)))))
+   (check-equal? (flatten-program `(module (define ,x (jump ,y)) (define ,y (jump ,x))))
+                 `(begin (with-label ,x (jump ,y)) (with-label ,y (jump ,x)))))
  (let ([x (fresh-label)]
        [y (fresh-label)]
        [z (fresh-label)])
    (check-equal? (flatten-program `(module (define ,x (if (< r9 0) (jump ,y) (jump ,z)))
-                                     (define ,y (halt r8))
+                                     (define ,y (jump r8))
                                      (define ,z (begin (set! r9 (+ r9 -1)) (jump ,x)))))
                  `(begin (with-label ,x (compare r9 0))
                          (jump-if < ,y)
                          (jump ,z)
-                         (with-label ,y (halt r8))
+                         (with-label ,y (jump r8))
                          (with-label ,z (set! r9 (+ r9 -1)))
                          (jump ,x))))
  (let ([x (fresh-label)]
@@ -73,9 +73,9 @@
        [z (fresh-label)])
    (check-equal? (flatten-program `(module (define ,x (begin (set! r9 0) (jump ,y)))
                                      (define ,y (begin (set! r13 0) (jump ,z)))
-                                     (define ,z (halt r8))))
+                                     (define ,z (jump r8))))
                  `(begin (with-label ,x (set! r9 0))
                          (jump ,y)
                          (with-label ,y (set! r13 0))
                          (jump ,z)
-                         (with-label ,z (halt r8))))))
+                         (with-label ,z (jump r8))))))

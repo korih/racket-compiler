@@ -105,11 +105,12 @@
        (define triv-rv (interp-triv triv env))
        (define updated-rv (interp-binop/range-value binop (interp-triv loc env) triv-rv))
        (define env^ (extend-env env loc updated-rv))
-
-       (values `(set! ,loc (,binop ,loc ,(try-optimize-triv/triv triv env^))) env^)]
+        ;; don't try to optimize triv any more
+       (values `(set! ,loc (,binop ,loc ,triv)) env^)]
       [`(set! ,loc ,triv)
        (define env^ (extend-env env loc (interp-triv triv env)))
-       (values `(set! ,loc ,(try-optimize-triv/triv triv env^)) env^)]
+        ;; don't try to optimize triv any more
+       (values `(set! ,loc ,triv) env^)]
       [`(return-point ,label ,tail) (define tail^ (optimize-predicates/tail tail env))
                                     (values `(return-point ,label ,tail^) env)]))
 
@@ -344,9 +345,9 @@
                                           (set! rax rcx)
                                           (jump L.f.2))))
                 '(module
-                     (define L.f.1 (begin (set! rbx 3) (set! rax 3) (jump L.f.2)))
+                     (define L.f.1 (begin (set! rbx 3) (set! rax rbx) (jump L.f.2)))
                    (define L.f.2 (jump done))
-                   (begin (set! rbx 5) (set! rcx 4) (set! rax 4) (jump L.f.2))))
+                   (begin (set! rbx 5) (set! rcx 4) (set! rax rcx) (jump L.f.2))))
   (check-equal? (optimize-predicates '(module (define L.func.1 (begin (set! rax 1) (jump L.func.2)))
                                         (define L.func.2 (begin (if (> rax 0) (jump done) (jump done))))
                                         (begin
@@ -382,4 +383,22 @@
                                                   (set! r12 15)
                                                   (set! r12 90))
                                                  (jump done))))
-                '(module (begin (set! r8 0) (set! r9 0) (set! r12 15) (jump done)))))
+                '(module (begin (set! r8 0) (set! r9 0) (set! r12 15) (jump done))))
+
+  (check-equal? (optimize-predicates '(module
+                                          (begin
+                                            (set! rsp r15) (set! rbx 5)
+                                            (if (true)
+                                                (begin (set! rbx rbx) (set! rbx (+ rbx 17)) (set! rbx 12))
+                                                (begin (set! rbx 15)))
+                                            (set! rax rbx)
+                                            (jump rsp))))
+                '(module
+                     (begin
+                       (set! rsp r15)
+                       (set! rbx 5)
+                       (begin (set! rbx rbx) (set! rbx (+ rbx 17)) (set! rbx 12))
+                       (set! rax rbx)
+                       (jump rsp))))
+
+  )
