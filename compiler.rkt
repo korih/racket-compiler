@@ -33,18 +33,8 @@
   "passes/allocate-frames.rkt"
   "passes/assign-frame-variables.rkt"
   "passes/implement-safe-primops.rkt"
-  "passes/specify-representation.rkt")
-
-(provide
- remove-complex-opera*)
-
-;; TODO: Fill in.
-;; You'll want to merge milestone-6 code in
-
-;; Stubs; remove or replace with your definitions.
-(define-values (remove-complex-opera*)
-  (values
-   values))
+  "passes/specify-representation.rkt"
+  "passes/remove-complex-opera.rkt")
 
 (module+ test
   (require

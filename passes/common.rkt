@@ -52,8 +52,8 @@
 ;; ================================================
 
 ;; any -> boolean
-;; produces true if op is a valid binop
-(define (binop? op)
+;; produces true if op is a valid safe binop
+(define (safe-binop? op)
   (and (member op '(* + - < eq? <= > >=)) #t))
 
 ;; any -> boolean
@@ -62,8 +62,8 @@
   (and (member op '(unsafe-fx* unsafe-fx+ unsafe-fx- eq? unsafe-fx< unsafe-fx<= unsafe-fx> unsafe-fx>=)) #t))
 
 ;; any -> boolean
-;; produces true if op is a valid safe binop
-(define (safe-binop? op)
+;; produces true if op is a valid binop
+(define (binop? op)
   (and (member op '(* + - bitwise-and bitwise-ior bitwise-xor arithmetic-shift-right)) #t))
 
 ;; any -> boolean
@@ -115,20 +115,20 @@
                                        'z)
                            7))
   
-  (test-case "binop?"
-             (check-true (binop? '*))
-             (check-true (binop? '+))
-             (check-true (binop? '-))
-             (check-true (binop? '>))
-             (check-true (binop? '>=))
-             (check-true (binop? 'eq?))
-             (check-true (binop? '<))
-             (check-true (binop? '<=))
-             (check-false (binop? '^))
-             (check-false (binop? ""))
-             (check-false (binop? "*"))
-             (check-false (binop? "+"))
-             (check-false (binop? 1)))
+  (test-case "safe-binop?"
+             (check-true (safe-binop? '*))
+             (check-true (safe-binop? '+))
+             (check-true (safe-binop? '-))
+             (check-true (safe-binop? '>))
+             (check-true (safe-binop? '>=))
+             (check-true (safe-binop? 'eq?))
+             (check-true (safe-binop? '<))
+             (check-true (safe-binop? '<=))
+             (check-false (safe-binop? '^))
+             (check-false (safe-binop? ""))
+             (check-false (safe-binop? "*"))
+             (check-false (safe-binop? "+"))
+             (check-false (safe-binop? 1)))
 
   (test-case "unsafe-binop?"
              (check-true (unsafe-binop? 'unsafe-fx*))
@@ -147,21 +147,21 @@
              (check-false (unsafe-binop? 1))
              (check-false (unsafe-binop? 'random-symbol)))
 
-  (test-case "safe-binop?"
-             (check-true (safe-binop? '*))
-             (check-true (safe-binop? '+))
-             (check-true (safe-binop? '-))
-             (check-true (safe-binop? 'bitwise-and))
-             (check-true (safe-binop? 'bitwise-ior))
-             (check-true (safe-binop? 'bitwise-xor))
-             (check-true (safe-binop? 'arithmetic-shift-right))
-             (check-false (safe-binop? 'eq?))
-             (check-false (safe-binop? 'unsafe-fx*))
-             (check-false (safe-binop? 'unsafe-fx+))
-             (check-false (safe-binop? 'unsafe-fx-))
-             (check-false (safe-binop? "bitwise-and"))
-             (check-false (safe-binop? 2))
-             (check-false (safe-binop? 'random-op)))
+  (test-case "binop?"
+             (check-true (binop? '*))
+             (check-true (binop? '+))
+             (check-true (binop? '-))
+             (check-true (binop? 'bitwise-and))
+             (check-true (binop? 'bitwise-ior))
+             (check-true (binop? 'bitwise-xor))
+             (check-true (binop? 'arithmetic-shift-right))
+             (check-false (binop? 'eq?))
+             (check-false (binop? 'unsafe-fx*))
+             (check-false (binop? 'unsafe-fx+))
+             (check-false (binop? 'unsafe-fx-))
+             (check-false (binop? "bitwise-and"))
+             (check-false (binop? 2))
+             (check-false (binop? 'random-op)))
 
   (test-case "unop?"
              (check-true (unop? 'fixnum?))
