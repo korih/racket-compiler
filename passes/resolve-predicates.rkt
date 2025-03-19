@@ -3,7 +3,7 @@
 (require
   cpsc411/compiler-lib
   cpsc411/2c-run-time
-  cpsc411/langs/v4
+  cpsc411/langs/v6
   rackunit)
 
 (provide resolve-predicates)
@@ -13,7 +13,7 @@
 ;; compiles p to Block-asm-lang v4 by manipulating the branches of if statements
 ;; to resolve branches
 (define/contract (resolve-predicates p)
-  (-> block-pred-lang-v4? block-asm-lang-v4?)
+  (-> block-pred-lang-v6? block-asm-lang-v6?)
 
   ;; block-pred-lang-v4.b -> block-asm-lang-v4.b
   (define (resolve-predicates-b b)

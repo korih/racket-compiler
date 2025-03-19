@@ -2,7 +2,7 @@
 
 (require
   cpsc411/compiler-lib
-  cpsc411/langs/v4
+  cpsc411/langs/v6
   rackunit)
 
 (provide flatten-program)
@@ -10,7 +10,7 @@
 ;; block-asm-lang-v4 -> para-asm-lang-v4
 ;; interp. flatten begin statements in the program
 (define/contract (flatten-program p)
-  (-> block-asm-lang-v4? para-asm-lang-v4?)
+  (-> block-asm-lang-v6? para-asm-lang-v6?)
 
   ;; block-asm-lang-v4-b -> (list para-asm-lang-v4-s)
   ;; convert b expressions to flattened s expressions
