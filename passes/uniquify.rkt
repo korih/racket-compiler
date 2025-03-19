@@ -72,9 +72,9 @@
   (define (uniquify-triv triv env)
     (match triv
       ['empty triv]
-      [x #:when (or (name? x) (binop? x) (unop? x))
+      [x #:when (or (name? x) (safe-binop? x) (unop? x))
          (cond
-           [(and (or (binop? x) (unop? x)) (not (assoc x env))) x]
+           [(and (or (safe-binop? x) (unop? x)) (not (assoc x env))) x]
            [else (lookup-env env x)])]
       ;; Wildcard collapse case used because all terminal triv values do not
       ;; require any further processing or transformation, allowing them to be
