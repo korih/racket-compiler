@@ -4,21 +4,21 @@
 
 (require
   cpsc411/compiler-lib
-  cpsc411/langs/v6
+  cpsc411/langs/v7
   rackunit)
 
 (provide select-instructions)
 
-;; imp-cmf-lang-v6 -> asm-pred-lang-v6
-;; compiles p to Asm-pred-lang v6 by selecting appropriate sequences of abstract
+;; imp-cmf-lang-v7 -> asm-pred-lang-v7
+;; compiles p to Asm-pred-lang v7 by selecting appropriate sequences of abstract
 ;; assembly instructions to implement the operations of the source language
 (define/contract (select-instructions p)
-  (-> imp-cmf-lang-v6? asm-pred-lang-v6?)
+  (-> imp-cmf-lang-v7? asm-pred-lang-v7?)
 
   ;; func-info is `(define ,label ,info ,tail)
   ;; interp. a function definition that has metadata
 
-  ; imp-cmf-lang-v6.value -> (list (List-of asm-pred-lang-v6.effect) aloc)
+  ; imp-cmf-lang-v7.value -> (list (List-of asm-pred-lang-v7.effect) aloc)
   ; Assigns the value v to a fresh temporary, returning two values: the list of
   ; statements the implement the assignment in Loc-lang, and the aloc that the
   ; value is stored in
@@ -36,7 +36,7 @@
       [`(define ,label ,info ,tail)
        `(define ,label ,info ,(select-tail tail))]))
 
-  ;; imp-cmf-lang-v6.tail -> asm-pred-lang-v6.tail
+  ;; imp-cmf-lang-v7.tail -> asm-pred-lang-v7.tail
   (define (select-tail t)
     (match t
       [`(jump ,trg ,locs ...) `(jump ,trg ,@locs)]
@@ -56,7 +56,7 @@
                   `(begin ,@compiled-fx ,@inner-effects^ ,inner-tail^)]
                  [_ `(begin ,@compiled-fx ,tail-compiled)])])]))
 
-  ;; aloc imp-cmf-lang-v6.effect -> (List-of asm-pred-lang-v6.effect)
+  ;; aloc imp-cmf-lang-v7.effect -> (List-of asm-pred-lang-v7.effect)
   (define (select-value x v)
     (match v
       [`(,binop ,op1 ,op2)
@@ -65,7 +65,7 @@
          [else (list `(set! ,x (,binop ,x ,op2)))])]
       [triv (list `(set! ,x ,triv))]))
 
-  ;; imp-cmf-lang-v6.effect -> (List-of asm-pred-lang-v6.effect)
+  ;; imp-cmf-lang-v7.effect -> (List-of asm-pred-lang-v7.effect)
   (define (select-effect e)
     (match e
       [`(set! ,x ,v) (select-value x v)]
@@ -87,7 +87,7 @@
       [`(return-point ,label ,tail)
        (list `(return-point ,label ,(select-tail tail)))]))
 
-  ;; imp-cmf-lang-v6.pred -> asm-pred-lang-v6.pred
+  ;; imp-cmf-lang-v7.pred -> asm-pred-lang-v7.pred
   (define (select-pred p)
     (match p
       [`(not ,pred)
@@ -107,13 +107,13 @@
       ['(true) p]
       ['(false) p]))
 
-  ;; imp-cmf-lang-v6.triv -> (list (List-of asm-pred-lang-v6.effect) asm-pred-lang-v6.trg)
+  ;; imp-cmf-lang-v7.triv -> (list (List-of asm-pred-lang-v7.effect) asm-pred-lang-v7.trg)
   (define (select-triv t)
     (match t
       [label #:when (label? label) (list empty label)]
       [opand (select-opand opand)]))
 
-  ;; imp-cmf-lang-v6.opand -> (list (List-of asm-pred-lang-v6.effect) asm-pred-lang-v6.trg)
+  ;; imp-cmf-lang-v7.opand -> (list (List-of asm-pred-lang-v7.effect) asm-pred-lang-v7.trg)
   (define (select-opand op)
     (match op
       [int64
@@ -122,13 +122,13 @@
        (list (list `(set! ,tmp ,int64)) tmp)]
       [loc (select-loc loc)]))
 
-  ;; imp-cmf-lang-v6.loc -> (list (List-of asm-pred-lang-v6.effect) asm-pred-lang-v6.trg)
+  ;; imp-cmf-lang-v7.loc -> (list (List-of asm-pred-lang-v7.effect) asm-pred-lang-v7.trg)
   (define (select-loc loc)
     (match loc
       [aloc #:when (aloc? aloc) (list empty aloc)]
       [rloc #:when (rloc? rloc) (list empty rloc)]))
 
-  ;; imp-cmf-lang-v6.trg -> (list (List-of asm-pred-lang-v6.effect) asm-pred-lang-v6.trg)
+  ;; imp-cmf-lang-v7.trg -> (list (List-of asm-pred-lang-v7.effect) asm-pred-lang-v7.trg)
   (define (select-trg trg)
     (match trg
       [label #:when (label? label) (list empty label)]
@@ -541,5 +541,55 @@
                          (begin (set! x.5 15)))
                      (set! rax x.5)
                      (jump tmp-ra.157 rbp rax))))
-
-  )
+  (check-equal? (select-instructions '(module
+                                          ((new-frames ()))
+                                        (define L.f.1
+                                          ((new-frames ()))
+                                          (begin
+                                            (set! tmp-ra.1 r15)
+                                            (begin
+                                              (set! x.1 rdi)
+                                              (begin
+                                                (set! y.1 1)
+                                                (set! z.1 2)
+                                                (begin
+                                                  (set! a.1 (bitwise-and y.1 x.1))
+                                                  (set! b.1 (bitwise-ior z.1 x.1))
+                                                  (begin
+                                                    (set! a.1 (bitwise-xor a.1 b.1))
+                                                    (begin
+                                                      (set! rax (arithmetic-shift-right a.1 3))
+                                                      (jump tmp-ra.1 rbp rax))))))))
+                                        (begin
+                                          (set! tmp-ra.2 r15)
+                                          (begin
+                                            (set! x.2 10)
+                                            (if (begin (set! x.3 100) (not (!= x.2 x.3)))
+                                                (begin (set! rdi x.2) (set! r15 tmp-ra.2) (jump L.f.1 rbp r15 rdi))
+                                                (begin
+                                                  (set! rdi 1000)
+                                                  (set! r15 tmp-ra.2)
+                                                  (jump L.f.2 rbp r15 rdi)))))))
+                '(module
+                     ((new-frames ()))
+                   (define L.f.1
+                     ((new-frames ()))
+                     (begin
+                       (set! tmp-ra.1 r15)
+                       (set! x.1 rdi)
+                       (set! y.1 1)
+                       (set! z.1 2)
+                       (set! a.1 y.1)
+                       (set! a.1 (bitwise-and a.1 x.1))
+                       (set! b.1 z.1)
+                       (set! b.1 (bitwise-ior b.1 x.1))
+                       (set! a.1 (bitwise-xor a.1 b.1))
+                       (set! rax a.1)
+                       (set! rax (arithmetic-shift-right rax 3))
+                       (jump tmp-ra.1 rbp rax)))
+                   (begin
+                     (set! tmp-ra.2 r15)
+                     (set! x.2 10)
+                     (if (begin (set! x.3 100) (not (!= x.2 x.3)))
+                         (begin (set! rdi x.2) (set! r15 tmp-ra.2) (jump L.f.1 rbp r15 rdi))
+                         (begin (set! rdi 1000) (set! r15 tmp-ra.2) (jump L.f.2 rbp r15 rdi)))))))

@@ -4,23 +4,23 @@
 
 (require
   cpsc411/compiler-lib
-  cpsc411/langs/v6
+  cpsc411/langs/v7
   rackunit)
 
 (provide generate-x64)
 
-;; paren-x64-v6 -> string
+;; paren-x64-v7 -> string
 ;; compiles p into a valid sequence of x64 instructions, represented as a string
 (define/contract (generate-x64 p)
-  (-> paren-x64-v6? string?)
+  (-> paren-x64-v7? string?)
 
-  ;; paren-x64-v6 -> string
+  ;; paren-x64-v7 -> string
   (define (program->x64 p)
     (match p
       [`(begin ,s ...)
        (string-join (map statement->x64 s) "\n")]))
 
-  ;; paren-x64-v6.s -> string
+  ;; paren-x64-v7.s -> string
   (define (statement->x64 s)
     (match s
       [`(set! (,fbp - ,offset) ,int32)
@@ -50,38 +50,42 @@
       [`(jump-if ,relop ,label)
        (format "~a ~a" (relop->ins relop) (symbol->string label))]))
 
-  ;; paren-x64-v6.trg -> string
+  ;; paren-x64-v7.trg -> string
   (define (trg->x64 trg)
     (match trg
       [label #:when (label? label) (sanitize-label label)]
       [reg #:when (register? reg) reg]))
 
-  ;; paren-x64-v6.triv -> string
+  ;; paren-x64-v7.triv -> string
   (define (triv->x64 triv)
     (match triv
       [int64 #:when (int64? int64) int64]
       [trg (trg->x64 trg)]))
 
-  ;; paren-x64-v6.opand -> string
+  ;; paren-x64-v7.opand -> string
   (define (opand->x64 op)
     (match op
       [int64 #:when (int64? int64) int64]
       [reg #:when (register? reg) reg]))
 
-  ;; paren-x64-v6.loc -> string
+  ;; paren-x64-v7.loc -> string
   (define (loc->x64 loc)
     (match loc
       [reg #:when (register? reg) reg]
       [`(,fbp - ,offset) (format "QWORD [~a - ~a]" fbp offset)]))
 
-  ;; paren-x64-v6.binop -> string
+  ;; paren-x64-v7.binop -> string
   (define (binop->ins b)
     (match b
       ['+ "add"]
       ['* "imul"]
-      ['- "sub"]))
+      ['- "sub"]
+      ['bitwise-and "and"]
+      ['bitwise-ior "or"]
+      ['bitwise-xor "xor"]
+      ['arithmetic-shift-right "sar"]))
 
-  ;; paren-x64-v4.relop -> string
+  ;; paren-x64-v7.relop -> string
   (define (relop->ins relop)
     (match relop
       [`< "jl"]
@@ -182,4 +186,59 @@
                        "jmp L.start.1"
                        "L.end.1:"
                        "mov rax, rbx")
+                 "\n"))
+  (check-equal? (generate-x64 '(begin
+                                 (with-label L.tmp.99 (set! rbx r15))
+                                 (set! rcx 10)
+                                 (set! rsp 100)
+                                 (compare rcx rsp)
+                                 (jump-if != L.tmp.101)
+                                 (jump L.tmp.100)
+                                 (with-label L.tmp.101 (set! rdi 1000))
+                                 (set! r15 rbx)
+                                 (jump L.f.2)
+                                 (with-label L.tmp.100 (set! rdi rcx))
+                                 (set! r15 rbx)
+                                 (jump L.f.1)
+                                 (with-label L.f.1 (set! rsp r15))
+                                 (set! rcx rdi)
+                                 (set! rdx 1)
+                                 (set! rbx 2)
+                                 (set! rdx rdx)
+                                 (set! rdx (bitwise-and rdx rcx))
+                                 (set! rbx rbx)
+                                 (set! rbx (bitwise-ior rbx rcx))
+                                 (set! rdx (bitwise-xor rdx rbx))
+                                 (set! rax rdx)
+                                 (set! rax (arithmetic-shift-right rax 3))
+                                 (jump rsp)))
+                (string-join
+                 (list "L.tmp.99:"
+                       "mov rbx, r15"
+                       "mov rcx, 10"
+                       "mov rsp, 100"
+                       "cmp rcx, rsp"
+                       "jne L.tmp.101"
+                       "jmp L.tmp.100"
+                       "L.tmp.101:"
+                       "mov rdi, 1000"
+                       "mov r15, rbx"
+                       "jmp L.f.2"
+                       "L.tmp.100:"
+                       "mov rdi, rcx"
+                       "mov r15, rbx"
+                       "jmp L.f.1"
+                       "L.f.1:"
+                       "mov rsp, r15"
+                       "mov rcx, rdi"
+                       "mov rdx, 1"
+                       "mov rbx, 2"
+                       "mov rdx, rdx"
+                       "and rdx, rcx"
+                       "mov rbx, rbx"
+                       "or rbx, rcx"
+                       "xor rdx, rbx"
+                       "mov rax, rdx"
+                       "sar rax, 3"
+                       "jmp rsp")
                  "\n")))

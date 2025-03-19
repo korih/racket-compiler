@@ -2,15 +2,15 @@
 
 (require
   cpsc411/compiler-lib
-  cpsc411/langs/v6)
+  cpsc411/langs/v7)
 
 (provide allocate-frames)
 
-;; asm-pred-lang-v6/pre-framed -> asm-pred-lang-v6/framed
+;; asm-pred-lang-v7/pre-framed -> asm-pred-lang-v7/framed
 ;; Allocated frames for each non-tail call, and assign
 ;; all new-frame variables to frame variables in the new frame.
 (define/contract (allocate-frames p)
-  (-> asm-pred-lang-v6/pre-framed? asm-pred-lang-v6/framed?)
+  (-> asm-pred-lang-v7/pre-framed? asm-pred-lang-v7/framed?)
 
   ;; info -> info
   ;; remove new-frames and call-undead while adding new assignments
@@ -51,7 +51,7 @@
                                     (define tail^ (compile-tail tail info^))
                                     `(define ,label ,info^ ,tail^)]))
 
-  ;; asm-pred-lang-v6/pre-framed.tail info -> asm-pred-lang-v6/framed.tail
+  ;; asm-pred-lang-v7/pre-framed.tail info -> asm-pred-lang-v7/framed.tail
   ;; compile the tails
   (define (compile-tail t info)
     (match t
@@ -67,7 +67,7 @@
                            (define t2^ (compile-tail t2 info))
                            `(if ,pred^ ,t1^ ,t2^)]))
 
-  ;; asm-pred-lang-v6/pre-framed.effect -> asm-pred-lang-v6/framed.effect
+  ;; asm-pred-lang-v7/pre-framed.effect -> asm-pred-lang-v7/framed.effect
   ;; compile the effects, looking for return-points to set stack
   (define (compile-effect e info)
     (define frame-size (* 8 (length (info-ref info 'assignment))))
@@ -91,7 +91,7 @@
       ;; no other cases that can have return-point
       [_ `(,e)]))
 
-  ;; asm-pred-lang-v6/pre-framed.pred -> asm-pred-lang-v6/framed.pred
+  ;; asm-pred-lang-v7/pre-framed.pred -> asm-pred-lang-v7/framed.pred
   ;; compile the preds
   (define (compile-pred p info)
     (match p
@@ -529,5 +529,110 @@
                      (set! rdi 5)
                      (set! r15 tmp-ra.102)
                      (jump L.fact.19 rbp r15 rdi))))
-
-  )
+  (check-equal? (allocate-frames '(module
+                                      ((new-frames ())
+                                       (locals (x.2 tmp-ra.2 x.3))
+                                       (call-undead ())
+                                       (undead-out
+                                        ((tmp-ra.2 rbp)
+                                         (x.2 tmp-ra.2 rbp)
+                                         (((x.3 x.2 tmp-ra.2 rbp) (x.2 tmp-ra.2 rbp))
+                                          ((tmp-ra.2 rdi rbp) (rdi r15 rbp) (rbp r15 rdi))
+                                          ((tmp-ra.2 rdi rbp) (rdi r15 rbp) (rbp r15 rdi)))))
+                                       (conflicts
+                                        ((x.2 (x.3 tmp-ra.2 rbp))
+                                         (tmp-ra.2 (rdi x.3 x.2 rbp))
+                                         (x.3 (x.2 tmp-ra.2 rbp))
+                                         (rbp (r15 rdi x.3 x.2 tmp-ra.2))
+                                         (rdi (r15 tmp-ra.2 rbp))
+                                         (r15 (rdi rbp))))
+                                       (assignment ()))
+                                    (define L.f.1
+                                      ((new-frames ())
+                                       (locals (a.1 z.1 x.1 y.1 b.1 tmp-ra.1))
+                                       (undead-out
+                                        ((rdi rbp tmp-ra.1)
+                                         (x.1 rbp tmp-ra.1)
+                                         (y.1 x.1 rbp tmp-ra.1)
+                                         (y.1 z.1 x.1 rbp tmp-ra.1)
+                                         (a.1 z.1 x.1 rbp tmp-ra.1)
+                                         (z.1 x.1 a.1 rbp tmp-ra.1)
+                                         (x.1 b.1 a.1 rbp tmp-ra.1)
+                                         (b.1 a.1 rbp tmp-ra.1)
+                                         (a.1 rbp tmp-ra.1)
+                                         (rax rbp tmp-ra.1)
+                                         (rax rbp tmp-ra.1)
+                                         (rbp rax)))
+                                       (call-undead ())
+                                       (conflicts
+                                        ((a.1 (b.1 z.1 x.1 rbp tmp-ra.1))
+                                         (z.1 (a.1 y.1 x.1 rbp tmp-ra.1))
+                                         (x.1 (b.1 a.1 z.1 y.1 rbp tmp-ra.1))
+                                         (y.1 (z.1 x.1 rbp tmp-ra.1))
+                                         (b.1 (x.1 a.1 rbp tmp-ra.1))
+                                         (tmp-ra.1 (rax b.1 a.1 z.1 y.1 x.1 rdi rbp))
+                                         (rbp (rax b.1 a.1 z.1 y.1 x.1 tmp-ra.1))
+                                         (rdi (tmp-ra.1))
+                                         (rax (rbp tmp-ra.1))))
+                                       (assignment ()))
+                                      (begin
+                                        (set! tmp-ra.1 r15)
+                                        (set! x.1 rdi)
+                                        (set! y.1 1)
+                                        (set! z.1 2)
+                                        (set! a.1 y.1)
+                                        (set! a.1 (bitwise-and a.1 x.1))
+                                        (set! b.1 z.1)
+                                        (set! b.1 (bitwise-ior b.1 x.1))
+                                        (set! a.1 (bitwise-xor a.1 b.1))
+                                        (set! rax a.1)
+                                        (set! rax (arithmetic-shift-right rax 3))
+                                        (jump tmp-ra.1 rbp rax)))
+                                    (begin
+                                      (set! tmp-ra.2 r15)
+                                      (set! x.2 10)
+                                      (if (begin (set! x.3 100) (not (!= x.2 x.3)))
+                                          (begin (set! rdi x.2) (set! r15 tmp-ra.2) (jump L.f.1 rbp r15 rdi))
+                                          (begin (set! rdi 1000) (set! r15 tmp-ra.2) (jump L.f.2 rbp r15 rdi))))))
+                '(module
+                     ((locals (x.3 tmp-ra.2 x.2))
+                      (conflicts
+                       ((x.2 (x.3 tmp-ra.2 rbp))
+                        (tmp-ra.2 (rdi x.3 x.2 rbp))
+                        (x.3 (x.2 tmp-ra.2 rbp))
+                        (rbp (r15 rdi x.3 x.2 tmp-ra.2))
+                        (rdi (r15 tmp-ra.2 rbp))
+                        (r15 (rdi rbp))))
+                      (assignment ()))
+                   (define L.f.1
+                     ((locals (tmp-ra.1 b.1 y.1 x.1 z.1 a.1))
+                      (conflicts
+                       ((a.1 (b.1 z.1 x.1 rbp tmp-ra.1))
+                        (z.1 (a.1 y.1 x.1 rbp tmp-ra.1))
+                        (x.1 (b.1 a.1 z.1 y.1 rbp tmp-ra.1))
+                        (y.1 (z.1 x.1 rbp tmp-ra.1))
+                        (b.1 (x.1 a.1 rbp tmp-ra.1))
+                        (tmp-ra.1 (rax b.1 a.1 z.1 y.1 x.1 rdi rbp))
+                        (rbp (rax b.1 a.1 z.1 y.1 x.1 tmp-ra.1))
+                        (rdi (tmp-ra.1))
+                        (rax (rbp tmp-ra.1))))
+                      (assignment ()))
+                     (begin
+                       (set! tmp-ra.1 r15)
+                       (set! x.1 rdi)
+                       (set! y.1 1)
+                       (set! z.1 2)
+                       (set! a.1 y.1)
+                       (set! a.1 (bitwise-and a.1 x.1))
+                       (set! b.1 z.1)
+                       (set! b.1 (bitwise-ior b.1 x.1))
+                       (set! a.1 (bitwise-xor a.1 b.1))
+                       (set! rax a.1)
+                       (set! rax (arithmetic-shift-right rax 3))
+                       (jump tmp-ra.1 rbp rax)))
+                   (begin
+                     (set! tmp-ra.2 r15)
+                     (set! x.2 10)
+                     (if (begin (set! x.3 100) (not (!= x.2 x.3)))
+                         (begin (set! rdi x.2) (set! r15 tmp-ra.2) (jump L.f.1 rbp r15 rdi))
+                         (begin (set! rdi 1000) (set! r15 tmp-ra.2) (jump L.f.2 rbp r15 rdi)))))))

@@ -2,27 +2,27 @@
 
 (require
   cpsc411/compiler-lib
-  cpsc411/langs/v6
+  cpsc411/langs/v7
   rackunit)
 
 (provide expose-basic-blocks)
 
-;; nested-asm-lang-v6 -> block-pred-lang-v6
+;; nested-asm-lang-v7 -> block-pred-lang-v7
 ;; compiles p to Block-pred-lang v4 by eliminating all nested expressions by
 ;; generating fresh basic blocks and jumps
 (define/contract (expose-basic-blocks p)
-  (-> nested-asm-lang-v6? block-pred-lang-v6?)
+  (-> nested-asm-lang-v7? block-pred-lang-v7?)
 
-  ;; blocks is (Box (List-of block-pred-lang-v6.b))
+  ;; blocks is (Box (List-of block-pred-lang-v7.b))
   ;; stores new block definitions created
   (define blocks (box '()))
 
-  ;; block-pred-lang-v6.b ->
+  ;; block-pred-lang-v7.b ->
   ;; adds blk to blocks
   (define (add-block blk)
     (set-box! blocks (cons blk (unbox blocks))))
 
-  ;; block-pred-lang-v6.tail (list-of block-pred-lang-v6.effect) -> block-pred-lang-v6.tail
+  ;; block-pred-lang-v7.tail (list-of block-pred-lang-v7.effect) -> block-pred-lang-v7.tail
   ;; creates a new tail with the given effects
   (define (make-new-tail tail fx)
     (match tail
@@ -32,7 +32,7 @@
              tail
              `(begin ,@fx ,tail))]))
 
-  ;; nested-asm-lang-v6.tail -> block-pred-lang-v6.tail
+  ;; nested-asm-lang-v7.tail -> block-pred-lang-v7.tail
   ;; interp. converts the tail program into a list of basic blocks
   (define (expose-basic-blocks-tail tail)
     (match tail
@@ -49,7 +49,7 @@
       [`(jump ,trg) `(jump ,trg)]))
 
   ;; interp. returns the effects and tails of the current block
-  ;; nested-asm-lang-v6.effect block-pred-lang-v6.tail -> block-pred-lang-v6.tail
+  ;; nested-asm-lang-v7.effect block-pred-lang-v7.tail -> block-pred-lang-v7.tail
   (define (expose-basic-blocks-effect e bpl-tail)
     (match e
       [`(set! ,loc (,binop ,loc ,triv))
@@ -82,8 +82,8 @@
        (add-block `(define ,label ,bpl-tail))
        tail]))
 
-  ;; nested-asm-lang-v6.pred
-  ;; -> (block-pred-lang-v6.trg block-pred-lang-v6.trg -> block-pred-lang-v6.tail)
+  ;; nested-asm-lang-v7.pred
+  ;; -> (block-pred-lang-v7.trg block-pred-lang-v7.trg -> block-pred-lang-v7.tail)
   (define (expose-basic-blocks-pred p)
     (match p
       ['(true)
@@ -482,4 +482,48 @@
                    (define L.ret.1
                      (begin (set! rax 7) (if (true) (jump L.tmp.97) (jump L.tmp.98))))
                    (define L.tmp.98 (jump (rbp - 16)))
-                   (define L.tmp.97 (jump (rbp - 8))))))
+                   (define L.tmp.97 (jump (rbp - 8)))))
+  (check-equal? (expose-basic-blocks '(module
+                                          (define L.f.1
+                                            (begin
+                                              (set! rsp r15)
+                                              (set! rcx rdi)
+                                              (set! rdx 1)
+                                              (set! rbx 2)
+                                              (set! rdx rdx)
+                                              (set! rdx (bitwise-and rdx rcx))
+                                              (set! rbx rbx)
+                                              (set! rbx (bitwise-ior rbx rcx))
+                                              (set! rdx (bitwise-xor rdx rbx))
+                                              (set! rax rdx)
+                                              (set! rax (arithmetic-shift-right rax 3))
+                                              (jump rsp)))
+                                        (begin
+                                          (set! rbx r15)
+                                          (set! rcx 10)
+                                          (if (begin (set! rsp 100) (not (!= rcx rsp)))
+                                              (begin (set! rdi rcx) (set! r15 rbx) (jump L.f.1))
+                                              (begin (set! rdi 1000) (set! r15 rbx) (jump L.f.2))))))
+                '(module
+                     (define L.tmp.99
+                       (begin
+                         (set! rbx r15)
+                         (set! rcx 10)
+                         (set! rsp 100)
+                         (if (!= rcx rsp) (jump L.tmp.101) (jump L.tmp.100))))
+                   (define L.tmp.101 (begin (set! rdi 1000) (set! r15 rbx) (jump L.f.2)))
+                   (define L.tmp.100 (begin (set! rdi rcx) (set! r15 rbx) (jump L.f.1)))
+                   (define L.f.1
+                     (begin
+                       (set! rsp r15)
+                       (set! rcx rdi)
+                       (set! rdx 1)
+                       (set! rbx 2)
+                       (set! rdx rdx)
+                       (set! rdx (bitwise-and rdx rcx))
+                       (set! rbx rbx)
+                       (set! rbx (bitwise-ior rbx rcx))
+                       (set! rdx (bitwise-xor rdx rbx))
+                       (set! rax rdx)
+                       (set! rax (arithmetic-shift-right rax 3))
+                       (jump rsp))))))

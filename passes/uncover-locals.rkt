@@ -4,17 +4,17 @@
 
 (require
   cpsc411/compiler-lib
-  cpsc411/langs/v6
+  cpsc411/langs/v7
   rackunit)
 
 (provide uncover-locals)
 
-;; asm-pred-lang-v6 -> asm-pred-lang-v6/locals
-;; compiles p to to Asm-pred-lang v6/locals by analysing which abstract
+;; asm-pred-lang-v7 -> asm-pred-lang-v7/locals
+;; compiles p to to Asm-pred-lang v7/locals by analysing which abstract
 ;; locations are used in the module and decorating the module with the set of
 ;; variables in an info field.
 (define/contract (uncover-locals p)
-  (-> asm-pred-lang-v6? asm-pred-lang-v6/locals?)
+  (-> asm-pred-lang-v7? asm-pred-lang-v7/locals?)
 
   ;; func-info is `(define ,label ,info ,tail)
   ;; interp. a function definition that has metadata
@@ -31,7 +31,7 @@
        (uncover-locals-tail tail)
        `(define ,label ,(info-set info 'locals (set->list unique-alocs)) ,tail)]))
 
-  ;; asm-pred-lang-v6.tail ->
+  ;; asm-pred-lang-v7.tail ->
   ;; EFFECTS: adds alocs from tail t to unique-alocs
   (define (uncover-locals-tail t)
     (match t
@@ -45,7 +45,7 @@
        (uncover-locals-pred pred)
        (for-each uncover-locals-tail (list tail1 tail2))]))
 
-  ;; asm-pred-lang-v6.effect ->
+  ;; asm-pred-lang-v7.effect ->
   ;; EFFECTS: adds alocs from effect e to unique-alocs
   (define (uncover-locals-effect e)
     (match e
@@ -63,7 +63,7 @@
       [`(return-point ,label ,tail)
        (uncover-locals-tail tail)]))
 
-  ;; asm-pred-lang-v6.pred ->
+  ;; asm-pred-lang-v7.pred ->
   ;; EFFECTS: adds alocs from pred p to unique-alocs
   (define (uncover-locals-pred p)
     (match p
@@ -80,28 +80,28 @@
       ['(true) (void)]
       ['(false) (void)]))
 
-  ;; asm-pred-lang-v6.triv ->
+  ;; asm-pred-lang-v7.triv ->
   ;; EFFECTS: adds alocs from triv t to unique-alocs
   (define (uncover-locals-triv t)
     (match t
       [label #:when (label? label) (void)]
       [opand (uncover-locals-opand opand)]))
 
-  ;; asm-pred-lang-v6.opand ->
+  ;; asm-pred-lang-v7.opand ->
   ;; EFFECTS: adds alocs from opand op to unique-alocs
   (define (uncover-locals-opand op)
     (match op
       [int64 #:when (int64? int64) (void)]
       [loc (uncover-locals-loc loc)]))
 
-  ;; asm-pred-lang-v6.loc ->
+  ;; asm-pred-lang-v7.loc ->
   ;; EFFECTS: adds alocs from loc to unique-alocs
   (define (uncover-locals-loc loc)
     (match loc
       [aloc #:when (aloc? aloc) (set-add! unique-alocs aloc)]
       [rloc #:when (rloc? rloc) (void)]))
 
-  ;; asm-pred-lang-v6.trg ->
+  ;; asm-pred-lang-v7.trg ->
   ;; EFFECTS: adds alocs from trg to unique-alocs
   (define (uncover-locals-trg trg)
     (match trg
@@ -281,4 +281,50 @@
                      (set! x.2 rax)
                      (set! rax x.1)
                      (set! rax (* rax x.2))
-                     (jump tmp-ra.34 rbp rax)))))
+                     (jump tmp-ra.34 rbp rax))))
+  (check-equal? (uncover-locals '(module
+                                     ((new-frames ()))
+                                   (define L.f.1
+                                     ((new-frames ()))
+                                     (begin
+                                       (set! tmp-ra.1 r15)
+                                       (set! x.1 rdi)
+                                       (set! y.1 1)
+                                       (set! z.1 2)
+                                       (set! a.1 y.1)
+                                       (set! a.1 (bitwise-and a.1 x.1))
+                                       (set! b.1 z.1)
+                                       (set! b.1 (bitwise-ior b.1 x.1))
+                                       (set! a.1 (bitwise-xor a.1 b.1))
+                                       (set! rax a.1)
+                                       (set! rax (arithmetic-shift-right rax 3))
+                                       (jump tmp-ra.1 rbp rax)))
+                                   (begin
+                                     (set! tmp-ra.2 r15)
+                                     (set! x.2 10)
+                                     (if (begin (set! x.3 100) (not (!= x.2 x.3)))
+                                         (begin (set! rdi x.2) (set! r15 tmp-ra.2) (jump L.f.1 rbp r15 rdi))
+                                         (begin (set! rdi 1000) (set! r15 tmp-ra.2) (jump L.f.2 rbp r15 rdi))))))
+                '(module
+                     ((new-frames ()) (locals (x.3 tmp-ra.2 x.2)))
+                   (define L.f.1
+                     ((new-frames ()) (locals (tmp-ra.1 b.1 y.1 x.1 z.1 a.1)))
+                     (begin
+                       (set! tmp-ra.1 r15)
+                       (set! x.1 rdi)
+                       (set! y.1 1)
+                       (set! z.1 2)
+                       (set! a.1 y.1)
+                       (set! a.1 (bitwise-and a.1 x.1))
+                       (set! b.1 z.1)
+                       (set! b.1 (bitwise-ior b.1 x.1))
+                       (set! a.1 (bitwise-xor a.1 b.1))
+                       (set! rax a.1)
+                       (set! rax (arithmetic-shift-right rax 3))
+                       (jump tmp-ra.1 rbp rax)))
+                   (begin
+                     (set! tmp-ra.2 r15)
+                     (set! x.2 10)
+                     (if (begin (set! x.3 100) (not (!= x.2 x.3)))
+                         (begin (set! rdi x.2) (set! r15 tmp-ra.2) (jump L.f.1 rbp r15 rdi))
+                         (begin (set! rdi 1000) (set! r15 tmp-ra.2) (jump L.f.2 rbp r15 rdi)))))))

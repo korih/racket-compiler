@@ -1,16 +1,16 @@
 #lang racket
 
 (require
-  cpsc411/langs/v6
+  cpsc411/langs/v7
   rackunit)
 
 (provide normalize-bind)
 
-;; imp-mf-lang-v6 -> proc-imp-cmf-lang-v6
-;; compiles p to to to Proc-imp-cmf-lang v6 by pushing set! under begin so that
+;; imp-mf-lang-v7 -> proc-imp-cmf-lang-v7
+;; compiles p to to to Proc-imp-cmf-lang v7 by pushing set! under begin so that
 ;; the right-hand-side of each set! is simple value-producing operation
 (define/contract (normalize-bind p)
-  (-> imp-mf-lang-v6? proc-imp-cmf-lang-v6?)
+  (-> imp-mf-lang-v7? proc-imp-cmf-lang-v7?)
 
   ;; func is `(define ,label (lambda (,alocs ...) ,tail))
   ;; interp. a function definition
@@ -21,7 +21,7 @@
       [`(define ,label (lambda (,alocs ...) ,tail))
        `(define ,label (lambda (,@alocs) ,(normalize-bind-tail tail)))]))
 
-  ;; imp-mf-lang-v6.tail -> proc-imp-cmf-lang-v6.tail
+  ;; imp-mf-lang-v7.tail -> proc-imp-cmf-lang-v7.tail
   (define (normalize-bind-tail tail)
     (match tail
       [`(begin ,e ... ,t)
@@ -31,7 +31,7 @@
       [`(call ,triv ,opand ...) tail]
       [v (normalize-bind-value v (lambda (v) v))]))
 
-  ;; imp-mf-lang-v6.effect -> proc-imp-cmf-lang-v6.effect
+  ;; imp-mf-lang-v7.effect -> proc-imp-cmf-lang-v7.effect
   (define (normalize-bind-effect effect)
     (match effect
       [`(set! ,aloc ,v)
@@ -42,7 +42,7 @@
       [`(begin ,e ...)
        `(begin ,@(map normalize-bind-effect e))]))
 
-  ;; imp-mf-lang-v6.value (imp-mf-lang-v6.value -> proc-imp-cmf-lang-v6.effect) -> proc-imp-cmf-lang-v6.value
+  ;; imp-mf-lang-v7.value (imp-mf-lang-v7.value -> proc-imp-cmf-lang-v7.effect) -> proc-imp-cmf-lang-v7.value
   (define (normalize-bind-value value cont)
     (match value
       [`(begin ,e ... ,v)
@@ -55,7 +55,7 @@
       [`(,binop ,op1 ,op2) (cont value)]
       [triv (cont triv)]))
 
-  ;; imp-mf-lang-v6.pred -> proc-imp-cmf-lang-v6.pred
+  ;; imp-mf-lang-v7.pred -> proc-imp-cmf-lang-v7.pred
   (define (normalize-bind-pred pred)
     (match pred
       ['(true) pred]
@@ -247,4 +247,38 @@
                                 (begin (set! x.2 2)
                                        (begin (set! x.4 4)
                                               (set! x.3 x.4))
-                                       (set! x.1 (+ x.2 x.3))) x.0))))
+                                       (set! x.1 (+ x.2 x.3))) x.0)))
+  (check-equal? (normalize-bind '(module
+                                     (define L.f.1
+                                       (lambda (x.1)
+                                         (begin
+                                           (set! y.1 1)
+                                           (set! z.1 2)
+                                           (begin
+                                             (set! a.1 (bitwise-and y.1 x.1))
+                                             (set! b.1 (bitwise-ior z.1 x.1))
+                                             (begin
+                                               (set! a.1 (bitwise-xor a.1 b.1))
+                                               (arithmetic-shift-right a.1 3))))))
+                                   (begin
+                                     (set! x.2 10)
+                                     (if (begin (set! x.3 100) (not (!= x.2 x.3)))
+                                         (call L.f.1 x.2)
+                                         (call L.f.2 1000)))))
+                '(module
+                     (define L.f.1
+                       (lambda (x.1)
+                         (begin
+                           (set! y.1 1)
+                           (set! z.1 2)
+                           (begin
+                             (set! a.1 (bitwise-and y.1 x.1))
+                             (set! b.1 (bitwise-ior z.1 x.1))
+                             (begin
+                               (set! a.1 (bitwise-xor a.1 b.1))
+                               (arithmetic-shift-right a.1 3))))))
+                   (begin
+                     (set! x.2 10)
+                     (if (begin (set! x.3 100) (not (!= x.2 x.3)))
+                         (call L.f.1 x.2)
+                         (call L.f.2 1000))))))

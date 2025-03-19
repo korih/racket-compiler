@@ -2,16 +2,16 @@
 
 (require
   cpsc411/compiler-lib
-  cpsc411/langs/v6
+  cpsc411/langs/v7
   rackunit)
 
 (provide impose-calling-conventions)
 
-;; proc-imp-cmf-lang-v6 -> imp-cmf-lang-v6
-;; compiles p to Imp-cmf-lang v6 by imposing calling conventions on all calls
+;; proc-imp-cmf-lang-v7 -> imp-cmf-lang-v7
+;; compiles p to Imp-cmf-lang v7 by imposing calling conventions on all calls
 ;; and procedure definitions
 (define/contract (impose-calling-conventions p)
-  (-> proc-imp-cmf-lang-v6? imp-cmf-lang-v6?)
+  (-> proc-imp-cmf-lang-v7? imp-cmf-lang-v7?)
 
   ;; func-lambda is `(define ,label (lambda (,alocs ...) ,entry))
   ;; interp. a function definition that uses lambdas
@@ -19,7 +19,7 @@
   ;; func is `(define ,label ,info ,tail)
   ;; interp. a function definition that uses calling conventions for arguments
 
-  ;; (List-of opand) (List-of register) Natural aloc -> (List-of imp-cmf-lang-v6.effect) (List-of imp-cmf-lang-v6.rloc)
+  ;; (List-of opand) (List-of register) Natural aloc -> (List-of imp-cmf-lang-v7.effect) (List-of imp-cmf-lang-v7.rloc)
   ;; interp. converts a list of arguments from a tail call into a sequence of register assignments, following calling conventions
   (define (transform-tail-call ops regs fvidx return-aloc)
     (cond
@@ -37,7 +37,7 @@
               (lambda (rest-list used-list)
                 (values (cons `(set! ,fvar ,(first ops)) rest-list) (cons fvar used-list))))))]))
 
-  ;; (List-of opand) (List-of register) aloc -> (List-of imp-cmf-lang-v6.effect) (List-of imp-cmf-lang-v6.rloc) (List-of aloc)
+  ;; (List-of opand) (List-of register) aloc -> (List-of imp-cmf-lang-v7.effect) (List-of imp-cmf-lang-v7.rloc) (List-of aloc)
   ;; interp. converts a list of arguments from a non-tail call into a sequence of register assignments, following calling conventions
   (define (transform-non-tail-call ops regs return-label)
     (cond
@@ -55,7 +55,7 @@
               (lambda (rest-list used-list nfvar-list)
                 (values (cons `(set! ,nfvar ,(first ops)) rest-list) (cons nfvar used-list) (cons nfvar nfvar-list))))))]))
 
-  ;; (List-of aloc) (List-of register) Natural -> (List-of imp-cmf-lang-v6.effect)
+  ;; (List-of aloc) (List-of register) Natural -> (List-of imp-cmf-lang-v7.effect)
   ;; interp. transforms procedure parameter allocations by assigning them to registers based on calling conventions
   (define (transform-procedure alocs regs fvidx)
     (cond
@@ -89,7 +89,7 @@
        (define entry^ (impose-calling-conventions-entry entry alocs))
        `(define ,label ,info ,entry^)]))
 
-  ;; proc-imp-cmf-lang-v6.entry (List-of aloc) -> imp-cmf-lang-v6.tail
+  ;; proc-imp-cmf-lang-v7.entry (List-of aloc) -> imp-cmf-lang-v7.tail
   (define (impose-calling-conventions-entry entry alocs)
     (match entry
       [tail
@@ -105,7 +105,7 @@
                   ,@calling-convention
                   ,(impose-calling-conventions-tail tail return-aloc)))))]))
 
-  ;; proc-imp-cmf-lang-v6.tail aloc -> imp-cmf-lang-v6.tail
+  ;; proc-imp-cmf-lang-v7.tail aloc -> imp-cmf-lang-v7.tail
   (define (impose-calling-conventions-tail tail return-aloc)
     (match tail
       [`(begin ,es ... ,t)
@@ -127,7 +127,7 @@
               (jump ,return-aloc ,(current-frame-base-pointer-register) ,(current-return-value-register)))
            effect^)]))
 
-  ;; proc-imp-cmf-lang-v6.effect -> imp-cmf-lang-v6.effect
+  ;; proc-imp-cmf-lang-v7.effect -> imp-cmf-lang-v7.effect
   (define (impose-calling-conventions-effect effect)
     (match effect
       [`(set! ,aloc ,value)
@@ -144,7 +144,7 @@
             ,(impose-calling-conventions-effect e1)
             ,(impose-calling-conventions-effect e2))]))
 
-  ;; proc-imp-cmf-lang-v6.pred -> imp-cmf-lang-v6.pred
+  ;; proc-imp-cmf-lang-v7.pred -> imp-cmf-lang-v7.pred
   (define (impose-calling-conventions-pred pred)
     (match pred
       ['(true) pred]
@@ -159,7 +159,7 @@
             ,(impose-calling-conventions-pred p3))]
       [`(,relop ,op1 ,op2) pred]))
 
-  ;; proc-imp-cmf-lang-v6.value -> imp-cmf-lang-v6.effect imp-cmf-lang-v6.value
+  ;; proc-imp-cmf-lang-v7.value -> imp-cmf-lang-v7.effect imp-cmf-lang-v7.value
   (define (impose-calling-conventions-value value)
     (match value
       [`(call ,triv ,ops ...)
@@ -648,5 +648,51 @@
                                          (set! r15 L.rp.11)
                                          (jump L.g.1 rbp r15 nfv.36)))
                          (set! x.2 rax))
-                       (begin (set! rax (* x.1 x.2)) (jump tmp-ra.34 rbp rax)))))))
+                       (begin (set! rax (* x.1 x.2)) (jump tmp-ra.34 rbp rax))))))
+  (check-equal? (impose-calling-conventions '(module
+                                                 (define L.f.1
+                                                   (lambda (x.1)
+                                                     (begin
+                                                       (set! y.1 1)
+                                                       (set! z.1 2)
+                                                       (begin
+                                                         (set! a.1 (bitwise-and y.1 x.1))
+                                                         (set! b.1 (bitwise-ior z.1 x.1))
+                                                         (begin
+                                                           (set! a.1 (bitwise-xor a.1 b.1))
+                                                           (arithmetic-shift-right a.1 3))))))
+                                               (begin
+                                                 (set! x.2 10)
+                                                 (if (begin (set! x.3 100) (not (!= x.2 x.3)))
+                                                     (call L.f.1 x.2)
+                                                     (call L.f.2 1000)))))
+                '(module
+                     ((new-frames ()))
+                   (define L.f.1
+                     ((new-frames ()))
+                     (begin
+                       (set! tmp-ra.37 r15)
+                       (begin
+                         (set! x.1 rdi)
+                         (begin
+                           (set! y.1 1)
+                           (set! z.1 2)
+                           (begin
+                             (set! a.1 (bitwise-and y.1 x.1))
+                             (set! b.1 (bitwise-ior z.1 x.1))
+                             (begin
+                               (set! a.1 (bitwise-xor a.1 b.1))
+                               (begin
+                                 (set! rax (arithmetic-shift-right a.1 3))
+                                 (jump tmp-ra.37 rbp rax))))))))
+                   (begin
+                     (set! tmp-ra.38 r15)
+                     (begin
+                       (set! x.2 10)
+                       (if (begin (set! x.3 100) (not (!= x.2 x.3)))
+                           (begin (set! rdi x.2) (set! r15 tmp-ra.38) (jump L.f.1 rbp r15 rdi))
+                           (begin
+                             (set! rdi 1000)
+                             (set! r15 tmp-ra.38)
+                             (jump L.f.2 rbp r15 rdi))))))))
 

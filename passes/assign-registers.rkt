@@ -5,17 +5,17 @@
 (require
   cpsc411/compiler-lib
   cpsc411/graph-lib
-  cpsc411/langs/v6
+  cpsc411/langs/v7
   rackunit)
 
 (provide assign-registers)
 
-;; asm-lang-v6/framed -> asm-lang-v6/spilled
+;; asm-lang-v7/framed -> asm-lang-v7/spilled
 ;; perform graph-colouring register allocation, compiling p to
-;; Asm-pred-lang.v6/spilled by decorating programs with their register
+;; Asm-pred-lang.v7/spilled by decorating programs with their register
 ;; assignments
 (define/contract (assign-registers p)
-  (-> asm-pred-lang-v6/framed? asm-pred-lang-v6/spilled?)
+  (-> asm-pred-lang-v7/framed? asm-pred-lang-v7/spilled?)
 
 
   ;; keeps track of spilled variables
@@ -1081,4 +1081,89 @@
                    (define L.f.1
                      ((locals ()) (conflicts ((x.1 ()))) (assignment ((x.1 rsp))))
                      (begin (set! x.1 rdi) (jump x.1)))
-                   (begin (set! rdi 1) (jump L.f.1 rbp rdi)))))
+                   (begin (set! rdi 1) (jump L.f.1 rbp rdi))))
+  (check-equal? (assign-registers '(module
+                                       ((locals (x.3 tmp-ra.2 x.2))
+                                        (conflicts
+                                         ((x.2 (x.3 tmp-ra.2 rbp))
+                                          (tmp-ra.2 (rdi x.3 x.2 rbp))
+                                          (x.3 (x.2 tmp-ra.2 rbp))
+                                          (rbp (r15 rdi x.3 x.2 tmp-ra.2))
+                                          (rdi (r15 tmp-ra.2 rbp))
+                                          (r15 (rdi rbp))))
+                                        (assignment ()))
+                                     (define L.f.1
+                                       ((locals (tmp-ra.1 b.1 y.1 x.1 z.1 a.1))
+                                        (conflicts
+                                         ((a.1 (b.1 z.1 x.1 rbp tmp-ra.1))
+                                          (z.1 (a.1 y.1 x.1 rbp tmp-ra.1))
+                                          (x.1 (b.1 a.1 z.1 y.1 rbp tmp-ra.1))
+                                          (y.1 (z.1 x.1 rbp tmp-ra.1))
+                                          (b.1 (x.1 a.1 rbp tmp-ra.1))
+                                          (tmp-ra.1 (rax b.1 a.1 z.1 y.1 x.1 rdi rbp))
+                                          (rbp (rax b.1 a.1 z.1 y.1 x.1 tmp-ra.1))
+                                          (rdi (tmp-ra.1))
+                                          (rax (rbp tmp-ra.1))))
+                                        (assignment ()))
+                                       (begin
+                                         (set! tmp-ra.1 r15)
+                                         (set! x.1 rdi)
+                                         (set! y.1 1)
+                                         (set! z.1 2)
+                                         (set! a.1 y.1)
+                                         (set! a.1 (bitwise-and a.1 x.1))
+                                         (set! b.1 z.1)
+                                         (set! b.1 (bitwise-ior b.1 x.1))
+                                         (set! a.1 (bitwise-xor a.1 b.1))
+                                         (set! rax a.1)
+                                         (set! rax (arithmetic-shift-right rax 3))
+                                         (jump tmp-ra.1 rbp rax)))
+                                     (begin
+                                       (set! tmp-ra.2 r15)
+                                       (set! x.2 10)
+                                       (if (begin (set! x.3 100) (not (!= x.2 x.3)))
+                                           (begin (set! rdi x.2) (set! r15 tmp-ra.2) (jump L.f.1 rbp r15 rdi))
+                                           (begin (set! rdi 1000) (set! r15 tmp-ra.2) (jump L.f.2 rbp r15 rdi))))))
+                '(module
+                     ((locals ())
+                      (conflicts
+                       ((x.2 (x.3 tmp-ra.2 rbp))
+                        (tmp-ra.2 (rdi x.3 x.2 rbp))
+                        (x.3 (x.2 tmp-ra.2 rbp))
+                        (rbp (r15 rdi x.3 x.2 tmp-ra.2))
+                        (rdi (r15 tmp-ra.2 rbp))
+                        (r15 (rdi rbp))))
+                      (assignment ((x.2 rcx) (tmp-ra.2 rbx) (x.3 rsp))))
+                   (define L.f.1
+                     ((locals ())
+                      (conflicts
+                       ((a.1 (b.1 z.1 x.1 rbp tmp-ra.1))
+                        (z.1 (a.1 y.1 x.1 rbp tmp-ra.1))
+                        (x.1 (b.1 a.1 z.1 y.1 rbp tmp-ra.1))
+                        (y.1 (z.1 x.1 rbp tmp-ra.1))
+                        (b.1 (x.1 a.1 rbp tmp-ra.1))
+                        (tmp-ra.1 (rax b.1 a.1 z.1 y.1 x.1 rdi rbp))
+                        (rbp (rax b.1 a.1 z.1 y.1 x.1 tmp-ra.1))
+                        (rdi (tmp-ra.1))
+                        (rax (rbp tmp-ra.1))))
+                      (assignment
+                       ((y.1 rdx) (z.1 rbx) (a.1 rdx) (x.1 rcx) (b.1 rbx) (tmp-ra.1 rsp))))
+                     (begin
+                       (set! tmp-ra.1 r15)
+                       (set! x.1 rdi)
+                       (set! y.1 1)
+                       (set! z.1 2)
+                       (set! a.1 y.1)
+                       (set! a.1 (bitwise-and a.1 x.1))
+                       (set! b.1 z.1)
+                       (set! b.1 (bitwise-ior b.1 x.1))
+                       (set! a.1 (bitwise-xor a.1 b.1))
+                       (set! rax a.1)
+                       (set! rax (arithmetic-shift-right rax 3))
+                       (jump tmp-ra.1 rbp rax)))
+                   (begin
+                     (set! tmp-ra.2 r15)
+                     (set! x.2 10)
+                     (if (begin (set! x.3 100) (not (!= x.2 x.3)))
+                         (begin (set! rdi x.2) (set! r15 tmp-ra.2) (jump L.f.1 rbp r15 rdi))
+                         (begin (set! rdi 1000) (set! r15 tmp-ra.2) (jump L.f.2 rbp r15 rdi)))))))

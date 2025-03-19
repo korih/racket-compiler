@@ -4,34 +4,34 @@
 
 (require
   cpsc411/compiler-lib
-  cpsc411/langs/v6
+  cpsc411/langs/v7
   rackunit)
 
 (provide replace-locations)
 
-;; asm-lang-v6/assignments -> nested-asm-lang-fvars-v6
-;; compiles p to Nested-asm-lang v6 by replacing all abstract location with
+;; asm-lang-v7/assignments -> nested-asm-lang-fvars-v7
+;; compiles p to Nested-asm-lang v7 by replacing all abstract location with
 ;; physical locations using the assignment described in the assignment info
 ;; field, and dropping any register-allocation-related metadata from the program
 (define (replace-locations p)
-  (-> asm-pred-lang-v6/assignments? nested-asm-lang-fvars-v6?)
+  (-> asm-pred-lang-v7/assignments? nested-asm-lang-fvars-v7?)
 
   ;; func is `(define ,label ,tail)
   ;; interp. a function definition that does not have metadata
 
-  ;; asm-lang-v6/assignments -> (Dict-of aloc rloc)
+  ;; asm-lang-v7/assignments -> (Dict-of aloc rloc)
   ;; interp. creates a dictionary of assignments
   (define (make-assignments-dict assignments)
     (for/fold ([acc (hash)])
               ([pair assignments])
       (dict-set acc (first pair) (second pair))))
 
-  ;; asm-pred-lang-v6/assignments.label asm-pred-lang-v6/assignments.info asm-pred-lang-v6/assignments.tail -> func
+  ;; asm-pred-lang-v7/assignments.label asm-pred-lang-v7/assignments.info asm-pred-lang-v7/assignments.tail -> func
   (define (replace-locations-func label info tail)
     (define assignments (make-assignments-dict (info-ref info 'assignment)))
     `(define ,label ,(replace-locations-tail tail assignments)))
 
-  ;; asm-lang-v6/assignments.tail (Dict-of aloc rloc) -> nested-asm-lang-v6.tail
+  ;; asm-lang-v7/assignments.tail (Dict-of aloc rloc) -> nested-asm-lang-v7.tail
   (define (replace-locations-tail t assignments)
     (match t
       [`(begin ,fx ... ,tail)
@@ -47,7 +47,7 @@
       [`(jump ,trg ,locs ...)
        `(jump ,(replace-locations-trg trg assignments))]))
 
-  ;; asm-lang-v6/assignments.effect (Dict-of aloc rloc) -> nested-asm-lang-v6.effect
+  ;; asm-lang-v7/assignments.effect (Dict-of aloc rloc) -> nested-asm-lang-v7.effect
   (define (replace-locations-effect e assignments)
     (match e
       [`(set! ,loc (,binop ,loc ,op))
@@ -69,7 +69,7 @@
        `(if ,pred^ ,e1^ ,e2^)]
       [`(return-point ,label ,tail) `(return-point ,label ,(replace-locations-tail tail assignments))]))
 
-  ;; asm-lang-v6/assignments.pred (Dict-of aloc rloc) -> nested-asm-lang-v6.pred
+  ;; asm-lang-v7/assignments.pred (Dict-of aloc rloc) -> nested-asm-lang-v7.pred
   (define (replace-locations-pred p assignments)
     (match p
       ['(true) p]
@@ -91,25 +91,25 @@
        (define p3^ (replace-locations-pred p3 assignments))
        `(if ,p1^ ,p2^ ,p3^)]))
 
-  ;; asm-lang-v6/assignments.triv (Dict-of aloc rloc) -> nested-asm-lang-v6.triv
+  ;; asm-lang-v7/assignments.triv (Dict-of aloc rloc) -> nested-asm-lang-v7.triv
   (define (replace-locations-triv t assignments)
     (match t
       [label #:when (label? label) label]
       [op (replace-locations-opand op assignments)]))
 
-  ;; asm-lang-v6/assignments.opand (Dict-of aloc rloc) -> nested-asm-lang-v6.opand
+  ;; asm-lang-v7/assignments.opand (Dict-of aloc rloc) -> nested-asm-lang-v7.opand
   (define (replace-locations-opand op assignments)
     (match op
       [int64 #:when (int64? int64) int64]
       [loc (replace-locations-loc loc assignments)]))
 
-  ;; asm-lang-v6/assignments.loc (Dict-of aloc rloc) -> nested-asm-lang-v6.loc
+  ;; asm-lang-v7/assignments.loc (Dict-of aloc rloc) -> nested-asm-lang-v7.loc
   (define (replace-locations-loc loc assignments)
     (match loc
       [aloc #:when (aloc? aloc) (dict-ref assignments aloc)]
       [rloc #:when (rloc? rloc) rloc]))
 
-  ;; asm-lang-v6/assignments.trg (Dict-of aloc rloc) -> nested-asm-lang-v6.trg
+  ;; asm-lang-v7/assignments.trg (Dict-of aloc rloc) -> nested-asm-lang-v7.trg
   (define (replace-locations-trg trg assignments)
     (match trg
       [label #:when (label? label) label]
@@ -392,4 +392,68 @@
                 `(module
                      (define ,label1 (begin (set! rbx ,label2) (set! rcx -5) (jump rbx)))
                    (define ,label2 (jump rax))
-                   (jump ,label1))))
+                   (jump ,label1)))
+  (check-equal? (replace-locations '(module
+                                        ((locals ())
+                                         (conflicts
+                                          ((x.2 (x.3 tmp-ra.2 rbp))
+                                           (tmp-ra.2 (rdi x.3 x.2 rbp))
+                                           (x.3 (x.2 tmp-ra.2 rbp))
+                                           (rbp (r15 rdi x.3 x.2 tmp-ra.2))
+                                           (rdi (r15 tmp-ra.2 rbp))
+                                           (r15 (rdi rbp))))
+                                         (assignment ((x.2 rcx) (tmp-ra.2 rbx) (x.3 rsp))))
+                                      (define L.f.1
+                                        ((locals ())
+                                         (conflicts
+                                          ((a.1 (b.1 z.1 x.1 rbp tmp-ra.1))
+                                           (z.1 (a.1 y.1 x.1 rbp tmp-ra.1))
+                                           (x.1 (b.1 a.1 z.1 y.1 rbp tmp-ra.1))
+                                           (y.1 (z.1 x.1 rbp tmp-ra.1))
+                                           (b.1 (x.1 a.1 rbp tmp-ra.1))
+                                           (tmp-ra.1 (rax b.1 a.1 z.1 y.1 x.1 rdi rbp))
+                                           (rbp (rax b.1 a.1 z.1 y.1 x.1 tmp-ra.1))
+                                           (rdi (tmp-ra.1))
+                                           (rax (rbp tmp-ra.1))))
+                                         (assignment
+                                          ((y.1 rdx) (z.1 rbx) (a.1 rdx) (x.1 rcx) (b.1 rbx) (tmp-ra.1 rsp))))
+                                        (begin
+                                          (set! tmp-ra.1 r15)
+                                          (set! x.1 rdi)
+                                          (set! y.1 1)
+                                          (set! z.1 2)
+                                          (set! a.1 y.1)
+                                          (set! a.1 (bitwise-and a.1 x.1))
+                                          (set! b.1 z.1)
+                                          (set! b.1 (bitwise-ior b.1 x.1))
+                                          (set! a.1 (bitwise-xor a.1 b.1))
+                                          (set! rax a.1)
+                                          (set! rax (arithmetic-shift-right rax 3))
+                                          (jump tmp-ra.1 rbp rax)))
+                                      (begin
+                                        (set! tmp-ra.2 r15)
+                                        (set! x.2 10)
+                                        (if (begin (set! x.3 100) (not (!= x.2 x.3)))
+                                            (begin (set! rdi x.2) (set! r15 tmp-ra.2) (jump L.f.1 rbp r15 rdi))
+                                            (begin (set! rdi 1000) (set! r15 tmp-ra.2) (jump L.f.2 rbp r15 rdi))))))
+                '(module
+                     (define L.f.1
+                       (begin
+                         (set! rsp r15)
+                         (set! rcx rdi)
+                         (set! rdx 1)
+                         (set! rbx 2)
+                         (set! rdx rdx)
+                         (set! rdx (bitwise-and rdx rcx))
+                         (set! rbx rbx)
+                         (set! rbx (bitwise-ior rbx rcx))
+                         (set! rdx (bitwise-xor rdx rbx))
+                         (set! rax rdx)
+                         (set! rax (arithmetic-shift-right rax 3))
+                         (jump rsp)))
+                   (begin
+                     (set! rbx r15)
+                     (set! rcx 10)
+                     (if (begin (set! rsp 100) (not (!= rcx rsp)))
+                         (begin (set! rdi rcx) (set! r15 rbx) (jump L.f.1))
+                         (begin (set! rdi 1000) (set! r15 rbx) (jump L.f.2)))))))
