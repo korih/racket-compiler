@@ -84,13 +84,13 @@
       ['eq?
        (lambda (values) `(if (= ,(first values) ,(second values)) ,(current-true-ptr) ,(current-false-ptr)))]
       ['unsafe-fx<
-       (lambda (values) `(< ,(first values) ,(second values)))]
+       (lambda (values) `(if (< ,(first values) ,(second values)) ,(current-true-ptr) ,(current-false-ptr)))]
       ['unsafe-fx<=
-       (lambda (values) `(<= ,(first values) ,(second values)))]
+       (lambda (values) `(if (<= ,(first values) ,(second values)) ,(current-true-ptr) ,(current-false-ptr)))]
       ['unsafe-fx>
-       (lambda (values) `(> ,(first values) ,(second values)))]
+       (lambda (values) `(if (> ,(first values) ,(second values)) ,(current-true-ptr) ,(current-false-ptr)))]
       ['unsafe-fx>=
-       (lambda (values) `(>= ,(first values) ,(second values)))]))
+       (lambda (values) `(if (>= ,(first values) ,(second values)) ,(current-true-ptr) ,(current-false-ptr)))]))
 
   ;; exprs-unsafe-data-lang-v7.unop -> ((List-of exprs-bits-lang-v7.value) -> exprs-bits-lang-v7.value)
   (define (specify-representation-unop unop)
@@ -133,6 +133,8 @@
                 '(module (+ 800 160)))
   (check-equal? (specify-representation '(module (unsafe-fx* 100 20)))
                 '(module (* 100 160)))
+  (check-equal? (specify-representation '(module (unsafe-fx< 100 20)))
+                '(module (if (< 800 160) 14 6)))
   (check-equal? (specify-representation '(module
                                              (define L.+.1
                                                (lambda (tmp.1 tmp.2)
