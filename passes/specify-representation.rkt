@@ -58,8 +58,7 @@
       [label #:when (label? label) label]
       [aloc #:when (aloc? aloc) aloc]
       [fixnum #:when (int61? fixnum)
-              (bitwise-ior (arithmetic-shift fixnum (current-fixnum-shift))
-                           (current-fixnum-tag))]
+              (arithmetic-shift fixnum (current-fixnum-shift))]
       [char #:when (ascii-char-literal? char)
             (bitwise-ior (arithmetic-shift (char->integer char) (current-ascii-char-shift))
                          (current-ascii-char-tag))]))
@@ -74,7 +73,10 @@
   (define (specify-representation-binop binop)
     (match binop
       ['unsafe-fx*
-       (lambda (values) `(* ,(first values) (arithmetic-shift-right ,(second values) ,(current-fixnum-shift))))]
+       (lambda (values)
+         (if (int61? (second values))
+             `(* ,(arithmetic-shift (first values) (* -1 (current-fixnum-shift))) ,(second values))
+             `(* ,(first values) (arithmetic-shift-right ,(second values) ,(current-fixnum-shift)))))]
       ['unsafe-fx+
        (lambda (values) `(+ ,(first values) ,(second values)))]
       ['unsafe-fx-
@@ -127,6 +129,10 @@
      `(module ,@(map specify-representation-func funcs) ,(specify-representation-value value))]))
 
 (module+ test
+  (check-equal? (specify-representation '(module (unsafe-fx+ 100 20)))
+                '(module (+ 800 160)))
+  (check-equal? (specify-representation '(module (unsafe-fx* 100 20)))
+                '(module (* 100 160)))
   (check-equal? (specify-representation '(module
                                              (define L.+.1
                                                (lambda (tmp.1 tmp.2)
