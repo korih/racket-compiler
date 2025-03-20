@@ -1,6 +1,7 @@
 #lang racket
 
 (require
+  rackunit
   cpsc411/compiler-lib
   cpsc411/graph-lib
   cpsc411/langs/v7)
@@ -25,8 +26,10 @@
        ;; look for available fvar
        (define fvar-assignment (for/or ([i (in-naturals)])
                                  (define var (string->symbol (format "fv~a" i)))
-                                 (if (not (and (member var conflict-list)
-                                               (member `(,x ,var) assignments)))
+                                 (if (and (not (member var conflict-list))
+                                          (andmap (lambda (assignment)
+                                                    (not (symbol=? (cadr assignment) var)))
+                                                  assignments))
                                      var
                                      #f)))
        `(,x ,fvar-assignment)]))
@@ -62,7 +65,6 @@
      (define funs^ (for/list ([fun funs])
                      (assign-call-fun fun)))
      `(module ,info^ ,@funs^ ,tail)]))
-
 
 
 (module+ test
@@ -794,7 +796,7 @@
                         (rsi (tmp-ra.95 r15 rdi rbp))
                         (r15 (rsi rdi rbp))
                         (rax (rbp))))
-                      (assignment ((tmp-ra.95 fv0) (tmp.87 fv1))))
+                      (assignment ((tmp-ra.95 fv1) (tmp.87 fv0))))
                    (define L.*.17
                      ((new-frames ())
                       (locals (tmp-ra.93 tmp.79 tmp.81 tmp.42 tmp.82 tmp.41 tmp.78 tmp.80))
