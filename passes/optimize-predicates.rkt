@@ -4,15 +4,15 @@
 
 (require
   cpsc411/compiler-lib
-  cpsc411/langs/v6
+  cpsc411/langs/v7
   rackunit)
 
 (provide optimize-predicates)
 
-;; nested-asm-lang-v5 -> nested-asm-lang-v5
+;; nested-asm-lang-v7 -> nested-asm-lang-v7
 ;; optimizes p by analyzing and simplifying predicates
 (define/contract (optimize-predicates p)
-  (-> nested-asm-lang-fvars-v6? nested-asm-lang-fvars-v6?)
+  (-> nested-asm-lang-fvars-v7? nested-asm-lang-fvars-v7?)
 
   ;; func is `(define ,label ,tail)
   ;; interp. a function definition
@@ -31,7 +31,7 @@
       [`(define ,label ,tail)
        `(define ,label ,(optimize-predicates/tail tail empty-env))]))
 
-  ;; nested-asm-lang-v5.tail -> nested-asm-lang-v5.tail
+  ;; nested-asm-lang-v7.tail -> nested-asm-lang-v7.tail
   (define (optimize-predicates/tail t env)
     (match t
       [`(begin ,fx ... ,tail)
@@ -52,9 +52,9 @@
                              (optimize-predicates/tail f-tail env)
                              env)]))
 
-  ;; nested-asm-lang-v5.pred nested-asm-lang-v5.tail nested-asm-lang-v5.tail -> nested-asm-lang-v5.tail
+  ;; nested-asm-lang-v7.pred nested-asm-lang-v7.tail nested-asm-lang-v7.tail -> nested-asm-lang-v7.tail
   ;; OR
-  ;; nested-asm-lang-v5.pred nested-asm-lang-v5.effect nested-asm-lang-v5.effect -> nested-asm-lang-v5.effect
+  ;; nested-asm-lang-v7.pred nested-asm-lang-v7.effect nested-asm-lang-v7.effect -> nested-asm-lang-v7.effect
   (define (optimize-conditional pred k-t k-f env)
     (match pred
       ['(true) k-t]
@@ -78,7 +78,7 @@
                              env)]
       [`(,relop ,loc ,triv)  (interp-relop-conditional relop loc triv k-t k-f env)]))
 
-  ;; nested-asm-lang-v5.effect -> nested-asm-lang-v5.effect
+  ;; nested-asm-lang-v7.effect -> nested-asm-lang-v7.effect
   (define (optimize-predicates/effect e env)
     (match e
       [`(begin ,fx ...)
@@ -114,7 +114,7 @@
       [`(return-point ,label ,tail) (define tail^ (optimize-predicates/tail tail env))
                                     (values `(return-point ,label ,tail^) env)]))
 
-  ;; nested-asm-lang-v5.binop RangeValue RangeValue -> RangeValue
+  ;; nested-asm-lang-v7.binop RangeValue RangeValue -> RangeValue
   ;; interp. the known abstract value resulting from the binary operation
   (define (interp-binop/range-value binop val1 val2)
     (match (cons val1 val2)
@@ -123,14 +123,14 @@
       ; In all other cases, we don't know the range of the result because an overflow is unpredictable
       [_ 'unknown]))
 
-  ;; nested-asm-lang-v5.binop int64 int64 -> RangeValue
+  ;; nested-asm-lang-v7.binop int64 int64 -> RangeValue
   ;; interp. the known abstract value resulting from the binary operation
   (define (interp-binop binop a b)
     (match binop
       ['* (x64-mul a b)]
       ['+ (x64-add a b)]))
 
-  ;; nested-asm-lang-v5.triv -> RangeValue
+  ;; nested-asm-lang-v7.triv -> RangeValue
   ;; interp. the known value or range of the triv
   (define (interp-triv triv env)
     (match triv
@@ -138,9 +138,9 @@
       [loc (with-handlers ([exn:fail? (lambda (_) 'unknown)])
              (lookup-env env loc))]))
 
-  ;; nested-asm-lang-v5.relop nested-asm-lang-v5.loc nested-asm-lang-v5.triv nested-asm-lang-v5.tail nested-asm-lang-v5.tail -> nested-asm-lang-v5.tail
+  ;; nested-asm-lang-v7.relop nested-asm-lang-v7.loc nested-asm-lang-v7.triv nested-asm-lang-v7.tail nested-asm-lang-v7.tail -> nested-asm-lang-v7.tail
   ;; OR
-  ;; nested-asm-lang-v5.relop nested-asm-lang-v5.loc nested-asm-lang-v5.triv nested-asm-lang-v5.effect nested-asm-lang-v5.effect -> nested-asm-lang-v5.effect
+  ;; nested-asm-lang-v7.relop nested-asm-lang-v7.loc nested-asm-lang-v7.triv nested-asm-lang-v7.effect nested-asm-lang-v7.effect -> nested-asm-lang-v7.effect
   (define (interp-relop-conditional relop loc triv k-t k-f env)
     (define op1 (interp-triv loc env))
     (define op2 (interp-triv triv env))
@@ -150,7 +150,7 @@
       [else `(if (,relop ,loc ,triv) ,k-t ,k-f)]))
 
 
-  ;; nested-asm-lang-v5.relop RangeValue RangeValue -> boolean
+  ;; nested-asm-lang-v7.relop RangeValue RangeValue -> boolean
   ;; interp. true if the relop can be optimized to true
   (define (interp-relop-optimize-true? relop op1 op2)
     ;(begin (printf op1))
@@ -160,7 +160,7 @@
       ; In all other cases, we don't know the range of the result
       [_ #f]))
 
-  ;; nested-asm-lang-v5.relop nested-asm-lang-v5.triv nested-asm-lang-v5.triv -> boolean
+  ;; nested-asm-lang-v7.relop nested-asm-lang-v7.triv nested-asm-lang-v7.triv -> boolean
   ;; interp. true if the relop can be optimized to false (the relop is guaranteed to be false)
   (define (interp-relop-optimize-false? relop op1 op2)
     (match (cons op1 op2)
@@ -169,21 +169,21 @@
       ; In all other cases, we don't know the range of the result
       [_ #f]))
 
-  ;; nested-asm-lang-v5.triv -> nested-asm-lang-v5.triv
+  ;; nested-asm-lang-v7.triv -> nested-asm-lang-v7.triv
   ;; interp. optimize the triv if possible
   (define (try-optimize-triv/triv triv env)
     (match triv
       [label #:when (label? label) label]
       [opand (try-optimize-triv/opand opand env)]))
 
-  ;; nested-asm-lang-v5.opand -> nested-asm-lang-v5.triv
+  ;; nested-asm-lang-v7.opand -> nested-asm-lang-v7.triv
   ;; interp. optimize the opand if possible
   (define (try-optimize-triv/opand opand env)
     (match opand
       [x #:when (int64? x) x]
       [loc (try-optimize-triv/loc loc env)]))
 
-  ;; nested-asm-lang-v5.loc -> nested-asm-lang-v5.triv
+  ;; nested-asm-lang-v7.loc -> nested-asm-lang-v7.triv
   ;; interp. optimize the loc if possible
   (define (try-optimize-triv/loc loc env)
     (with-handlers ([exn:fail? (lambda (_) loc)])
