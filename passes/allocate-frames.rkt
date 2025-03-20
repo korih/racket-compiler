@@ -40,7 +40,7 @@
     (define info^ i)
     (set! info^ (info-remove info^ 'undead-out))
     (set! info^ (info-remove info^ 'call-undead))
-    (set! info^ (info-remove info^ 'new-frames))
+    #;(set! info^ (info-remove info^ 'new-frames))
     (set! info^ (info-set info^ 'locals (reverse locals^))) ;reverse so it matches tests
     (info-set info^ 'assignment new-assignments))
 
