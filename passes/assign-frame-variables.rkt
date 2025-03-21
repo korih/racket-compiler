@@ -25,8 +25,8 @@
        ;; look for available fvar
        (define fvar-assignment (for/or ([i (in-naturals)])
                                  (define var (string->symbol (format "fv~a" i)))
-                                 (if (not (and (member var conflict-list)
-                                               (member `(,x ,var) assignments)))
+                                 (if (and (not (member var conflict-list))
+                                          (not (ormap (lambda (assignment) (symbol=? var (cadr assignment))) assignments)))
                                      var
                                      #f)))
        `(,x ,fvar-assignment)]))
