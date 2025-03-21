@@ -14,58 +14,60 @@
 (define/contract (assign-call-undead-variables p)
   (-> asm-pred-lang-v7/conflicts? asm-pred-lang-v7/pre-framed?)
 
-  ;; call-undead-set (Graph of conflicts) assignments -> assignments
-  ;; recursive call over call-undead-set that produces an assignment
-  ;; for the physical locations in the call-undead-set
-  (define (graph-colouring x conflicts-graph assignments)
-    (cond
-      ; empty set, default assignment
-      ; select x from input, remove from conflict and input to return assignment
-      [else
-       (define conflict-list (get-neighbors conflicts-graph x))
-       ;; look for available fvar
-       (define fvar-assignment (for/or ([i (in-naturals)])
-                                 (define var (string->symbol (format "fv~a" i)))
-                                 (if (and (not (member var conflict-list))
-                                          (andmap (lambda (assignment)
-                                                    (not (symbol=? (cadr assignment) var)))
-                                                  assignments))
-                                     var
-                                     #f)))
-       `(,x ,fvar-assignment)]))
+  ;; func is `(define ,label ,info ,tail)
+  ;; interp. a function definition
 
-  ;; info -> info
-  ;; update the assignments for a given info
-  (define (assign-call-variables-info info)
-    (define conflicts-graph (info-ref info 'conflicts))
-    (define assignments
-      (for/fold ([assignments '()])
-                ([x (info-ref info 'call-undead)])
-        (cons (graph-colouring x conflicts-graph assignments) assignments)))
+  ;; (List-of asm-lang-v7/conflicts.loc) (Graph-of asm-lang-v7/conflicts.loc) (List-of (list aloc fvar)) -> (List-of (list aloc fvar))
+  ;; interp. recursively assigns each variable in call-undead-set to the first
+  ;; compatible frame variable without conflicts
+  (define (graph-colouring call-undead-set conflicts-graph assignments)
+    (if (null? call-undead-set)
+        assignments
+        (let* ([x (car call-undead-set)]
+               [rest (cdr call-undead-set)]
+               [assignments^ (graph-colouring rest conflicts-graph assignments)]
+               ;; Collect vars assigned to each frame variable
+               [frame-assignments (foldl (lambda (pair acc)
+                                           (let* ([var (car pair)]
+                                                  [fv (cadr pair)]
+                                                  [existing (assoc fv acc)])
+                                             (if existing
+                                                 (cons (list fv (cons var (cadr existing))) (remove existing acc))
+                                                 (cons (list fv (list var)) acc))))
+                                         '()
+                                         assignments^)]
+               [conflict-vars (get-neighbors conflicts-graph x)])
 
-    (define locals^
+          ;; Recursively find the first valid frame slot
+          (define (find-fvar i)
+            (let* ([candidate-fv (make-fvar i)]
+                   [assigned-vars (let ([entry (assoc candidate-fv frame-assignments)])
+                                    (if entry (cadr entry) '()))]
+                   [conflict? (ormap (lambda (v) (member v conflict-vars)) assigned-vars)])
+              (if conflict?
+                  (find-fvar (add1 i))
+                  candidate-fv)))
+
+          ;; Assign x to the first safe frame var
+          (cons (list x (find-fvar 0)) assignments^))))
+
+  ;; asm-lang-v7/conflicts.info -> asm-lang-v7/pre-framed.info
+  (define (assign-call-undead-variables-info info)
+    (define assignments (graph-colouring (info-ref info 'call-undead) (info-ref info 'conflicts) '()))
+    (define locals
       (let ([local-variables (reverse (info-ref info 'locals))])
-        (remove* (map car assignments) local-variables )))
+        (remove* (map car assignments) local-variables)))
+    (info-set (info-set info 'locals locals) 'assignment assignments))
 
-    (define info^ (info-set info 'assignment assignments))
-    ;(define info^^ (info-set (info-remove info^ 'locals) 'locals locals^))
-    (define info^^ (info-set info^ 'locals locals^))
-    info^^)
-
-  ;; (Function Definition) -> (Function Definition)
-  ;; Take a function definition and update its assignments in info
-  (define (assign-call-fun f)
-    (match f
-      [`(define ,name ,info ,tail) (define info^ (assign-call-variables-info info))
-                                   `(define ,name ,info^ ,tail)]))
+  ;; func -> func
+  (define (assign-call-undead-variables-func func)
+    (match func
+      [`(define ,label ,info ,tail)
+       `(define ,label ,(assign-call-undead-variables-info info) ,tail)]))
 
   (match p
-    [`(module ,info ,funs ... ,tail)
-     (define info^ (assign-call-variables-info info))
-     (define funs^ (for/list ([fun funs])
-                     (assign-call-fun fun)))
-     `(module ,info^ ,@funs^ ,tail)]))
-
+    [`(module ,info ,funcs ... ,tail)
+     `(module ,(assign-call-undead-variables-info info) ,@(map assign-call-undead-variables-func funcs) ,tail)]))
 
 (module+ test
   (require rackunit)
@@ -796,7 +798,7 @@
                         (rsi (tmp-ra.95 r15 rdi rbp))
                         (r15 (rsi rdi rbp))
                         (rax (rbp))))
-                      (assignment ((tmp-ra.95 fv1) (tmp.87 fv0))))
+                      (assignment ((tmp.87 fv1) (tmp-ra.95 fv0))))
                    (define L.*.17
                      ((new-frames ())
                       (locals (tmp-ra.93 tmp.79 tmp.81 tmp.42 tmp.82 tmp.41 tmp.78 tmp.80))
