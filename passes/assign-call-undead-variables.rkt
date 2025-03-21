@@ -990,7 +990,7 @@
                                                       (r15 (rbp rdi rsi rdx rcx r8 r9 fv0)))))
                                                  (define L.+.31
                                                    ((new-frames ())
-                                                    (locals (tmp.183 tmp.96 tmp.185 tmp.184 tmp.97 tmp-ra.232 tmp.186))
+                                                    (locals (tmp.185 tmp.96 tmp.186 tmp-ra.232 tmp.184 tmp.97 tmp.183))
                                                     (undead-out
                                                      ((rdi rsi tmp-ra.232 rbp)
                                                       (rsi tmp.96 tmp-ra.232 rbp)
@@ -1012,14 +1012,14 @@
                                                        ((tmp-ra.232 rax rbp) (rax rbp)))))
                                                     (call-undead ())
                                                     (conflicts
-                                                     ((tmp.186 (tmp.96 rbp tmp-ra.232 tmp.97))
-                                                      (tmp-ra.232
-                                                       (tmp.97 tmp.96 rbp rsi rdi tmp.184 tmp.183 tmp.186 tmp.185 rax))
+                                                     ((tmp.183 (rbp tmp-ra.232 tmp.97 tmp.96))
                                                       (tmp.97 (rbp tmp-ra.232 tmp.96 tmp.184 tmp.183 tmp.186 tmp.185 rax))
                                                       (tmp.184 (tmp.97 rbp tmp-ra.232 tmp.96))
-                                                      (tmp.185 (rbp tmp-ra.232 tmp.97 tmp.96))
+                                                      (tmp-ra.232
+                                                       (tmp.97 tmp.96 rbp rsi rdi tmp.184 tmp.183 tmp.186 tmp.185 rax))
+                                                      (tmp.186 (tmp.96 rbp tmp-ra.232 tmp.97))
                                                       (tmp.96 (tmp.97 rbp tmp-ra.232 rsi tmp.184 tmp.183 tmp.186 tmp.185))
-                                                      (tmp.183 (rbp tmp-ra.232 tmp.97 tmp.96))
+                                                      (tmp.185 (rbp tmp-ra.232 tmp.97 tmp.96))
                                                       (rax (tmp.97 rbp tmp-ra.232))
                                                       (rbp (tmp.97 tmp.96 tmp-ra.232 tmp.184 tmp.183 tmp.186 tmp.185 rax))
                                                       (rdi (tmp-ra.232))
@@ -1053,7 +1053,7 @@
                                                  (define L.F.6
                                                    ((new-frames ())
                                                     (locals
-                                                     (b.20 f.24 g.25 a.19 nfv.234 d.22 nfv.235 e.23 tmp-ra.233 tmp.187 c.21))
+                                                     (tmp.187 nfv.234 nfv.235 g.25 f.24 e.23 d.22 c.21 b.20 a.19 tmp-ra.233))
                                                     (undead-out
                                                      ((rdi rsi rdx rcx r8 r9 fv0 tmp-ra.233 rbp)
                                                       (rsi rdx rcx r8 r9 fv0 a.19 tmp-ra.233 rbp)
@@ -1081,10 +1081,7 @@
                                                       (rsi rdi r15 rbp)))
                                                     (call-undead (tmp-ra.233))
                                                     (conflicts
-                                                     ((c.21
-                                                       (rsi rdi g.25 f.24 e.23 d.22 rbp tmp-ra.233 a.19 b.20 fv0 r9 r8 rcx))
-                                                      (tmp.187 (rdi rbp tmp-ra.233))
-                                                      (tmp-ra.233
+                                                     ((tmp-ra.233
                                                        (tmp.187
                                                         g.25
                                                         f.24
@@ -1101,20 +1098,23 @@
                                                         rdx
                                                         rsi
                                                         rdi))
-                                                      (e.23
-                                                       (rcx rdx rsi rdi g.25 f.24 rbp tmp-ra.233 a.19 b.20 c.21 d.22 fv0 r9))
-                                                      (nfv.235 (r15 rbp rdi rsi rdx rcx r8 r9 nfv.234))
-                                                      (d.22
-                                                       (rdx rsi rdi g.25 f.24 e.23 rbp tmp-ra.233 a.19 b.20 c.21 fv0 r9 r8))
-                                                      (nfv.234 (r15 nfv.235 rbp rdi rsi rdx rcx r8 r9))
                                                       (a.19
                                                        (g.25 f.24 e.23 d.22 c.21 b.20 rbp tmp-ra.233 fv0 r9 r8 rcx rdx rsi))
-                                                      (g.25
-                                                       (r9 r8 rcx rdx rsi rdi rbp tmp-ra.233 a.19 b.20 c.21 d.22 e.23 f.24))
-                                                      (f.24
-                                                       (r8 rcx rdx rsi rdi g.25 rbp tmp-ra.233 a.19 b.20 c.21 d.22 e.23 fv0))
                                                       (b.20
                                                        (rdi g.25 f.24 e.23 d.22 c.21 rbp tmp-ra.233 a.19 fv0 r9 r8 rcx rdx))
+                                                      (c.21
+                                                       (rsi rdi g.25 f.24 e.23 d.22 rbp tmp-ra.233 a.19 b.20 fv0 r9 r8 rcx))
+                                                      (d.22
+                                                       (rdx rsi rdi g.25 f.24 e.23 rbp tmp-ra.233 a.19 b.20 c.21 fv0 r9 r8))
+                                                      (e.23
+                                                       (rcx rdx rsi rdi g.25 f.24 rbp tmp-ra.233 a.19 b.20 c.21 d.22 fv0 r9))
+                                                      (f.24
+                                                       (r8 rcx rdx rsi rdi g.25 rbp tmp-ra.233 a.19 b.20 c.21 d.22 e.23 fv0))
+                                                      (g.25
+                                                       (r9 r8 rcx rdx rsi rdi rbp tmp-ra.233 a.19 b.20 c.21 d.22 e.23 f.24))
+                                                      (nfv.235 (r15 rbp rdi rsi rdx rcx r8 r9 nfv.234))
+                                                      (nfv.234 (r15 nfv.235 rbp rdi rsi rdx rcx r8 r9))
+                                                      (tmp.187 (rdi rbp tmp-ra.233))
                                                       (rdi
                                                        (tmp.187
                                                         r15
@@ -1267,7 +1267,7 @@
                                                      (jump L.+.31 rbp r15 rdi rsi)))
                                                  (define L.G.7
                                                    ((new-frames ())
-                                                    (locals (g.32 c.28 tmp-ra.236 h.33 f.31 e.30 b.27 d.29 a.26))
+                                                    (locals (h.33 g.32 f.31 e.30 d.29 c.28 b.27 a.26 tmp-ra.236))
                                                     (undead-out
                                                      ((rdi rsi rdx rcx r8 r9 fv0 fv1 tmp-ra.236 rbp)
                                                       (rsi rdx rcx r8 r9 fv0 fv1 a.26 tmp-ra.236 rbp)
@@ -1291,7 +1291,26 @@
                                                       (fv2 fv1 fv0 r9 r8 rcx rdx rsi rdi r15 rbp)))
                                                     (call-undead ())
                                                     (conflicts
-                                                     ((a.26
+                                                     ((tmp-ra.236
+                                                       (fv2
+                                                        h.33
+                                                        g.32
+                                                        f.31
+                                                        e.30
+                                                        d.29
+                                                        c.28
+                                                        b.27
+                                                        a.26
+                                                        rbp
+                                                        fv1
+                                                        fv0
+                                                        r9
+                                                        r8
+                                                        rcx
+                                                        rdx
+                                                        rsi
+                                                        rdi))
+                                                      (a.26
                                                        (h.33
                                                         g.32
                                                         f.31
@@ -1308,23 +1327,6 @@
                                                         rcx
                                                         rdx
                                                         rsi))
-                                                      (d.29
-                                                       (rdx
-                                                        rsi
-                                                        rdi
-                                                        h.33
-                                                        g.32
-                                                        f.31
-                                                        e.30
-                                                        rbp
-                                                        tmp-ra.236
-                                                        c.28
-                                                        b.27
-                                                        a.26
-                                                        fv1
-                                                        fv0
-                                                        r9
-                                                        r8))
                                                       (b.27
                                                        (rdi
                                                         h.33
@@ -1342,6 +1344,40 @@
                                                         r8
                                                         rcx
                                                         rdx))
+                                                      (c.28
+                                                       (rsi
+                                                        rdi
+                                                        h.33
+                                                        g.32
+                                                        f.31
+                                                        e.30
+                                                        d.29
+                                                        rbp
+                                                        tmp-ra.236
+                                                        b.27
+                                                        a.26
+                                                        fv1
+                                                        fv0
+                                                        r9
+                                                        r8
+                                                        rcx))
+                                                      (d.29
+                                                       (rdx
+                                                        rsi
+                                                        rdi
+                                                        h.33
+                                                        g.32
+                                                        f.31
+                                                        e.30
+                                                        rbp
+                                                        tmp-ra.236
+                                                        c.28
+                                                        b.27
+                                                        a.26
+                                                        fv1
+                                                        fv0
+                                                        r9
+                                                        r8))
                                                       (e.30
                                                        (rcx
                                                         rdx
@@ -1376,59 +1412,6 @@
                                                         a.26
                                                         fv1
                                                         fv0))
-                                                      (h.33
-                                                       (fv0
-                                                        r9
-                                                        r8
-                                                        rcx
-                                                        rdx
-                                                        rsi
-                                                        rdi
-                                                        rbp
-                                                        tmp-ra.236
-                                                        g.32
-                                                        f.31
-                                                        e.30
-                                                        d.29
-                                                        c.28
-                                                        b.27
-                                                        a.26))
-                                                      (tmp-ra.236
-                                                       (fv2
-                                                        h.33
-                                                        g.32
-                                                        f.31
-                                                        e.30
-                                                        d.29
-                                                        c.28
-                                                        b.27
-                                                        a.26
-                                                        rbp
-                                                        fv1
-                                                        fv0
-                                                        r9
-                                                        r8
-                                                        rcx
-                                                        rdx
-                                                        rsi
-                                                        rdi))
-                                                      (c.28
-                                                       (rsi
-                                                        rdi
-                                                        h.33
-                                                        g.32
-                                                        f.31
-                                                        e.30
-                                                        d.29
-                                                        rbp
-                                                        tmp-ra.236
-                                                        b.27
-                                                        a.26
-                                                        fv1
-                                                        fv0
-                                                        r9
-                                                        r8
-                                                        rcx))
                                                       (g.32
                                                        (r9
                                                         r8
@@ -1446,6 +1429,23 @@
                                                         b.27
                                                         a.26
                                                         fv1))
+                                                      (h.33
+                                                       (fv0
+                                                        r9
+                                                        r8
+                                                        rcx
+                                                        rdx
+                                                        rsi
+                                                        rdi
+                                                        rbp
+                                                        tmp-ra.236
+                                                        g.32
+                                                        f.31
+                                                        e.30
+                                                        d.29
+                                                        c.28
+                                                        b.27
+                                                        a.26))
                                                       (rdi
                                                        (r15
                                                         fv2
@@ -1644,23 +1644,23 @@
                                                  (define L.H.8
                                                    ((new-frames ())
                                                     (locals
-                                                     (tmp-ra.237
-                                                      d.37
-                                                      r5.47
-                                                      f.39
+                                                     (r7.49
                                                       r6.48
-                                                      r3.45
+                                                      r5.47
                                                       r4.46
-                                                      a.34
-                                                      j.42
-                                                      g.40
+                                                      r3.45
                                                       r2.44
-                                                      e.38
-                                                      b.35
+                                                      r1.43
+                                                      j.42
                                                       h.41
+                                                      g.40
+                                                      f.39
+                                                      e.38
+                                                      d.37
                                                       c.36
-                                                      r7.49
-                                                      r1.43))
+                                                      b.35
+                                                      a.34
+                                                      tmp-ra.237))
                                                     (undead-out
                                                      ((rdi rsi rdx rcx r8 r9 fv0 fv1 fv2 tmp-ra.237 rbp)
                                                       (rsi rdx rcx r8 r9 fv0 fv1 fv2 a.34 tmp-ra.237 rbp)
@@ -1699,185 +1699,7 @@
                                                       (rsi rdi r15 rbp)))
                                                     (call-undead (c.36 d.37 e.38 f.39 g.40 h.41 j.42 tmp-ra.237))
                                                     (conflicts
-                                                     ((r1.43 (rbp tmp-ra.237 j.42 h.41 g.40 f.39 e.38 d.37 c.36))
-                                                      (r7.49 (rbp tmp-ra.237 j.42))
-                                                      (c.36
-                                                       (rdi
-                                                        r1.43
-                                                        j.42
-                                                        h.41
-                                                        g.40
-                                                        f.39
-                                                        e.38
-                                                        d.37
-                                                        rbp
-                                                        tmp-ra.237
-                                                        a.34
-                                                        b.35
-                                                        fv2
-                                                        fv1
-                                                        fv0
-                                                        r9
-                                                        r8
-                                                        rcx))
-                                                      (h.41
-                                                       (rdi
-                                                        r6.48
-                                                        r5.47
-                                                        r4.46
-                                                        r3.45
-                                                        r2.44
-                                                        r1.43
-                                                        j.42
-                                                        rbp
-                                                        tmp-ra.237
-                                                        g.40
-                                                        f.39
-                                                        e.38
-                                                        d.37
-                                                        c.36
-                                                        a.34
-                                                        b.35
-                                                        fv2))
-                                                      (b.35
-                                                       (rdi
-                                                        j.42
-                                                        h.41
-                                                        g.40
-                                                        f.39
-                                                        e.38
-                                                        d.37
-                                                        c.36
-                                                        rbp
-                                                        tmp-ra.237
-                                                        a.34
-                                                        fv2
-                                                        fv1
-                                                        fv0
-                                                        r9
-                                                        r8
-                                                        rcx
-                                                        rdx))
-                                                      (e.38
-                                                       (rdi
-                                                        r3.45
-                                                        r2.44
-                                                        r1.43
-                                                        j.42
-                                                        h.41
-                                                        g.40
-                                                        f.39
-                                                        rbp
-                                                        tmp-ra.237
-                                                        d.37
-                                                        c.36
-                                                        a.34
-                                                        b.35
-                                                        fv2
-                                                        fv1
-                                                        fv0
-                                                        r9))
-                                                      (r2.44 (rbp tmp-ra.237 j.42 h.41 g.40 f.39 e.38 d.37))
-                                                      (g.40
-                                                       (rdi
-                                                        r5.47
-                                                        r4.46
-                                                        r3.45
-                                                        r2.44
-                                                        r1.43
-                                                        j.42
-                                                        h.41
-                                                        rbp
-                                                        tmp-ra.237
-                                                        f.39
-                                                        e.38
-                                                        d.37
-                                                        c.36
-                                                        a.34
-                                                        b.35
-                                                        fv2
-                                                        fv1))
-                                                      (j.42
-                                                       (rdi
-                                                        r7.49
-                                                        r6.48
-                                                        r5.47
-                                                        r4.46
-                                                        r3.45
-                                                        r2.44
-                                                        r1.43
-                                                        rbp
-                                                        tmp-ra.237
-                                                        h.41
-                                                        g.40
-                                                        f.39
-                                                        e.38
-                                                        d.37
-                                                        c.36
-                                                        a.34
-                                                        b.35))
-                                                      (a.34
-                                                       (j.42
-                                                        h.41
-                                                        g.40
-                                                        f.39
-                                                        e.38
-                                                        d.37
-                                                        c.36
-                                                        b.35
-                                                        rbp
-                                                        tmp-ra.237
-                                                        fv2
-                                                        fv1
-                                                        fv0
-                                                        r9
-                                                        r8
-                                                        rcx
-                                                        rdx
-                                                        rsi))
-                                                      (r4.46 (rbp tmp-ra.237 j.42 h.41 g.40 f.39))
-                                                      (r3.45 (rbp tmp-ra.237 j.42 h.41 g.40 f.39 e.38))
-                                                      (r6.48 (rbp tmp-ra.237 j.42 h.41))
-                                                      (f.39
-                                                       (rdi
-                                                        r4.46
-                                                        r3.45
-                                                        r2.44
-                                                        r1.43
-                                                        j.42
-                                                        h.41
-                                                        g.40
-                                                        rbp
-                                                        tmp-ra.237
-                                                        e.38
-                                                        d.37
-                                                        c.36
-                                                        a.34
-                                                        b.35
-                                                        fv2
-                                                        fv1
-                                                        fv0))
-                                                      (r5.47 (rbp tmp-ra.237 j.42 h.41 g.40))
-                                                      (d.37
-                                                       (rdi
-                                                        r2.44
-                                                        r1.43
-                                                        j.42
-                                                        h.41
-                                                        g.40
-                                                        f.39
-                                                        e.38
-                                                        rbp
-                                                        tmp-ra.237
-                                                        c.36
-                                                        a.34
-                                                        b.35
-                                                        fv2
-                                                        fv1
-                                                        fv0
-                                                        r9
-                                                        r8))
-                                                      (tmp-ra.237
+                                                     ((tmp-ra.237
                                                        (r7.49
                                                         r6.48
                                                         r5.47
@@ -1904,6 +1726,184 @@
                                                         rdx
                                                         rsi
                                                         rdi))
+                                                      (a.34
+                                                       (j.42
+                                                        h.41
+                                                        g.40
+                                                        f.39
+                                                        e.38
+                                                        d.37
+                                                        c.36
+                                                        b.35
+                                                        rbp
+                                                        tmp-ra.237
+                                                        fv2
+                                                        fv1
+                                                        fv0
+                                                        r9
+                                                        r8
+                                                        rcx
+                                                        rdx
+                                                        rsi))
+                                                      (b.35
+                                                       (rdi
+                                                        j.42
+                                                        h.41
+                                                        g.40
+                                                        f.39
+                                                        e.38
+                                                        d.37
+                                                        c.36
+                                                        rbp
+                                                        tmp-ra.237
+                                                        a.34
+                                                        fv2
+                                                        fv1
+                                                        fv0
+                                                        r9
+                                                        r8
+                                                        rcx
+                                                        rdx))
+                                                      (c.36
+                                                       (rdi
+                                                        r1.43
+                                                        j.42
+                                                        h.41
+                                                        g.40
+                                                        f.39
+                                                        e.38
+                                                        d.37
+                                                        rbp
+                                                        tmp-ra.237
+                                                        a.34
+                                                        b.35
+                                                        fv2
+                                                        fv1
+                                                        fv0
+                                                        r9
+                                                        r8
+                                                        rcx))
+                                                      (d.37
+                                                       (rdi
+                                                        r2.44
+                                                        r1.43
+                                                        j.42
+                                                        h.41
+                                                        g.40
+                                                        f.39
+                                                        e.38
+                                                        rbp
+                                                        tmp-ra.237
+                                                        c.36
+                                                        a.34
+                                                        b.35
+                                                        fv2
+                                                        fv1
+                                                        fv0
+                                                        r9
+                                                        r8))
+                                                      (e.38
+                                                       (rdi
+                                                        r3.45
+                                                        r2.44
+                                                        r1.43
+                                                        j.42
+                                                        h.41
+                                                        g.40
+                                                        f.39
+                                                        rbp
+                                                        tmp-ra.237
+                                                        d.37
+                                                        c.36
+                                                        a.34
+                                                        b.35
+                                                        fv2
+                                                        fv1
+                                                        fv0
+                                                        r9))
+                                                      (f.39
+                                                       (rdi
+                                                        r4.46
+                                                        r3.45
+                                                        r2.44
+                                                        r1.43
+                                                        j.42
+                                                        h.41
+                                                        g.40
+                                                        rbp
+                                                        tmp-ra.237
+                                                        e.38
+                                                        d.37
+                                                        c.36
+                                                        a.34
+                                                        b.35
+                                                        fv2
+                                                        fv1
+                                                        fv0))
+                                                      (g.40
+                                                       (rdi
+                                                        r5.47
+                                                        r4.46
+                                                        r3.45
+                                                        r2.44
+                                                        r1.43
+                                                        j.42
+                                                        h.41
+                                                        rbp
+                                                        tmp-ra.237
+                                                        f.39
+                                                        e.38
+                                                        d.37
+                                                        c.36
+                                                        a.34
+                                                        b.35
+                                                        fv2
+                                                        fv1))
+                                                      (h.41
+                                                       (rdi
+                                                        r6.48
+                                                        r5.47
+                                                        r4.46
+                                                        r3.45
+                                                        r2.44
+                                                        r1.43
+                                                        j.42
+                                                        rbp
+                                                        tmp-ra.237
+                                                        g.40
+                                                        f.39
+                                                        e.38
+                                                        d.37
+                                                        c.36
+                                                        a.34
+                                                        b.35
+                                                        fv2))
+                                                      (j.42
+                                                       (rdi
+                                                        r7.49
+                                                        r6.48
+                                                        r5.47
+                                                        r4.46
+                                                        r3.45
+                                                        r2.44
+                                                        r1.43
+                                                        rbp
+                                                        tmp-ra.237
+                                                        h.41
+                                                        g.40
+                                                        f.39
+                                                        e.38
+                                                        d.37
+                                                        c.36
+                                                        a.34
+                                                        b.35))
+                                                      (r1.43 (rbp tmp-ra.237 j.42 h.41 g.40 f.39 e.38 d.37 c.36))
+                                                      (r2.44 (rbp tmp-ra.237 j.42 h.41 g.40 f.39 e.38 d.37))
+                                                      (r3.45 (rbp tmp-ra.237 j.42 h.41 g.40 f.39 e.38))
+                                                      (r4.46 (rbp tmp-ra.237 j.42 h.41 g.40 f.39))
+                                                      (r5.47 (rbp tmp-ra.237 j.42 h.41 g.40))
+                                                      (r6.48 (rbp tmp-ra.237 j.42 h.41))
+                                                      (r7.49 (rbp tmp-ra.237 j.42))
                                                       (rdi (j.42 h.41 g.40 f.39 e.38 d.37 c.36 r15 rsi rbp b.35 tmp-ra.237))
                                                       (rsi (r15 rbp rdi a.34 tmp-ra.237))
                                                       (rdx (b.35 a.34 tmp-ra.237))
@@ -2039,7 +2039,7 @@
                       (assignment ()))
                    (define L.+.31
                      ((new-frames ())
-                      (locals (tmp.186 tmp-ra.232 tmp.97 tmp.184 tmp.185 tmp.96 tmp.183))
+                      (locals (tmp.183 tmp.97 tmp.184 tmp-ra.232 tmp.186 tmp.96 tmp.185))
                       (undead-out
                        ((rdi rsi tmp-ra.232 rbp)
                         (rsi tmp.96 tmp-ra.232 rbp)
@@ -2061,14 +2061,14 @@
                          ((tmp-ra.232 rax rbp) (rax rbp)))))
                       (call-undead ())
                       (conflicts
-                       ((tmp.186 (tmp.96 rbp tmp-ra.232 tmp.97))
-                        (tmp-ra.232
-                         (tmp.97 tmp.96 rbp rsi rdi tmp.184 tmp.183 tmp.186 tmp.185 rax))
+                       ((tmp.183 (rbp tmp-ra.232 tmp.97 tmp.96))
                         (tmp.97 (rbp tmp-ra.232 tmp.96 tmp.184 tmp.183 tmp.186 tmp.185 rax))
                         (tmp.184 (tmp.97 rbp tmp-ra.232 tmp.96))
-                        (tmp.185 (rbp tmp-ra.232 tmp.97 tmp.96))
+                        (tmp-ra.232
+                         (tmp.97 tmp.96 rbp rsi rdi tmp.184 tmp.183 tmp.186 tmp.185 rax))
+                        (tmp.186 (tmp.96 rbp tmp-ra.232 tmp.97))
                         (tmp.96 (tmp.97 rbp tmp-ra.232 rsi tmp.184 tmp.183 tmp.186 tmp.185))
-                        (tmp.183 (rbp tmp-ra.232 tmp.97 tmp.96))
+                        (tmp.185 (rbp tmp-ra.232 tmp.97 tmp.96))
                         (rax (tmp.97 rbp tmp-ra.232))
                         (rbp (tmp.97 tmp.96 tmp-ra.232 tmp.184 tmp.183 tmp.186 tmp.185 rax))
                         (rdi (tmp-ra.232))
@@ -2102,7 +2102,7 @@
                            (begin (set! rax 574) (jump tmp-ra.232 rbp rax)))))
                    (define L.F.6
                      ((new-frames ())
-                      (locals (c.21 tmp.187 e.23 nfv.235 d.22 nfv.234 a.19 g.25 f.24 b.20))
+                      (locals (a.19 b.20 c.21 d.22 e.23 f.24 g.25 nfv.235 nfv.234 tmp.187))
                       (undead-out
                        ((rdi rsi rdx rcx r8 r9 fv0 tmp-ra.233 rbp)
                         (rsi rdx rcx r8 r9 fv0 a.19 tmp-ra.233 rbp)
@@ -2130,10 +2130,7 @@
                         (rsi rdi r15 rbp)))
                       (call-undead (tmp-ra.233))
                       (conflicts
-                       ((c.21
-                         (rsi rdi g.25 f.24 e.23 d.22 rbp tmp-ra.233 a.19 b.20 fv0 r9 r8 rcx))
-                        (tmp.187 (rdi rbp tmp-ra.233))
-                        (tmp-ra.233
+                       ((tmp-ra.233
                          (tmp.187
                           g.25
                           f.24
@@ -2150,20 +2147,23 @@
                           rdx
                           rsi
                           rdi))
-                        (e.23
-                         (rcx rdx rsi rdi g.25 f.24 rbp tmp-ra.233 a.19 b.20 c.21 d.22 fv0 r9))
-                        (nfv.235 (r15 rbp rdi rsi rdx rcx r8 r9 nfv.234))
-                        (d.22
-                         (rdx rsi rdi g.25 f.24 e.23 rbp tmp-ra.233 a.19 b.20 c.21 fv0 r9 r8))
-                        (nfv.234 (r15 nfv.235 rbp rdi rsi rdx rcx r8 r9))
                         (a.19
                          (g.25 f.24 e.23 d.22 c.21 b.20 rbp tmp-ra.233 fv0 r9 r8 rcx rdx rsi))
-                        (g.25
-                         (r9 r8 rcx rdx rsi rdi rbp tmp-ra.233 a.19 b.20 c.21 d.22 e.23 f.24))
-                        (f.24
-                         (r8 rcx rdx rsi rdi g.25 rbp tmp-ra.233 a.19 b.20 c.21 d.22 e.23 fv0))
                         (b.20
                          (rdi g.25 f.24 e.23 d.22 c.21 rbp tmp-ra.233 a.19 fv0 r9 r8 rcx rdx))
+                        (c.21
+                         (rsi rdi g.25 f.24 e.23 d.22 rbp tmp-ra.233 a.19 b.20 fv0 r9 r8 rcx))
+                        (d.22
+                         (rdx rsi rdi g.25 f.24 e.23 rbp tmp-ra.233 a.19 b.20 c.21 fv0 r9 r8))
+                        (e.23
+                         (rcx rdx rsi rdi g.25 f.24 rbp tmp-ra.233 a.19 b.20 c.21 d.22 fv0 r9))
+                        (f.24
+                         (r8 rcx rdx rsi rdi g.25 rbp tmp-ra.233 a.19 b.20 c.21 d.22 e.23 fv0))
+                        (g.25
+                         (r9 r8 rcx rdx rsi rdi rbp tmp-ra.233 a.19 b.20 c.21 d.22 e.23 f.24))
+                        (nfv.235 (r15 rbp rdi rsi rdx rcx r8 r9 nfv.234))
+                        (nfv.234 (r15 nfv.235 rbp rdi rsi rdx rcx r8 r9))
+                        (tmp.187 (rdi rbp tmp-ra.233))
                         (rdi
                          (tmp.187
                           r15
@@ -2317,7 +2317,7 @@
                        (jump L.+.31 rbp r15 rdi rsi)))
                    (define L.G.7
                      ((new-frames ())
-                      (locals (a.26 d.29 b.27 e.30 f.31 h.33 tmp-ra.236 c.28 g.32))
+                      (locals (tmp-ra.236 a.26 b.27 c.28 d.29 e.30 f.31 g.32 h.33))
                       (undead-out
                        ((rdi rsi rdx rcx r8 r9 fv0 fv1 tmp-ra.236 rbp)
                         (rsi rdx rcx r8 r9 fv0 fv1 a.26 tmp-ra.236 rbp)
@@ -2341,7 +2341,26 @@
                         (fv2 fv1 fv0 r9 r8 rcx rdx rsi rdi r15 rbp)))
                       (call-undead ())
                       (conflicts
-                       ((a.26
+                       ((tmp-ra.236
+                         (fv2
+                          h.33
+                          g.32
+                          f.31
+                          e.30
+                          d.29
+                          c.28
+                          b.27
+                          a.26
+                          rbp
+                          fv1
+                          fv0
+                          r9
+                          r8
+                          rcx
+                          rdx
+                          rsi
+                          rdi))
+                        (a.26
                          (h.33
                           g.32
                           f.31
@@ -2358,23 +2377,6 @@
                           rcx
                           rdx
                           rsi))
-                        (d.29
-                         (rdx
-                          rsi
-                          rdi
-                          h.33
-                          g.32
-                          f.31
-                          e.30
-                          rbp
-                          tmp-ra.236
-                          c.28
-                          b.27
-                          a.26
-                          fv1
-                          fv0
-                          r9
-                          r8))
                         (b.27
                          (rdi
                           h.33
@@ -2392,6 +2394,40 @@
                           r8
                           rcx
                           rdx))
+                        (c.28
+                         (rsi
+                          rdi
+                          h.33
+                          g.32
+                          f.31
+                          e.30
+                          d.29
+                          rbp
+                          tmp-ra.236
+                          b.27
+                          a.26
+                          fv1
+                          fv0
+                          r9
+                          r8
+                          rcx))
+                        (d.29
+                         (rdx
+                          rsi
+                          rdi
+                          h.33
+                          g.32
+                          f.31
+                          e.30
+                          rbp
+                          tmp-ra.236
+                          c.28
+                          b.27
+                          a.26
+                          fv1
+                          fv0
+                          r9
+                          r8))
                         (e.30
                          (rcx
                           rdx
@@ -2426,59 +2462,6 @@
                           a.26
                           fv1
                           fv0))
-                        (h.33
-                         (fv0
-                          r9
-                          r8
-                          rcx
-                          rdx
-                          rsi
-                          rdi
-                          rbp
-                          tmp-ra.236
-                          g.32
-                          f.31
-                          e.30
-                          d.29
-                          c.28
-                          b.27
-                          a.26))
-                        (tmp-ra.236
-                         (fv2
-                          h.33
-                          g.32
-                          f.31
-                          e.30
-                          d.29
-                          c.28
-                          b.27
-                          a.26
-                          rbp
-                          fv1
-                          fv0
-                          r9
-                          r8
-                          rcx
-                          rdx
-                          rsi
-                          rdi))
-                        (c.28
-                         (rsi
-                          rdi
-                          h.33
-                          g.32
-                          f.31
-                          e.30
-                          d.29
-                          rbp
-                          tmp-ra.236
-                          b.27
-                          a.26
-                          fv1
-                          fv0
-                          r9
-                          r8
-                          rcx))
                         (g.32
                          (r9
                           r8
@@ -2496,6 +2479,23 @@
                           b.27
                           a.26
                           fv1))
+                        (h.33
+                         (fv0
+                          r9
+                          r8
+                          rcx
+                          rdx
+                          rsi
+                          rdi
+                          rbp
+                          tmp-ra.236
+                          g.32
+                          f.31
+                          e.30
+                          d.29
+                          c.28
+                          b.27
+                          a.26))
                         (rdi
                          (r15
                           fv2
@@ -2694,7 +2694,7 @@
                        (jump L.H.8 rbp r15 rdi rsi rdx rcx r8 r9 fv0 fv1 fv2)))
                    (define L.H.8
                      ((new-frames ())
-                      (locals (r1.43 r7.49 b.35 r2.44 a.34 r4.46 r3.45 r6.48 r5.47))
+                      (locals (a.34 b.35 r1.43 r2.44 r3.45 r4.46 r5.47 r6.48 r7.49))
                       (undead-out
                        ((rdi rsi rdx rcx r8 r9 fv0 fv1 fv2 tmp-ra.237 rbp)
                         (rsi rdx rcx r8 r9 fv0 fv1 fv2 a.34 tmp-ra.237 rbp)
@@ -2733,185 +2733,7 @@
                         (rsi rdi r15 rbp)))
                       (call-undead (c.36 d.37 e.38 f.39 g.40 h.41 j.42 tmp-ra.237))
                       (conflicts
-                       ((r1.43 (rbp tmp-ra.237 j.42 h.41 g.40 f.39 e.38 d.37 c.36))
-                        (r7.49 (rbp tmp-ra.237 j.42))
-                        (c.36
-                         (rdi
-                          r1.43
-                          j.42
-                          h.41
-                          g.40
-                          f.39
-                          e.38
-                          d.37
-                          rbp
-                          tmp-ra.237
-                          a.34
-                          b.35
-                          fv2
-                          fv1
-                          fv0
-                          r9
-                          r8
-                          rcx))
-                        (h.41
-                         (rdi
-                          r6.48
-                          r5.47
-                          r4.46
-                          r3.45
-                          r2.44
-                          r1.43
-                          j.42
-                          rbp
-                          tmp-ra.237
-                          g.40
-                          f.39
-                          e.38
-                          d.37
-                          c.36
-                          a.34
-                          b.35
-                          fv2))
-                        (b.35
-                         (rdi
-                          j.42
-                          h.41
-                          g.40
-                          f.39
-                          e.38
-                          d.37
-                          c.36
-                          rbp
-                          tmp-ra.237
-                          a.34
-                          fv2
-                          fv1
-                          fv0
-                          r9
-                          r8
-                          rcx
-                          rdx))
-                        (e.38
-                         (rdi
-                          r3.45
-                          r2.44
-                          r1.43
-                          j.42
-                          h.41
-                          g.40
-                          f.39
-                          rbp
-                          tmp-ra.237
-                          d.37
-                          c.36
-                          a.34
-                          b.35
-                          fv2
-                          fv1
-                          fv0
-                          r9))
-                        (r2.44 (rbp tmp-ra.237 j.42 h.41 g.40 f.39 e.38 d.37))
-                        (g.40
-                         (rdi
-                          r5.47
-                          r4.46
-                          r3.45
-                          r2.44
-                          r1.43
-                          j.42
-                          h.41
-                          rbp
-                          tmp-ra.237
-                          f.39
-                          e.38
-                          d.37
-                          c.36
-                          a.34
-                          b.35
-                          fv2
-                          fv1))
-                        (j.42
-                         (rdi
-                          r7.49
-                          r6.48
-                          r5.47
-                          r4.46
-                          r3.45
-                          r2.44
-                          r1.43
-                          rbp
-                          tmp-ra.237
-                          h.41
-                          g.40
-                          f.39
-                          e.38
-                          d.37
-                          c.36
-                          a.34
-                          b.35))
-                        (a.34
-                         (j.42
-                          h.41
-                          g.40
-                          f.39
-                          e.38
-                          d.37
-                          c.36
-                          b.35
-                          rbp
-                          tmp-ra.237
-                          fv2
-                          fv1
-                          fv0
-                          r9
-                          r8
-                          rcx
-                          rdx
-                          rsi))
-                        (r4.46 (rbp tmp-ra.237 j.42 h.41 g.40 f.39))
-                        (r3.45 (rbp tmp-ra.237 j.42 h.41 g.40 f.39 e.38))
-                        (r6.48 (rbp tmp-ra.237 j.42 h.41))
-                        (f.39
-                         (rdi
-                          r4.46
-                          r3.45
-                          r2.44
-                          r1.43
-                          j.42
-                          h.41
-                          g.40
-                          rbp
-                          tmp-ra.237
-                          e.38
-                          d.37
-                          c.36
-                          a.34
-                          b.35
-                          fv2
-                          fv1
-                          fv0))
-                        (r5.47 (rbp tmp-ra.237 j.42 h.41 g.40))
-                        (d.37
-                         (rdi
-                          r2.44
-                          r1.43
-                          j.42
-                          h.41
-                          g.40
-                          f.39
-                          e.38
-                          rbp
-                          tmp-ra.237
-                          c.36
-                          a.34
-                          b.35
-                          fv2
-                          fv1
-                          fv0
-                          r9
-                          r8))
-                        (tmp-ra.237
+                       ((tmp-ra.237
                          (r7.49
                           r6.48
                           r5.47
@@ -2938,6 +2760,184 @@
                           rdx
                           rsi
                           rdi))
+                        (a.34
+                         (j.42
+                          h.41
+                          g.40
+                          f.39
+                          e.38
+                          d.37
+                          c.36
+                          b.35
+                          rbp
+                          tmp-ra.237
+                          fv2
+                          fv1
+                          fv0
+                          r9
+                          r8
+                          rcx
+                          rdx
+                          rsi))
+                        (b.35
+                         (rdi
+                          j.42
+                          h.41
+                          g.40
+                          f.39
+                          e.38
+                          d.37
+                          c.36
+                          rbp
+                          tmp-ra.237
+                          a.34
+                          fv2
+                          fv1
+                          fv0
+                          r9
+                          r8
+                          rcx
+                          rdx))
+                        (c.36
+                         (rdi
+                          r1.43
+                          j.42
+                          h.41
+                          g.40
+                          f.39
+                          e.38
+                          d.37
+                          rbp
+                          tmp-ra.237
+                          a.34
+                          b.35
+                          fv2
+                          fv1
+                          fv0
+                          r9
+                          r8
+                          rcx))
+                        (d.37
+                         (rdi
+                          r2.44
+                          r1.43
+                          j.42
+                          h.41
+                          g.40
+                          f.39
+                          e.38
+                          rbp
+                          tmp-ra.237
+                          c.36
+                          a.34
+                          b.35
+                          fv2
+                          fv1
+                          fv0
+                          r9
+                          r8))
+                        (e.38
+                         (rdi
+                          r3.45
+                          r2.44
+                          r1.43
+                          j.42
+                          h.41
+                          g.40
+                          f.39
+                          rbp
+                          tmp-ra.237
+                          d.37
+                          c.36
+                          a.34
+                          b.35
+                          fv2
+                          fv1
+                          fv0
+                          r9))
+                        (f.39
+                         (rdi
+                          r4.46
+                          r3.45
+                          r2.44
+                          r1.43
+                          j.42
+                          h.41
+                          g.40
+                          rbp
+                          tmp-ra.237
+                          e.38
+                          d.37
+                          c.36
+                          a.34
+                          b.35
+                          fv2
+                          fv1
+                          fv0))
+                        (g.40
+                         (rdi
+                          r5.47
+                          r4.46
+                          r3.45
+                          r2.44
+                          r1.43
+                          j.42
+                          h.41
+                          rbp
+                          tmp-ra.237
+                          f.39
+                          e.38
+                          d.37
+                          c.36
+                          a.34
+                          b.35
+                          fv2
+                          fv1))
+                        (h.41
+                         (rdi
+                          r6.48
+                          r5.47
+                          r4.46
+                          r3.45
+                          r2.44
+                          r1.43
+                          j.42
+                          rbp
+                          tmp-ra.237
+                          g.40
+                          f.39
+                          e.38
+                          d.37
+                          c.36
+                          a.34
+                          b.35
+                          fv2))
+                        (j.42
+                         (rdi
+                          r7.49
+                          r6.48
+                          r5.47
+                          r4.46
+                          r3.45
+                          r2.44
+                          r1.43
+                          rbp
+                          tmp-ra.237
+                          h.41
+                          g.40
+                          f.39
+                          e.38
+                          d.37
+                          c.36
+                          a.34
+                          b.35))
+                        (r1.43 (rbp tmp-ra.237 j.42 h.41 g.40 f.39 e.38 d.37 c.36))
+                        (r2.44 (rbp tmp-ra.237 j.42 h.41 g.40 f.39 e.38 d.37))
+                        (r3.45 (rbp tmp-ra.237 j.42 h.41 g.40 f.39 e.38))
+                        (r4.46 (rbp tmp-ra.237 j.42 h.41 g.40 f.39))
+                        (r5.47 (rbp tmp-ra.237 j.42 h.41 g.40))
+                        (r6.48 (rbp tmp-ra.237 j.42 h.41))
+                        (r7.49 (rbp tmp-ra.237 j.42))
                         (rdi (j.42 h.41 g.40 f.39 e.38 d.37 c.36 r15 rsi rbp b.35 tmp-ra.237))
                         (rsi (r15 rbp rdi a.34 tmp-ra.237))
                         (rdx (b.35 a.34 tmp-ra.237))
