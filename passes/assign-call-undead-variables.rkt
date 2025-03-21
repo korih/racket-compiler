@@ -1,6 +1,7 @@
 #lang racket
 
 (require
+  rackunit
   cpsc411/compiler-lib
   cpsc411/graph-lib
   cpsc411/langs/v7)
