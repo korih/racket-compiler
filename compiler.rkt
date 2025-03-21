@@ -36,7 +36,7 @@
   "passes/specify-representation.rkt"
   "passes/remove-complex-opera.rkt")
 
-#;(module+ test
+(module+ test
   (require
    rackunit
    rackunit/text-ui
