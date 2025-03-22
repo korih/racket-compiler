@@ -236,4 +236,68 @@
                    (let ((x.1 14) (x.2 6) (x.3 22) (x.4 30) (x.5 65342) (x.6 30766))
                      (if (!= (call L.not.2 (call L.boolean?.1 x.1)) 6)
                          (call L.+.5 (call L.error?.3 x.5) (call L.empty?.4 x.3))
-                         (call L.ascii-char?.6 x.6))))))
+                         (call L.ascii-char?.6 x.6)))))
+  (check-equal? (specify-representation '(module
+                                             (define L.*.2
+                                               (lambda (tmp.1 tmp.2)
+                                                 (if (fixnum? tmp.2)
+                                                     (if (fixnum? tmp.1) (unsafe-fx* tmp.1 tmp.2) (error 1))
+                                                     (error 1))))
+                                           (define L.+.1
+                                             (lambda (tmp.3 tmp.4)
+                                               (if (fixnum? tmp.4)
+                                                   (if (fixnum? tmp.3) (unsafe-fx+ tmp.3 tmp.4) (error 2))
+                                                   (error 2))))
+                                           (define L.add.10
+                                             (lambda (a.61 b.62 c.63 d.64 e.65 f.66 g.67 h.68)
+                                               (call
+                                                L.+.1
+                                                a.61
+                                                (call
+                                                 L.+.1
+                                                 b.62
+                                                 (call
+                                                  L.+.1
+                                                  c.63
+                                                  (call
+                                                   L.+.1
+                                                   d.64
+                                                   (call L.+.1 e.65 (call L.+.1 f.66 (call L.+.1 g.67 h.68)))))))))
+                                           (define L.add-and-multiply.11
+                                             (lambda (a.69 b.70 c.71 d.72 e.73 f.74 g.75 h.76 i.77)
+                                               (let ((sum.78 (call L.add.10 a.69 b.70 c.71 d.72 e.73 f.74 g.75 h.76)))
+                                                 (call L.*.2 sum.78 i.77))))
+                                           (call L.add-and-multiply.11 1 2 3 4 5 6 7 8 2)))
+                '(module
+                     (define L.*.2
+                       (lambda (tmp.1 tmp.2)
+                         (if (!= (if (= (bitwise-and tmp.2 7) 0) 14 6) 6)
+                             (if (!= (if (= (bitwise-and tmp.1 7) 0) 14 6) 6)
+                                 (* tmp.1 (arithmetic-shift-right tmp.2 3))
+                                 318)
+                             318)))
+                   (define L.+.1
+                     (lambda (tmp.3 tmp.4)
+                       (if (!= (if (= (bitwise-and tmp.4 7) 0) 14 6) 6)
+                           (if (!= (if (= (bitwise-and tmp.3 7) 0) 14 6) 6) (+ tmp.3 tmp.4) 574)
+                           574)))
+                   (define L.add.10
+                     (lambda (a.61 b.62 c.63 d.64 e.65 f.66 g.67 h.68)
+                       (call
+                        L.+.1
+                        a.61
+                        (call
+                         L.+.1
+                         b.62
+                         (call
+                          L.+.1
+                          c.63
+                          (call
+                           L.+.1
+                           d.64
+                           (call L.+.1 e.65 (call L.+.1 f.66 (call L.+.1 g.67 h.68)))))))))
+                   (define L.add-and-multiply.11
+                     (lambda (a.69 b.70 c.71 d.72 e.73 f.74 g.75 h.76 i.77)
+                       (let ((sum.78 (call L.add.10 a.69 b.70 c.71 d.72 e.73 f.74 g.75 h.76)))
+                         (call L.*.2 sum.78 i.77))))
+                   (call L.add-and-multiply.11 8 16 24 32 40 48 56 64 16))))

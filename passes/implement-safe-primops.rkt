@@ -172,7 +172,7 @@
   (check-equal? (implement-safe-primops '(module (call fixnum? 1)))
                 '(module
                      (define L.fixnum?.9 (lambda (tmp.17) (fixnum? tmp.17)))
-                   (call L.fixnum?.9 1))) 
+                   (call L.fixnum?.9 1)))
   (check-equal? (implement-safe-primops '(module
                                              (define L.odd?.4
                                                (lambda (x.45)
@@ -231,4 +231,53 @@
                          (x.6 #\x))
                      (if (call L.not.12 (call L.boolean?.13 x.1))
                          (call L.+.14 (call L.error?.15 x.5) (call L.empty?.16 x.3))
-                         (call L.ascii-char?.17 x.6))))))
+                         (call L.ascii-char?.17 x.6)))))
+  (check-equal? (implement-safe-primops '(module
+                                             (define L.add.10
+                                               (lambda (a.61 b.62 c.63 d.64 e.65 f.66 g.67 h.68)
+                                                 (call
+                                                  +
+                                                  a.61
+                                                  (call
+                                                   +
+                                                   b.62
+                                                   (call
+                                                    +
+                                                    c.63
+                                                    (call + d.64 (call + e.65 (call + f.66 (call + g.67 h.68)))))))))
+                                           (define L.add-and-multiply.11
+                                             (lambda (a.69 b.70 c.71 d.72 e.73 f.74 g.75 h.76 i.77)
+                                               (let ((sum.78 (call L.add.10 a.69 b.70 c.71 d.72 e.73 f.74 g.75 h.76)))
+                                                 (call * sum.78 i.77))))
+                                           (call L.add-and-multiply.11 1 2 3 4 5 6 7 8 2)))
+                '(module
+                     (define L.*.19
+                       (lambda (tmp.31 tmp.32)
+                         (if (fixnum? tmp.32)
+                             (if (fixnum? tmp.31) (unsafe-fx* tmp.31 tmp.32) (error 1))
+                             (error 1))))
+                   (define L.+.18
+                     (lambda (tmp.29 tmp.30)
+                       (if (fixnum? tmp.30)
+                           (if (fixnum? tmp.29) (unsafe-fx+ tmp.29 tmp.30) (error 2))
+                           (error 2))))
+                   (define L.add.10
+                     (lambda (a.61 b.62 c.63 d.64 e.65 f.66 g.67 h.68)
+                       (call
+                        L.+.18
+                        a.61
+                        (call
+                         L.+.18
+                         b.62
+                         (call
+                          L.+.18
+                          c.63
+                          (call
+                           L.+.18
+                           d.64
+                           (call L.+.18 e.65 (call L.+.18 f.66 (call L.+.18 g.67 h.68)))))))))
+                   (define L.add-and-multiply.11
+                     (lambda (a.69 b.70 c.71 d.72 e.73 f.74 g.75 h.76 i.77)
+                       (let ((sum.78 (call L.add.10 a.69 b.70 c.71 d.72 e.73 f.74 g.75 h.76)))
+                         (call L.*.19 sum.78 i.77))))
+                   (call L.add-and-multiply.11 1 2 3 4 5 6 7 8 2))))

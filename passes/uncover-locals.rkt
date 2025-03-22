@@ -849,4 +849,366 @@
                      (set! r9 48)
                      (set! fv0 56)
                      (set! r15 tmp-ra.238)
-                     (jump L.F.6 rbp r15 rdi rsi rdx rcx r8 r9 fv0)))))
+                     (jump L.F.6 rbp r15 rdi rsi rdx rcx r8 r9 fv0))))
+  (check-equal? (uncover-locals '(module
+                                     ((new-frames ()))
+                                   (define L.*.2
+                                     ((new-frames ()))
+                                     (begin
+                                       (set! tmp-ra.39 r15)
+                                       (set! tmp.1 rdi)
+                                       (set! tmp.2 rsi)
+                                       (if (begin
+                                             (if (begin
+                                                   (begin
+                                                     (set! tmp.24 tmp.2)
+                                                     (set! tmp.24 (bitwise-and tmp.24 7)))
+                                                   (= tmp.24 0))
+                                                 (set! tmp.23 14)
+                                                 (set! tmp.23 6))
+                                             (!= tmp.23 6))
+                                           (if (begin
+                                                 (if (begin
+                                                       (begin
+                                                         (set! tmp.26 tmp.1)
+                                                         (set! tmp.26 (bitwise-and tmp.26 7)))
+                                                       (= tmp.26 0))
+                                                     (set! tmp.25 14)
+                                                     (set! tmp.25 6))
+                                                 (!= tmp.25 6))
+                                               (begin
+                                                 (set! tmp.27 tmp.2)
+                                                 (set! tmp.27 (arithmetic-shift-right tmp.27 3))
+                                                 (set! rax tmp.1)
+                                                 (set! rax (* rax tmp.27))
+                                                 (jump tmp-ra.39 rbp rax))
+                                               (begin (set! rax 318) (jump tmp-ra.39 rbp rax)))
+                                           (begin (set! rax 318) (jump tmp-ra.39 rbp rax)))))
+                                   (define L.+.1
+                                     ((new-frames ()))
+                                     (begin
+                                       (set! tmp-ra.40 r15)
+                                       (set! tmp.3 rdi)
+                                       (set! tmp.4 rsi)
+                                       (if (begin
+                                             (if (begin
+                                                   (begin
+                                                     (set! tmp.29 tmp.4)
+                                                     (set! tmp.29 (bitwise-and tmp.29 7)))
+                                                   (= tmp.29 0))
+                                                 (set! tmp.28 14)
+                                                 (set! tmp.28 6))
+                                             (!= tmp.28 6))
+                                           (if (begin
+                                                 (if (begin
+                                                       (begin
+                                                         (set! tmp.31 tmp.3)
+                                                         (set! tmp.31 (bitwise-and tmp.31 7)))
+                                                       (= tmp.31 0))
+                                                     (set! tmp.30 14)
+                                                     (set! tmp.30 6))
+                                                 (!= tmp.30 6))
+                                               (begin
+                                                 (set! rax tmp.3)
+                                                 (set! rax (+ rax tmp.4))
+                                                 (jump tmp-ra.40 rbp rax))
+                                               (begin (set! rax 574) (jump tmp-ra.40 rbp rax)))
+                                           (begin (set! rax 574) (jump tmp-ra.40 rbp rax)))))
+                                   (define L.add.10
+                                     ((new-frames (() () () () () ())))
+                                     (begin
+                                       (set! tmp-ra.41 r15)
+                                       (set! a.61 rdi)
+                                       (set! b.62 rsi)
+                                       (set! c.63 rdx)
+                                       (set! d.64 rcx)
+                                       (set! e.65 r8)
+                                       (set! f.66 r9)
+                                       (set! g.67 fv0)
+                                       (set! h.68 fv1)
+                                       (return-point L.rp.12
+                                                     (begin
+                                                       (set! rdi g.67)
+                                                       (set! rsi h.68)
+                                                       (set! r15 L.rp.12)
+                                                       (jump L.+.1 rbp r15 rdi rsi)))
+                                       (set! tmp.37 rax)
+                                       (return-point L.rp.13
+                                                     (begin
+                                                       (set! rdi f.66)
+                                                       (set! rsi tmp.37)
+                                                       (set! r15 L.rp.13)
+                                                       (jump L.+.1 rbp r15 rdi rsi)))
+                                       (set! tmp.36 rax)
+                                       (return-point L.rp.14
+                                                     (begin
+                                                       (set! rdi e.65)
+                                                       (set! rsi tmp.36)
+                                                       (set! r15 L.rp.14)
+                                                       (jump L.+.1 rbp r15 rdi rsi)))
+                                       (set! tmp.35 rax)
+                                       (return-point L.rp.15
+                                                     (begin
+                                                       (set! rdi d.64)
+                                                       (set! rsi tmp.35)
+                                                       (set! r15 L.rp.15)
+                                                       (jump L.+.1 rbp r15 rdi rsi)))
+                                       (set! tmp.34 rax)
+                                       (return-point L.rp.16
+                                                     (begin
+                                                       (set! rdi c.63)
+                                                       (set! rsi tmp.34)
+                                                       (set! r15 L.rp.16)
+                                                       (jump L.+.1 rbp r15 rdi rsi)))
+                                       (set! tmp.33 rax)
+                                       (return-point L.rp.17
+                                                     (begin
+                                                       (set! rdi b.62)
+                                                       (set! rsi tmp.33)
+                                                       (set! r15 L.rp.17)
+                                                       (jump L.+.1 rbp r15 rdi rsi)))
+                                       (set! tmp.32 rax)
+                                       (set! rdi a.61)
+                                       (set! rsi tmp.32)
+                                       (set! r15 tmp-ra.41)
+                                       (jump L.+.1 rbp r15 rdi rsi)))
+                                   (define L.add-and-multiply.11
+                                     ((new-frames ((nfv.43 nfv.44))))
+                                     (begin
+                                       (set! tmp-ra.42 r15)
+                                       (set! a.69 rdi)
+                                       (set! b.70 rsi)
+                                       (set! c.71 rdx)
+                                       (set! d.72 rcx)
+                                       (set! e.73 r8)
+                                       (set! f.74 r9)
+                                       (set! g.75 fv0)
+                                       (set! h.76 fv1)
+                                       (set! i.77 fv2)
+                                       (return-point L.rp.18
+                                                     (begin
+                                                       (set! rdi a.69)
+                                                       (set! rsi b.70)
+                                                       (set! rdx c.71)
+                                                       (set! rcx d.72)
+                                                       (set! r8 e.73)
+                                                       (set! r9 f.74)
+                                                       (set! nfv.43 g.75)
+                                                       (set! nfv.44 h.76)
+                                                       (set! r15 L.rp.18)
+                                                       (jump L.add.10 rbp r15 rdi rsi rdx rcx r8 r9 nfv.43 nfv.44)))
+                                       (set! sum.78 rax)
+                                       (set! rdi sum.78)
+                                       (set! rsi i.77)
+                                       (set! r15 tmp-ra.42)
+                                       (jump L.*.2 rbp r15 rdi rsi)))
+                                   (begin
+                                     (set! tmp-ra.45 r15)
+                                     (set! rdi 8)
+                                     (set! rsi 16)
+                                     (set! rdx 24)
+                                     (set! rcx 32)
+                                     (set! r8 40)
+                                     (set! r9 48)
+                                     (set! fv0 56)
+                                     (set! fv1 64)
+                                     (set! fv2 16)
+                                     (set! r15 tmp-ra.45)
+                                     (jump L.add-and-multiply.11 rbp r15 rdi rsi rdx rcx r8 r9 fv0 fv1 fv2))))
+                '(module
+                     ((new-frames ()) (locals (tmp-ra.45)))
+                   (define L.*.2
+                     ((new-frames ())
+                      (locals (tmp.24 tmp.27 tmp.2 tmp.25 tmp-ra.39 tmp.23 tmp.1 tmp.26)))
+                     (begin
+                       (set! tmp-ra.39 r15)
+                       (set! tmp.1 rdi)
+                       (set! tmp.2 rsi)
+                       (if (begin
+                             (if (begin
+                                   (begin
+                                     (set! tmp.24 tmp.2)
+                                     (set! tmp.24 (bitwise-and tmp.24 7)))
+                                   (= tmp.24 0))
+                                 (set! tmp.23 14)
+                                 (set! tmp.23 6))
+                             (!= tmp.23 6))
+                           (if (begin
+                                 (if (begin
+                                       (begin
+                                         (set! tmp.26 tmp.1)
+                                         (set! tmp.26 (bitwise-and tmp.26 7)))
+                                       (= tmp.26 0))
+                                     (set! tmp.25 14)
+                                     (set! tmp.25 6))
+                                 (!= tmp.25 6))
+                               (begin
+                                 (set! tmp.27 tmp.2)
+                                 (set! tmp.27 (arithmetic-shift-right tmp.27 3))
+                                 (set! rax tmp.1)
+                                 (set! rax (* rax tmp.27))
+                                 (jump tmp-ra.39 rbp rax))
+                               (begin (set! rax 318) (jump tmp-ra.39 rbp rax)))
+                           (begin (set! rax 318) (jump tmp-ra.39 rbp rax)))))
+                   (define L.+.1
+                     ((new-frames ())
+                      (locals (tmp.4 tmp.31 tmp-ra.40 tmp.3 tmp.28 tmp.30 tmp.29)))
+                     (begin
+                       (set! tmp-ra.40 r15)
+                       (set! tmp.3 rdi)
+                       (set! tmp.4 rsi)
+                       (if (begin
+                             (if (begin
+                                   (begin
+                                     (set! tmp.29 tmp.4)
+                                     (set! tmp.29 (bitwise-and tmp.29 7)))
+                                   (= tmp.29 0))
+                                 (set! tmp.28 14)
+                                 (set! tmp.28 6))
+                             (!= tmp.28 6))
+                           (if (begin
+                                 (if (begin
+                                       (begin
+                                         (set! tmp.31 tmp.3)
+                                         (set! tmp.31 (bitwise-and tmp.31 7)))
+                                       (= tmp.31 0))
+                                     (set! tmp.30 14)
+                                     (set! tmp.30 6))
+                                 (!= tmp.30 6))
+                               (begin
+                                 (set! rax tmp.3)
+                                 (set! rax (+ rax tmp.4))
+                                 (jump tmp-ra.40 rbp rax))
+                               (begin (set! rax 574) (jump tmp-ra.40 rbp rax)))
+                           (begin (set! rax 574) (jump tmp-ra.40 rbp rax)))))
+                   (define L.add.10
+                     ((new-frames (() () () () () ()))
+                      (locals
+                       (e.65
+                        c.63
+                        tmp.34
+                        tmp.37
+                        g.67
+                        tmp.35
+                        tmp.36
+                        a.61
+                        tmp.32
+                        h.68
+                        f.66
+                        d.64
+                        b.62
+                        tmp-ra.41
+                        tmp.33)))
+                     (begin
+                       (set! tmp-ra.41 r15)
+                       (set! a.61 rdi)
+                       (set! b.62 rsi)
+                       (set! c.63 rdx)
+                       (set! d.64 rcx)
+                       (set! e.65 r8)
+                       (set! f.66 r9)
+                       (set! g.67 fv0)
+                       (set! h.68 fv1)
+                       (return-point L.rp.12
+                                     (begin
+                                       (set! rdi g.67)
+                                       (set! rsi h.68)
+                                       (set! r15 L.rp.12)
+                                       (jump L.+.1 rbp r15 rdi rsi)))
+                       (set! tmp.37 rax)
+                       (return-point L.rp.13
+                                     (begin
+                                       (set! rdi f.66)
+                                       (set! rsi tmp.37)
+                                       (set! r15 L.rp.13)
+                                       (jump L.+.1 rbp r15 rdi rsi)))
+                       (set! tmp.36 rax)
+                       (return-point L.rp.14
+                                     (begin
+                                       (set! rdi e.65)
+                                       (set! rsi tmp.36)
+                                       (set! r15 L.rp.14)
+                                       (jump L.+.1 rbp r15 rdi rsi)))
+                       (set! tmp.35 rax)
+                       (return-point L.rp.15
+                                     (begin
+                                       (set! rdi d.64)
+                                       (set! rsi tmp.35)
+                                       (set! r15 L.rp.15)
+                                       (jump L.+.1 rbp r15 rdi rsi)))
+                       (set! tmp.34 rax)
+                       (return-point L.rp.16
+                                     (begin
+                                       (set! rdi c.63)
+                                       (set! rsi tmp.34)
+                                       (set! r15 L.rp.16)
+                                       (jump L.+.1 rbp r15 rdi rsi)))
+                       (set! tmp.33 rax)
+                       (return-point L.rp.17
+                                     (begin
+                                       (set! rdi b.62)
+                                       (set! rsi tmp.33)
+                                       (set! r15 L.rp.17)
+                                       (jump L.+.1 rbp r15 rdi rsi)))
+                       (set! tmp.32 rax)
+                       (set! rdi a.61)
+                       (set! rsi tmp.32)
+                       (set! r15 tmp-ra.41)
+                       (jump L.+.1 rbp r15 rdi rsi)))
+                   (define L.add-and-multiply.11
+                     ((new-frames ((nfv.43 nfv.44)))
+                      (locals
+                       (a.69
+                        g.75
+                        sum.78
+                        h.76
+                        i.77
+                        tmp-ra.42
+                        c.71
+                        nfv.44
+                        d.72
+                        b.70
+                        f.74
+                        e.73
+                        nfv.43)))
+                     (begin
+                       (set! tmp-ra.42 r15)
+                       (set! a.69 rdi)
+                       (set! b.70 rsi)
+                       (set! c.71 rdx)
+                       (set! d.72 rcx)
+                       (set! e.73 r8)
+                       (set! f.74 r9)
+                       (set! g.75 fv0)
+                       (set! h.76 fv1)
+                       (set! i.77 fv2)
+                       (return-point L.rp.18
+                                     (begin
+                                       (set! rdi a.69)
+                                       (set! rsi b.70)
+                                       (set! rdx c.71)
+                                       (set! rcx d.72)
+                                       (set! r8 e.73)
+                                       (set! r9 f.74)
+                                       (set! nfv.43 g.75)
+                                       (set! nfv.44 h.76)
+                                       (set! r15 L.rp.18)
+                                       (jump L.add.10 rbp r15 rdi rsi rdx rcx r8 r9 nfv.43 nfv.44)))
+                       (set! sum.78 rax)
+                       (set! rdi sum.78)
+                       (set! rsi i.77)
+                       (set! r15 tmp-ra.42)
+                       (jump L.*.2 rbp r15 rdi rsi)))
+                   (begin
+                     (set! tmp-ra.45 r15)
+                     (set! rdi 8)
+                     (set! rsi 16)
+                     (set! rdx 24)
+                     (set! rcx 32)
+                     (set! r8 40)
+                     (set! r9 48)
+                     (set! fv0 56)
+                     (set! fv1 64)
+                     (set! fv2 16)
+                     (set! r15 tmp-ra.45)
+                     (jump L.add-and-multiply.11 rbp r15 rdi rsi rdx rcx r8 r9 fv0 fv1 fv2)))))

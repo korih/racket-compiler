@@ -31,7 +31,7 @@
          env^])))
 
   ;; (List-of func) (Env-of exprs-unique-lang-v7.triv) -> (values (List-of func) (Env-of exprs-unique-lang-v7.triv))
-  ;; interp. processes each function definition by assigning lexical identifiers with unique labels and abstract locations 
+  ;; interp. processes each function definition by assigning lexical identifiers with unique labels and abstract locations
   (define (process-functions funcs env)
     (for/fold ([updated-funcs '()]
                [updated-env env])
@@ -201,4 +201,27 @@
                 '(module
                      (define L.f.8 (lambda (x.55 y.56) (call + x.55 y.56)))
                    (define L.x.9 (lambda (z.57) (let ((x.58 1)) (call + x.58 z.57))))
-                   (let ((a.59 (call L.f.8 1 2))) (let ((y.60 (call L.x.9 a.59))) y.60)))))
+                   (let ((a.59 (call L.f.8 1 2))) (let ((y.60 (call L.x.9 a.59))) y.60))))
+  (check-equal? (uniquify '(module (define add (lambda (a b c d e f g h) (call + a (call + b (call + c (call + d (call + e (call + f (call + g h)))))))))
+                             (define add-and-multiply (lambda (a b c d e f g h i)
+                                                        (let ([sum (call add a b c d e f g h)])
+                                                          (call * sum i))))
+                             (call add-and-multiply 1 2 3 4 5 6 7 8 2)))
+                '(module
+                     (define L.add.10
+                       (lambda (a.61 b.62 c.63 d.64 e.65 f.66 g.67 h.68)
+                         (call
+                          +
+                          a.61
+                          (call
+                           +
+                           b.62
+                           (call
+                            +
+                            c.63
+                            (call + d.64 (call + e.65 (call + f.66 (call + g.67 h.68)))))))))
+                   (define L.add-and-multiply.11
+                     (lambda (a.69 b.70 c.71 d.72 e.73 f.74 g.75 h.76 i.77)
+                       (let ((sum.78 (call L.add.10 a.69 b.70 c.71 d.72 e.73 f.74 g.75 h.76)))
+                         (call * sum.78 i.77))))
+                   (call L.add-and-multiply.11 1 2 3 4 5 6 7 8 2))))

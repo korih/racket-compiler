@@ -196,4 +196,118 @@
                      (set! x.2 10)
                      (if (begin (set! x.3 100) (not (!= x.2 x.3)))
                          (call L.f.1 x.2)
-                         (call L.f.2 1000))))))
+                         (call L.f.2 1000)))))
+  (check-equal? (sequentialize-let   '(module
+                                          (define L.*.2
+                                            (lambda (tmp.1 tmp.2)
+                                              (if (let ((tmp.23
+                                                         (if (let ((tmp.24 (bitwise-and tmp.2 7))) (= tmp.24 0))
+                                                             14
+                                                             6)))
+                                                    (!= tmp.23 6))
+                                                  (if (let ((tmp.25
+                                                             (if (let ((tmp.26 (bitwise-and tmp.1 7))) (= tmp.26 0))
+                                                                 14
+                                                                 6)))
+                                                        (!= tmp.25 6))
+                                                      (let ((tmp.27 (arithmetic-shift-right tmp.2 3))) (* tmp.1 tmp.27))
+                                                      318)
+                                                  318)))
+                                        (define L.+.1
+                                          (lambda (tmp.3 tmp.4)
+                                            (if (let ((tmp.28
+                                                       (if (let ((tmp.29 (bitwise-and tmp.4 7))) (= tmp.29 0))
+                                                           14
+                                                           6)))
+                                                  (!= tmp.28 6))
+                                                (if (let ((tmp.30
+                                                           (if (let ((tmp.31 (bitwise-and tmp.3 7))) (= tmp.31 0))
+                                                               14
+                                                               6)))
+                                                      (!= tmp.30 6))
+                                                    (+ tmp.3 tmp.4)
+                                                    574)
+                                                574)))
+                                        (define L.add.10
+                                          (lambda (a.61 b.62 c.63 d.64 e.65 f.66 g.67 h.68)
+                                            (let ((tmp.32
+                                                   (let ((tmp.33
+                                                          (let ((tmp.34
+                                                                 (let ((tmp.35
+                                                                        (let ((tmp.36
+                                                                               (let ((tmp.37
+                                                                                      (call L.+.1 g.67 h.68)))
+                                                                                 (call L.+.1 f.66 tmp.37))))
+                                                                          (call L.+.1 e.65 tmp.36))))
+                                                                   (call L.+.1 d.64 tmp.35))))
+                                                            (call L.+.1 c.63 tmp.34))))
+                                                     (call L.+.1 b.62 tmp.33))))
+                                              (call L.+.1 a.61 tmp.32))))
+                                        (define L.add-and-multiply.11
+                                          (lambda (a.69 b.70 c.71 d.72 e.73 f.74 g.75 h.76 i.77)
+                                            (let ((sum.78 (call L.add.10 a.69 b.70 c.71 d.72 e.73 f.74 g.75 h.76)))
+                                              (call L.*.2 sum.78 i.77))))
+                                        (call L.add-and-multiply.11 8 16 24 32 40 48 56 64 16)))
+                '(module
+                     (define L.*.2
+                       (lambda (tmp.1 tmp.2)
+                         (if (begin
+                               (set! tmp.23
+                                     (if (begin (set! tmp.24 (bitwise-and tmp.2 7)) (= tmp.24 0))
+                                         14
+                                         6))
+                               (!= tmp.23 6))
+                             (if (begin
+                                   (set! tmp.25
+                                         (if (begin (set! tmp.26 (bitwise-and tmp.1 7)) (= tmp.26 0))
+                                             14
+                                             6))
+                                   (!= tmp.25 6))
+                                 (begin
+                                   (set! tmp.27 (arithmetic-shift-right tmp.2 3))
+                                   (* tmp.1 tmp.27))
+                                 318)
+                             318)))
+                   (define L.+.1
+                     (lambda (tmp.3 tmp.4)
+                       (if (begin
+                             (set! tmp.28
+                                   (if (begin (set! tmp.29 (bitwise-and tmp.4 7)) (= tmp.29 0))
+                                       14
+                                       6))
+                             (!= tmp.28 6))
+                           (if (begin
+                                 (set! tmp.30
+                                       (if (begin (set! tmp.31 (bitwise-and tmp.3 7)) (= tmp.31 0))
+                                           14
+                                           6))
+                                 (!= tmp.30 6))
+                               (+ tmp.3 tmp.4)
+                               574)
+                           574)))
+                   (define L.add.10
+                     (lambda (a.61 b.62 c.63 d.64 e.65 f.66 g.67 h.68)
+                       (begin
+                         (set! tmp.32
+                               (begin
+                                 (set! tmp.33
+                                       (begin
+                                         (set! tmp.34
+                                               (begin
+                                                 (set! tmp.35
+                                                       (begin
+                                                         (set! tmp.36
+                                                               (begin
+                                                                 (set! tmp.37 (call L.+.1 g.67 h.68))
+                                                                 (call L.+.1 f.66 tmp.37)))
+                                                         (call L.+.1 e.65 tmp.36)))
+                                                 (call L.+.1 d.64 tmp.35)))
+                                         (call L.+.1 c.63 tmp.34)))
+                                 (call L.+.1 b.62 tmp.33)))
+                         (call L.+.1 a.61 tmp.32))))
+                   (define L.add-and-multiply.11
+                     (lambda (a.69 b.70 c.71 d.72 e.73 f.74 g.75 h.76 i.77)
+                       (begin
+                         (set! sum.78 (call L.add.10 a.69 b.70 c.71 d.72 e.73 f.74 g.75 h.76))
+                         (call L.*.2 sum.78 i.77))))
+                   (call L.add-and-multiply.11 8 16 24 32 40 48 56 64 16))))
