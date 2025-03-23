@@ -76,30 +76,6 @@
        `(,@compiled-fx ,@(select-effect e))]
       [`(if ,pred ,e1 ,e2)
        (define e1^ (match e1
-                     #;
-                     [`(begin ,e ...) `((begin ,@(select-effect e1)))]
-                     [_ (select-effect e1)]))
-       (define e2^ (match e2
-                     #;
-                     [`(begin ,e ...) `((begin ,@(select-effect e2)))]
-                     [_ (select-effect e2)]))
-       (list `(if ,(select-pred pred)
-                  ,@e1^
-                  ,@e2^))]
-      [`(return-point ,label ,tail)
-       (list `(return-point ,label ,(select-tail tail)))]))
-
-  #;
-  (define (select-effect e)
-    (match e
-      [`(set! ,x ,v) (select-value x v)]
-      [`(begin ,fx ... ,e)
-       (define compiled-fx (for/foldr ([fx-acc empty])
-                             ([e fx])
-                             (append (select-effect e) fx-acc)))
-       `(,@compiled-fx ,@(select-effect e))]
-      [`(if ,pred ,e1 ,e2)
-       (define e1^ (match e1
                      [`(begin ,e ...) `((begin ,@(select-effect e1)))]
                      [_ (select-effect e1)]))
        (define e2^ (match e2
