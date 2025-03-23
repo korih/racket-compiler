@@ -56,7 +56,10 @@
          (define used-registers
            (map (lambda (conflict)
                   (if (aloc? conflict)
-                      (first (cdr (assoc conflict sub-assign)))
+                    (let ([conflict-used-register-pair (assoc conflict sub-assign)])
+                        (if conflict-used-register-pair
+                          (first (cdr conflict-used-register-pair))
+                          conflict))
                       conflict))
                 conflicts))
          (define available-registers
@@ -3286,4 +3289,1237 @@
                      (set! r9 48)
                      (set! fv0 56)
                      (set! r15 tmp-ra.238)
-                     (jump L.F.6 rbp r15 rdi rsi rdx rcx r8 r9 fv0)))))
+                     (jump L.F.6 rbp r15 rdi rsi rdx rcx r8 r9 fv0))))
+
+  (parameterize ([current-assignable-registers '()])
+    (check-equal? (interp-asm-pred-lang-v7/spilled (assign-registers
+                                                    '(module
+                                                         ((locals (tmp-ra.63))
+                                                          (conflicts
+                                                           ((tmp-ra.63 (rdi rsi rdx rcx r8 r9 fv0 fv1 fv2 rbp))
+                                                            (rbp (r15 rdi rsi rdx rcx r8 r9 fv0 fv1 fv2 tmp-ra.63))
+                                                            (fv2 (r15 rdi rsi rdx rcx r8 r9 fv0 fv1 rbp tmp-ra.63))
+                                                            (fv1 (r15 rdi rsi rdx rcx r8 r9 fv0 rbp fv2 tmp-ra.63))
+                                                            (fv0 (r15 rdi rsi rdx rcx r8 r9 rbp fv1 fv2 tmp-ra.63))
+                                                            (r9 (r15 rdi rsi rdx rcx r8 rbp fv0 fv1 fv2 tmp-ra.63))
+                                                            (r8 (r15 rdi rsi rdx rcx rbp r9 fv0 fv1 fv2 tmp-ra.63))
+                                                            (rcx (r15 rdi rsi rdx rbp r8 r9 fv0 fv1 fv2 tmp-ra.63))
+                                                            (rdx (r15 rdi rsi rbp rcx r8 r9 fv0 fv1 fv2 tmp-ra.63))
+                                                            (rsi (r15 rdi rbp rdx rcx r8 r9 fv0 fv1 fv2 tmp-ra.63))
+                                                            (rdi (r15 rbp rsi rdx rcx r8 r9 fv0 fv1 fv2 tmp-ra.63))
+                                                            (r15 (rbp rdi rsi rdx rcx r8 r9 fv0 fv1 fv2))))
+                                                          (assignment ()))
+                                                       (define L.*.4
+                                                         ((locals (tmp.44 tmp.19 tmp.45 tmp.46 tmp-ra.57 tmp.43 tmp.20 tmp.42))
+                                                          (conflicts
+                                                           ((tmp.42 (rbp tmp-ra.57 tmp.19 tmp.20))
+                                                            (tmp.20 (rbp tmp-ra.57 tmp.19 tmp.43 tmp.42 tmp.45 tmp.44))
+                                                            (tmp.43 (rbp tmp-ra.57 tmp.19 tmp.20))
+                                                            (tmp-ra.57
+                                                             (tmp.20 tmp.19 rbp rsi rdi tmp.43 tmp.42 tmp.45 tmp.44 tmp.46 rax))
+                                                            (tmp.46 (rax rbp tmp-ra.57 tmp.19))
+                                                            (tmp.45 (rbp tmp-ra.57 tmp.19 tmp.20))
+                                                            (tmp.19 (tmp.20 rbp tmp-ra.57 rsi tmp.43 tmp.42 tmp.45 tmp.44 tmp.46))
+                                                            (tmp.44 (rbp tmp-ra.57 tmp.19 tmp.20))
+                                                            (rax (tmp.46 rbp tmp-ra.57))
+                                                            (rbp (tmp.20 tmp.19 tmp-ra.57 tmp.43 tmp.42 tmp.45 tmp.44 tmp.46 rax))
+                                                            (rdi (tmp-ra.57))
+                                                            (rsi (tmp.19 tmp-ra.57))))
+                                                          (assignment ()))
+                                                         (begin
+                                                           (set! tmp-ra.57 r15)
+                                                           (set! tmp.19 rdi)
+                                                           (set! tmp.20 rsi)
+                                                           (if (begin
+                                                                 (if (begin
+                                                                       (begin
+                                                                         (set! tmp.43 tmp.20)
+                                                                         (set! tmp.43 (bitwise-and tmp.43 7)))
+                                                                       (= tmp.43 0))
+                                                                     (set! tmp.42 14)
+                                                                     (set! tmp.42 6))
+                                                                 (!= tmp.42 6))
+                                                               (if (begin
+                                                                     (if (begin
+                                                                           (begin
+                                                                             (set! tmp.45 tmp.19)
+                                                                             (set! tmp.45 (bitwise-and tmp.45 7)))
+                                                                           (= tmp.45 0))
+                                                                         (set! tmp.44 14)
+                                                                         (set! tmp.44 6))
+                                                                     (!= tmp.44 6))
+                                                                   (begin
+                                                                     (set! tmp.46 tmp.20)
+                                                                     (set! tmp.46 (arithmetic-shift-right tmp.46 3))
+                                                                     (set! rax tmp.19)
+                                                                     (set! rax (* rax tmp.46))
+                                                                     (jump tmp-ra.57 rbp rax))
+                                                                   (begin (set! rax 318) (jump tmp-ra.57 rbp rax)))
+                                                               (begin (set! rax 318) (jump tmp-ra.57 rbp rax)))))
+                                                       (define L.+.3
+                                                         ((locals (tmp.49 tmp.21 tmp.50 tmp-ra.58 tmp.48 tmp.22 tmp.47))
+                                                          (conflicts
+                                                           ((tmp.47 (rbp tmp-ra.58 tmp.22 tmp.21))
+                                                            (tmp.22 (rbp tmp-ra.58 tmp.21 tmp.48 tmp.47 tmp.50 tmp.49 rax))
+                                                            (tmp.48 (rbp tmp-ra.58 tmp.22 tmp.21))
+                                                            (tmp-ra.58 (tmp.22 tmp.21 rbp rsi rdi tmp.48 tmp.47 tmp.50 tmp.49 rax))
+                                                            (tmp.50 (rbp tmp-ra.58 tmp.22 tmp.21))
+                                                            (tmp.21 (tmp.22 rbp tmp-ra.58 rsi tmp.48 tmp.47 tmp.50 tmp.49))
+                                                            (tmp.49 (rbp tmp-ra.58 tmp.22 tmp.21))
+                                                            (rax (tmp.22 rbp tmp-ra.58))
+                                                            (rbp (tmp.22 tmp.21 tmp-ra.58 tmp.48 tmp.47 tmp.50 tmp.49 rax))
+                                                            (rdi (tmp-ra.58))
+                                                            (rsi (tmp.21 tmp-ra.58))))
+                                                          (assignment ()))
+                                                         (begin
+                                                           (set! tmp-ra.58 r15)
+                                                           (set! tmp.21 rdi)
+                                                           (set! tmp.22 rsi)
+                                                           (if (begin
+                                                                 (if (begin
+                                                                       (begin
+                                                                         (set! tmp.48 tmp.22)
+                                                                         (set! tmp.48 (bitwise-and tmp.48 7)))
+                                                                       (= tmp.48 0))
+                                                                     (set! tmp.47 14)
+                                                                     (set! tmp.47 6))
+                                                                 (!= tmp.47 6))
+                                                               (if (begin
+                                                                     (if (begin
+                                                                           (begin
+                                                                             (set! tmp.50 tmp.21)
+                                                                             (set! tmp.50 (bitwise-and tmp.50 7)))
+                                                                           (= tmp.50 0))
+                                                                         (set! tmp.49 14)
+                                                                         (set! tmp.49 6))
+                                                                     (!= tmp.49 6))
+                                                                   (begin
+                                                                     (set! rax tmp.21)
+                                                                     (set! rax (+ rax tmp.22))
+                                                                     (jump tmp-ra.58 rbp rax))
+                                                                   (begin (set! rax 574) (jump tmp-ra.58 rbp rax)))
+                                                               (begin (set! rax 574) (jump tmp-ra.58 rbp rax)))))
+                                                       (define L.add.1
+                                                         ((locals (tmp.51 tmp.52 tmp.53 tmp.54 tmp.55 tmp.56 h.1 g.2))
+                                                          (conflicts
+                                                           ((tmp-ra.59
+                                                             (tmp.51
+                                                              tmp.52
+                                                              tmp.53
+                                                              tmp.54
+                                                              tmp.55
+                                                              tmp.56
+                                                              h.1
+                                                              g.2
+                                                              f.3
+                                                              e.4
+                                                              d.5
+                                                              c.6
+                                                              b.7
+                                                              a.8
+                                                              rbp
+                                                              fv1
+                                                              fv0
+                                                              r9
+                                                              r8
+                                                              rcx
+                                                              rdx
+                                                              rsi
+                                                              rdi))
+                                                            (a.8
+                                                             (tmp.51
+                                                              tmp.52
+                                                              tmp.53
+                                                              tmp.54
+                                                              tmp.55
+                                                              tmp.56
+                                                              h.1
+                                                              g.2
+                                                              f.3
+                                                              e.4
+                                                              d.5
+                                                              c.6
+                                                              b.7
+                                                              rbp
+                                                              tmp-ra.59
+                                                              fv1
+                                                              fv0
+                                                              r9
+                                                              r8
+                                                              rcx
+                                                              rdx
+                                                              rsi))
+                                                            (b.7
+                                                             (rsi
+                                                              tmp.52
+                                                              tmp.53
+                                                              tmp.54
+                                                              tmp.55
+                                                              tmp.56
+                                                              h.1
+                                                              g.2
+                                                              f.3
+                                                              e.4
+                                                              d.5
+                                                              c.6
+                                                              rbp
+                                                              tmp-ra.59
+                                                              a.8
+                                                              fv1
+                                                              fv0
+                                                              r9
+                                                              r8
+                                                              rcx
+                                                              rdx))
+                                                            (c.6
+                                                             (rsi
+                                                              tmp.53
+                                                              tmp.54
+                                                              tmp.55
+                                                              tmp.56
+                                                              h.1
+                                                              g.2
+                                                              f.3
+                                                              e.4
+                                                              d.5
+                                                              rbp
+                                                              tmp-ra.59
+                                                              a.8
+                                                              b.7
+                                                              fv1
+                                                              fv0
+                                                              r9
+                                                              r8
+                                                              rcx))
+                                                            (d.5
+                                                             (rsi
+                                                              tmp.54
+                                                              tmp.55
+                                                              tmp.56
+                                                              h.1
+                                                              g.2
+                                                              f.3
+                                                              e.4
+                                                              rbp
+                                                              tmp-ra.59
+                                                              a.8
+                                                              b.7
+                                                              c.6
+                                                              fv1
+                                                              fv0
+                                                              r9
+                                                              r8))
+                                                            (e.4
+                                                             (rsi
+                                                              tmp.55
+                                                              tmp.56
+                                                              h.1
+                                                              g.2
+                                                              f.3
+                                                              rbp
+                                                              tmp-ra.59
+                                                              a.8
+                                                              b.7
+                                                              c.6
+                                                              d.5
+                                                              fv1
+                                                              fv0
+                                                              r9))
+                                                            (f.3 (rsi tmp.56 h.1 g.2 rbp tmp-ra.59 a.8 b.7 c.6 d.5 e.4 fv1 fv0))
+                                                            (g.2 (rsi h.1 rbp tmp-ra.59 a.8 b.7 c.6 d.5 e.4 f.3 fv1))
+                                                            (h.1 (rbp tmp-ra.59 a.8 b.7 c.6 d.5 e.4 f.3 g.2))
+                                                            (tmp.56 (rbp tmp-ra.59 a.8 b.7 c.6 d.5 e.4 f.3))
+                                                            (tmp.55 (rbp tmp-ra.59 a.8 b.7 c.6 d.5 e.4))
+                                                            (tmp.54 (rbp tmp-ra.59 a.8 b.7 c.6 d.5))
+                                                            (tmp.53 (rbp tmp-ra.59 a.8 b.7 c.6))
+                                                            (tmp.52 (rbp tmp-ra.59 a.8 b.7))
+                                                            (tmp.51 (rbp tmp-ra.59 a.8))
+                                                            (rdi (r15 rbp rsi tmp-ra.59))
+                                                            (rsi (b.7 c.6 d.5 e.4 f.3 r15 rdi rbp g.2 a.8 tmp-ra.59))
+                                                            (rdx (b.7 a.8 tmp-ra.59))
+                                                            (rcx (c.6 b.7 a.8 tmp-ra.59))
+                                                            (r8 (d.5 c.6 b.7 a.8 tmp-ra.59))
+                                                            (r9 (e.4 d.5 c.6 b.7 a.8 tmp-ra.59))
+                                                            (fv0 (f.3 e.4 d.5 c.6 b.7 a.8 tmp-ra.59))
+                                                            (fv1 (g.2 f.3 e.4 d.5 c.6 b.7 a.8 tmp-ra.59))
+                                                            (rbp
+                                                             (tmp.51
+                                                              tmp.52
+                                                              tmp.53
+                                                              tmp.54
+                                                              tmp.55
+                                                              tmp.56
+                                                              r15
+                                                              rdi
+                                                              rsi
+                                                              h.1
+                                                              g.2
+                                                              f.3
+                                                              e.4
+                                                              d.5
+                                                              c.6
+                                                              b.7
+                                                              a.8
+                                                              tmp-ra.59))
+                                                            (r15 (rbp rdi rsi))))
+                                                          (assignment
+                                                           ((tmp-ra.59 fv2)
+                                                            (a.8 fv3)
+                                                            (b.7 fv4)
+                                                            (c.6 fv5)
+                                                            (d.5 fv6)
+                                                            (e.4 fv7)
+                                                            (f.3 fv8))))
+                                                         (begin
+                                                           (set! tmp-ra.59 r15)
+                                                           (set! a.8 rdi)
+                                                           (set! b.7 rsi)
+                                                           (set! c.6 rdx)
+                                                           (set! d.5 rcx)
+                                                           (set! e.4 r8)
+                                                           (set! f.3 r9)
+                                                           (set! g.2 fv0)
+                                                           (set! h.1 fv1)
+                                                           (begin
+                                                             (set! rbp (- rbp 72))
+                                                             (return-point L.rp.5
+                                                                           (begin
+                                                                             (set! rsi h.1)
+                                                                             (set! rdi g.2)
+                                                                             (set! r15 L.rp.5)
+                                                                             (jump L.+.3 rbp r15 rdi rsi)))
+                                                             (set! rbp (+ rbp 72)))
+                                                           (set! tmp.56 rax)
+                                                           (begin
+                                                             (set! rbp (- rbp 72))
+                                                             (return-point L.rp.6
+                                                                           (begin
+                                                                             (set! rsi tmp.56)
+                                                                             (set! rdi f.3)
+                                                                             (set! r15 L.rp.6)
+                                                                             (jump L.+.3 rbp r15 rdi rsi)))
+                                                             (set! rbp (+ rbp 72)))
+                                                           (set! tmp.55 rax)
+                                                           (begin
+                                                             (set! rbp (- rbp 72))
+                                                             (return-point L.rp.7
+                                                                           (begin
+                                                                             (set! rsi tmp.55)
+                                                                             (set! rdi e.4)
+                                                                             (set! r15 L.rp.7)
+                                                                             (jump L.+.3 rbp r15 rdi rsi)))
+                                                             (set! rbp (+ rbp 72)))
+                                                           (set! tmp.54 rax)
+                                                           (begin
+                                                             (set! rbp (- rbp 72))
+                                                             (return-point L.rp.8
+                                                                           (begin
+                                                                             (set! rsi tmp.54)
+                                                                             (set! rdi d.5)
+                                                                             (set! r15 L.rp.8)
+                                                                             (jump L.+.3 rbp r15 rdi rsi)))
+                                                             (set! rbp (+ rbp 72)))
+                                                           (set! tmp.53 rax)
+                                                           (begin
+                                                             (set! rbp (- rbp 72))
+                                                             (return-point L.rp.9
+                                                                           (begin
+                                                                             (set! rsi tmp.53)
+                                                                             (set! rdi c.6)
+                                                                             (set! r15 L.rp.9)
+                                                                             (jump L.+.3 rbp r15 rdi rsi)))
+                                                             (set! rbp (+ rbp 72)))
+                                                           (set! tmp.52 rax)
+                                                           (begin
+                                                             (set! rbp (- rbp 72))
+                                                             (return-point L.rp.10
+                                                                           (begin
+                                                                             (set! rsi tmp.52)
+                                                                             (set! rdi b.7)
+                                                                             (set! r15 L.rp.10)
+                                                                             (jump L.+.3 rbp r15 rdi rsi)))
+                                                             (set! rbp (+ rbp 72)))
+                                                           (set! tmp.51 rax)
+                                                           (set! rsi tmp.51)
+                                                           (set! rdi a.8)
+                                                           (set! r15 tmp-ra.59)
+                                                           (jump L.+.3 rbp r15 rdi rsi)))
+                                                       (define L.add-and-multiply.2
+                                                         ((locals (sum.18 h.10 g.11 f.12 e.13 d.14 c.15 b.16 a.17))
+                                                          (conflicts
+                                                           ((tmp-ra.60
+                                                             (sum.18
+                                                              i.9
+                                                              h.10
+                                                              g.11
+                                                              f.12
+                                                              e.13
+                                                              d.14
+                                                              c.15
+                                                              b.16
+                                                              a.17
+                                                              rbp
+                                                              fv2
+                                                              fv1
+                                                              fv0
+                                                              r9
+                                                              r8
+                                                              rcx
+                                                              rdx
+                                                              rsi
+                                                              rdi))
+                                                            (a.17
+                                                             (nfv.61
+                                                              nfv.62
+                                                              i.9
+                                                              h.10
+                                                              g.11
+                                                              f.12
+                                                              e.13
+                                                              d.14
+                                                              c.15
+                                                              b.16
+                                                              rbp
+                                                              tmp-ra.60
+                                                              fv2
+                                                              fv1
+                                                              fv0
+                                                              r9
+                                                              r8
+                                                              rcx
+                                                              rdx
+                                                              rsi))
+                                                            (b.16
+                                                             (nfv.61
+                                                              nfv.62
+                                                              i.9
+                                                              h.10
+                                                              g.11
+                                                              f.12
+                                                              e.13
+                                                              d.14
+                                                              c.15
+                                                              rbp
+                                                              tmp-ra.60
+                                                              a.17
+                                                              fv2
+                                                              fv1
+                                                              fv0
+                                                              r9
+                                                              r8
+                                                              rcx
+                                                              rdx))
+                                                            (c.15
+                                                             (nfv.61
+                                                              nfv.62
+                                                              i.9
+                                                              h.10
+                                                              g.11
+                                                              f.12
+                                                              e.13
+                                                              d.14
+                                                              rbp
+                                                              tmp-ra.60
+                                                              b.16
+                                                              a.17
+                                                              fv2
+                                                              fv1
+                                                              fv0
+                                                              r9
+                                                              r8
+                                                              rcx))
+                                                            (d.14
+                                                             (nfv.61
+                                                              nfv.62
+                                                              i.9
+                                                              h.10
+                                                              g.11
+                                                              f.12
+                                                              e.13
+                                                              rbp
+                                                              tmp-ra.60
+                                                              c.15
+                                                              b.16
+                                                              a.17
+                                                              fv2
+                                                              fv1
+                                                              fv0
+                                                              r9
+                                                              r8))
+                                                            (e.13
+                                                             (nfv.61
+                                                              nfv.62
+                                                              i.9
+                                                              h.10
+                                                              g.11
+                                                              f.12
+                                                              rbp
+                                                              tmp-ra.60
+                                                              d.14
+                                                              c.15
+                                                              b.16
+                                                              a.17
+                                                              fv2
+                                                              fv1
+                                                              fv0
+                                                              r9))
+                                                            (f.12
+                                                             (nfv.61
+                                                              nfv.62
+                                                              i.9
+                                                              h.10
+                                                              g.11
+                                                              rbp
+                                                              tmp-ra.60
+                                                              e.13
+                                                              d.14
+                                                              c.15
+                                                              b.16
+                                                              a.17
+                                                              fv2
+                                                              fv1
+                                                              fv0))
+                                                            (g.11
+                                                             (nfv.62 i.9 h.10 rbp tmp-ra.60 f.12 e.13 d.14 c.15 b.16 a.17 fv2 fv1))
+                                                            (h.10 (i.9 rbp tmp-ra.60 g.11 f.12 e.13 d.14 c.15 b.16 a.17 fv2))
+                                                            (i.9 (sum.18 rbp tmp-ra.60 h.10 g.11 f.12 e.13 d.14 c.15 b.16 a.17))
+                                                            (nfv.61
+                                                             (r15 rdi rsi rdx rcx r8 r9 rbp nfv.62 a.17 b.16 c.15 d.14 e.13 f.12))
+                                                            (nfv.62
+                                                             (r15
+                                                              rdi
+                                                              rsi
+                                                              rdx
+                                                              rcx
+                                                              r8
+                                                              r9
+                                                              nfv.61
+                                                              rbp
+                                                              a.17
+                                                              b.16
+                                                              c.15
+                                                              d.14
+                                                              e.13
+                                                              f.12
+                                                              g.11))
+                                                            (sum.18 (rsi rbp tmp-ra.60 i.9))
+                                                            (rdi (r15 rbp rsi rdx rcx r8 r9 nfv.61 nfv.62 tmp-ra.60))
+                                                            (rsi (sum.18 r15 rdi rbp rdx rcx r8 r9 nfv.61 nfv.62 a.17 tmp-ra.60))
+                                                            (rdx (r15 rdi rsi rbp rcx r8 r9 nfv.61 nfv.62 b.16 a.17 tmp-ra.60))
+                                                            (rcx (r15 rdi rsi rdx rbp r8 r9 nfv.61 nfv.62 c.15 b.16 a.17 tmp-ra.60))
+                                                            (r8
+                                                             (r15
+                                                              rdi
+                                                              rsi
+                                                              rdx
+                                                              rcx
+                                                              rbp
+                                                              r9
+                                                              nfv.61
+                                                              nfv.62
+                                                              d.14
+                                                              c.15
+                                                              b.16
+                                                              a.17
+                                                              tmp-ra.60))
+                                                            (r9
+                                                             (r15
+                                                              rdi
+                                                              rsi
+                                                              rdx
+                                                              rcx
+                                                              r8
+                                                              rbp
+                                                              nfv.61
+                                                              nfv.62
+                                                              e.13
+                                                              d.14
+                                                              c.15
+                                                              b.16
+                                                              a.17
+                                                              tmp-ra.60))
+                                                            (fv0 (f.12 e.13 d.14 c.15 b.16 a.17 tmp-ra.60))
+                                                            (fv1 (g.11 f.12 e.13 d.14 c.15 b.16 a.17 tmp-ra.60))
+                                                            (fv2 (h.10 g.11 f.12 e.13 d.14 c.15 b.16 a.17 tmp-ra.60))
+                                                            (rbp
+                                                             (sum.18
+                                                              r15
+                                                              rdi
+                                                              rsi
+                                                              rdx
+                                                              rcx
+                                                              r8
+                                                              r9
+                                                              nfv.61
+                                                              nfv.62
+                                                              i.9
+                                                              h.10
+                                                              g.11
+                                                              f.12
+                                                              e.13
+                                                              d.14
+                                                              c.15
+                                                              b.16
+                                                              a.17
+                                                              tmp-ra.60))
+                                                            (r15 (rbp rdi rsi rdx rcx r8 r9 nfv.61 nfv.62))))
+                                                          (assignment ((tmp-ra.60 fv3) (i.9 fv0) (nfv.61 fv4) (nfv.62 fv5))))
+                                                         (begin
+                                                           (set! tmp-ra.60 r15)
+                                                           (set! a.17 rdi)
+                                                           (set! b.16 rsi)
+                                                           (set! c.15 rdx)
+                                                           (set! d.14 rcx)
+                                                           (set! e.13 r8)
+                                                           (set! f.12 r9)
+                                                           (set! g.11 fv0)
+                                                           (set! h.10 fv1)
+                                                           (set! i.9 fv2)
+                                                           (begin
+                                                             (set! rbp (- rbp 32))
+                                                             (return-point L.rp.11
+                                                                           (begin
+                                                                             (set! nfv.62 h.10)
+                                                                             (set! nfv.61 g.11)
+                                                                             (set! r9 f.12)
+                                                                             (set! r8 e.13)
+                                                                             (set! rcx d.14)
+                                                                             (set! rdx c.15)
+                                                                             (set! rsi b.16)
+                                                                             (set! rdi a.17)
+                                                                             (set! r15 L.rp.11)
+                                                                             (jump L.add.1 rbp r15 rdi rsi rdx rcx r8 r9 nfv.61 nfv.62)))
+                                                             (set! rbp (+ rbp 32)))
+                                                           (set! sum.18 rax)
+                                                           (set! rsi i.9)
+                                                           (set! rdi sum.18)
+                                                           (set! r15 tmp-ra.60)
+                                                           (jump L.*.4 rbp r15 rdi rsi)))
+                                                       (begin
+                                                         (set! tmp-ra.63 r15)
+                                                         (set! fv2 16)
+                                                         (set! fv1 64)
+                                                         (set! fv0 56)
+                                                         (set! r9 48)
+                                                         (set! r8 40)
+                                                         (set! rcx 32)
+                                                         (set! rdx 24)
+                                                         (set! rsi 16)
+                                                         (set! rdi 8)
+                                                         (set! r15 tmp-ra.63)
+                                                         (jump L.add-and-multiply.2 rbp r15 rdi rsi rdx rcx r8 r9 fv0 fv1 fv2)))))
+                  (interp-asm-pred-lang-v7/spilled '(module
+                                                        ((locals (tmp-ra.63))
+                                                         (conflicts
+                                                          ((tmp-ra.63 (rdi rsi rdx rcx r8 r9 fv0 fv1 fv2 rbp))
+                                                           (rbp (r15 rdi rsi rdx rcx r8 r9 fv0 fv1 fv2 tmp-ra.63))
+                                                           (fv2 (r15 rdi rsi rdx rcx r8 r9 fv0 fv1 rbp tmp-ra.63))
+                                                           (fv1 (r15 rdi rsi rdx rcx r8 r9 fv0 rbp fv2 tmp-ra.63))
+                                                           (fv0 (r15 rdi rsi rdx rcx r8 r9 rbp fv1 fv2 tmp-ra.63))
+                                                           (r9 (r15 rdi rsi rdx rcx r8 rbp fv0 fv1 fv2 tmp-ra.63))
+                                                           (r8 (r15 rdi rsi rdx rcx rbp r9 fv0 fv1 fv2 tmp-ra.63))
+                                                           (rcx (r15 rdi rsi rdx rbp r8 r9 fv0 fv1 fv2 tmp-ra.63))
+                                                           (rdx (r15 rdi rsi rbp rcx r8 r9 fv0 fv1 fv2 tmp-ra.63))
+                                                           (rsi (r15 rdi rbp rdx rcx r8 r9 fv0 fv1 fv2 tmp-ra.63))
+                                                           (rdi (r15 rbp rsi rdx rcx r8 r9 fv0 fv1 fv2 tmp-ra.63))
+                                                           (r15 (rbp rdi rsi rdx rcx r8 r9 fv0 fv1 fv2))))
+                                                         (assignment ()))
+                                                      (define L.*.4
+                                                        ((locals (tmp.44 tmp.45 tmp.46 tmp.43 tmp.42 tmp.20 tmp.19 tmp-ra.57))
+                                                         (conflicts
+                                                          ((tmp.42 (rbp tmp-ra.57 tmp.19 tmp.20))
+                                                           (tmp.20 (rbp tmp-ra.57 tmp.19 tmp.43 tmp.42 tmp.45 tmp.44))
+                                                           (tmp.43 (rbp tmp-ra.57 tmp.19 tmp.20))
+                                                           (tmp-ra.57
+                                                            (tmp.20 tmp.19 rbp rsi rdi tmp.43 tmp.42 tmp.45 tmp.44 tmp.46 rax))
+                                                           (tmp.46 (rax rbp tmp-ra.57 tmp.19))
+                                                           (tmp.45 (rbp tmp-ra.57 tmp.19 tmp.20))
+                                                           (tmp.19 (tmp.20 rbp tmp-ra.57 rsi tmp.43 tmp.42 tmp.45 tmp.44 tmp.46))
+                                                           (tmp.44 (rbp tmp-ra.57 tmp.19 tmp.20))
+                                                           (rax (tmp.46 rbp tmp-ra.57))
+                                                           (rbp (tmp.20 tmp.19 tmp-ra.57 tmp.43 tmp.42 tmp.45 tmp.44 tmp.46 rax))
+                                                           (rdi (tmp-ra.57))
+                                                           (rsi (tmp.19 tmp-ra.57))))
+                                                         (assignment ()))
+                                                        (begin
+                                                          (set! tmp-ra.57 r15)
+                                                          (set! tmp.19 rdi)
+                                                          (set! tmp.20 rsi)
+                                                          (if (begin
+                                                                (if (begin
+                                                                      (begin
+                                                                        (set! tmp.43 tmp.20)
+                                                                        (set! tmp.43 (bitwise-and tmp.43 7)))
+                                                                      (= tmp.43 0))
+                                                                    (set! tmp.42 14)
+                                                                    (set! tmp.42 6))
+                                                                (!= tmp.42 6))
+                                                              (if (begin
+                                                                    (if (begin
+                                                                          (begin
+                                                                            (set! tmp.45 tmp.19)
+                                                                            (set! tmp.45 (bitwise-and tmp.45 7)))
+                                                                          (= tmp.45 0))
+                                                                        (set! tmp.44 14)
+                                                                        (set! tmp.44 6))
+                                                                    (!= tmp.44 6))
+                                                                  (begin
+                                                                    (set! tmp.46 tmp.20)
+                                                                    (set! tmp.46 (arithmetic-shift-right tmp.46 3))
+                                                                    (set! rax tmp.19)
+                                                                    (set! rax (* rax tmp.46))
+                                                                    (jump tmp-ra.57 rbp rax))
+                                                                  (begin (set! rax 318) (jump tmp-ra.57 rbp rax)))
+                                                              (begin (set! rax 318) (jump tmp-ra.57 rbp rax)))))
+                                                      (define L.+.3
+                                                        ((locals (tmp.49 tmp.50 tmp.48 tmp.47 tmp.21 tmp.22 tmp-ra.58))
+                                                         (conflicts
+                                                          ((tmp.47 (rbp tmp-ra.58 tmp.22 tmp.21))
+                                                           (tmp.22 (rbp tmp-ra.58 tmp.21 tmp.48 tmp.47 tmp.50 tmp.49 rax))
+                                                           (tmp.48 (rbp tmp-ra.58 tmp.22 tmp.21))
+                                                           (tmp-ra.58 (tmp.22 tmp.21 rbp rsi rdi tmp.48 tmp.47 tmp.50 tmp.49 rax))
+                                                           (tmp.50 (rbp tmp-ra.58 tmp.22 tmp.21))
+                                                           (tmp.21 (tmp.22 rbp tmp-ra.58 rsi tmp.48 tmp.47 tmp.50 tmp.49))
+                                                           (tmp.49 (rbp tmp-ra.58 tmp.22 tmp.21))
+                                                           (rax (tmp.22 rbp tmp-ra.58))
+                                                           (rbp (tmp.22 tmp.21 tmp-ra.58 tmp.48 tmp.47 tmp.50 tmp.49 rax))
+                                                           (rdi (tmp-ra.58))
+                                                           (rsi (tmp.21 tmp-ra.58))))
+                                                         (assignment ()))
+                                                        (begin
+                                                          (set! tmp-ra.58 r15)
+                                                          (set! tmp.21 rdi)
+                                                          (set! tmp.22 rsi)
+                                                          (if (begin
+                                                                (if (begin
+                                                                      (begin
+                                                                        (set! tmp.48 tmp.22)
+                                                                        (set! tmp.48 (bitwise-and tmp.48 7)))
+                                                                      (= tmp.48 0))
+                                                                    (set! tmp.47 14)
+                                                                    (set! tmp.47 6))
+                                                                (!= tmp.47 6))
+                                                              (if (begin
+                                                                    (if (begin
+                                                                          (begin
+                                                                            (set! tmp.50 tmp.21)
+                                                                            (set! tmp.50 (bitwise-and tmp.50 7)))
+                                                                          (= tmp.50 0))
+                                                                        (set! tmp.49 14)
+                                                                        (set! tmp.49 6))
+                                                                    (!= tmp.49 6))
+                                                                  (begin
+                                                                    (set! rax tmp.21)
+                                                                    (set! rax (+ rax tmp.22))
+                                                                    (jump tmp-ra.58 rbp rax))
+                                                                  (begin (set! rax 574) (jump tmp-ra.58 rbp rax)))
+                                                              (begin (set! rax 574) (jump tmp-ra.58 rbp rax)))))
+                                                      (define L.add.1
+                                                        ((locals (tmp.51 tmp.52 tmp.53 tmp.54 tmp.55 tmp.56 h.1 g.2))
+                                                         (conflicts
+                                                          ((tmp-ra.59
+                                                            (tmp.51
+                                                             tmp.52
+                                                             tmp.53
+                                                             tmp.54
+                                                             tmp.55
+                                                             tmp.56
+                                                             h.1
+                                                             g.2
+                                                             f.3
+                                                             e.4
+                                                             d.5
+                                                             c.6
+                                                             b.7
+                                                             a.8
+                                                             rbp
+                                                             fv1
+                                                             fv0
+                                                             r9
+                                                             r8
+                                                             rcx
+                                                             rdx
+                                                             rsi
+                                                             rdi))
+                                                           (a.8
+                                                            (tmp.51
+                                                             tmp.52
+                                                             tmp.53
+                                                             tmp.54
+                                                             tmp.55
+                                                             tmp.56
+                                                             h.1
+                                                             g.2
+                                                             f.3
+                                                             e.4
+                                                             d.5
+                                                             c.6
+                                                             b.7
+                                                             rbp
+                                                             tmp-ra.59
+                                                             fv1
+                                                             fv0
+                                                             r9
+                                                             r8
+                                                             rcx
+                                                             rdx
+                                                             rsi))
+                                                           (b.7
+                                                            (rsi
+                                                             tmp.52
+                                                             tmp.53
+                                                             tmp.54
+                                                             tmp.55
+                                                             tmp.56
+                                                             h.1
+                                                             g.2
+                                                             f.3
+                                                             e.4
+                                                             d.5
+                                                             c.6
+                                                             rbp
+                                                             tmp-ra.59
+                                                             a.8
+                                                             fv1
+                                                             fv0
+                                                             r9
+                                                             r8
+                                                             rcx
+                                                             rdx))
+                                                           (c.6
+                                                            (rsi
+                                                             tmp.53
+                                                             tmp.54
+                                                             tmp.55
+                                                             tmp.56
+                                                             h.1
+                                                             g.2
+                                                             f.3
+                                                             e.4
+                                                             d.5
+                                                             rbp
+                                                             tmp-ra.59
+                                                             a.8
+                                                             b.7
+                                                             fv1
+                                                             fv0
+                                                             r9
+                                                             r8
+                                                             rcx))
+                                                           (d.5
+                                                            (rsi
+                                                             tmp.54
+                                                             tmp.55
+                                                             tmp.56
+                                                             h.1
+                                                             g.2
+                                                             f.3
+                                                             e.4
+                                                             rbp
+                                                             tmp-ra.59
+                                                             a.8
+                                                             b.7
+                                                             c.6
+                                                             fv1
+                                                             fv0
+                                                             r9
+                                                             r8))
+                                                           (e.4
+                                                            (rsi
+                                                             tmp.55
+                                                             tmp.56
+                                                             h.1
+                                                             g.2
+                                                             f.3
+                                                             rbp
+                                                             tmp-ra.59
+                                                             a.8
+                                                             b.7
+                                                             c.6
+                                                             d.5
+                                                             fv1
+                                                             fv0
+                                                             r9))
+                                                           (f.3 (rsi tmp.56 h.1 g.2 rbp tmp-ra.59 a.8 b.7 c.6 d.5 e.4 fv1 fv0))
+                                                           (g.2 (rsi h.1 rbp tmp-ra.59 a.8 b.7 c.6 d.5 e.4 f.3 fv1))
+                                                           (h.1 (rbp tmp-ra.59 a.8 b.7 c.6 d.5 e.4 f.3 g.2))
+                                                           (tmp.56 (rbp tmp-ra.59 a.8 b.7 c.6 d.5 e.4 f.3))
+                                                           (tmp.55 (rbp tmp-ra.59 a.8 b.7 c.6 d.5 e.4))
+                                                           (tmp.54 (rbp tmp-ra.59 a.8 b.7 c.6 d.5))
+                                                           (tmp.53 (rbp tmp-ra.59 a.8 b.7 c.6))
+                                                           (tmp.52 (rbp tmp-ra.59 a.8 b.7))
+                                                           (tmp.51 (rbp tmp-ra.59 a.8))
+                                                           (rdi (r15 rbp rsi tmp-ra.59))
+                                                           (rsi (b.7 c.6 d.5 e.4 f.3 r15 rdi rbp g.2 a.8 tmp-ra.59))
+                                                           (rdx (b.7 a.8 tmp-ra.59))
+                                                           (rcx (c.6 b.7 a.8 tmp-ra.59))
+                                                           (r8 (d.5 c.6 b.7 a.8 tmp-ra.59))
+                                                           (r9 (e.4 d.5 c.6 b.7 a.8 tmp-ra.59))
+                                                           (fv0 (f.3 e.4 d.5 c.6 b.7 a.8 tmp-ra.59))
+                                                           (fv1 (g.2 f.3 e.4 d.5 c.6 b.7 a.8 tmp-ra.59))
+                                                           (rbp
+                                                            (tmp.51
+                                                             tmp.52
+                                                             tmp.53
+                                                             tmp.54
+                                                             tmp.55
+                                                             tmp.56
+                                                             r15
+                                                             rdi
+                                                             rsi
+                                                             h.1
+                                                             g.2
+                                                             f.3
+                                                             e.4
+                                                             d.5
+                                                             c.6
+                                                             b.7
+                                                             a.8
+                                                             tmp-ra.59))
+                                                           (r15 (rbp rdi rsi))))
+                                                         (assignment
+                                                          ((tmp-ra.59 fv2)
+                                                           (a.8 fv3)
+                                                           (b.7 fv4)
+                                                           (c.6 fv5)
+                                                           (d.5 fv6)
+                                                           (e.4 fv7)
+                                                           (f.3 fv8))))
+                                                        (begin
+                                                          (set! tmp-ra.59 r15)
+                                                          (set! a.8 rdi)
+                                                          (set! b.7 rsi)
+                                                          (set! c.6 rdx)
+                                                          (set! d.5 rcx)
+                                                          (set! e.4 r8)
+                                                          (set! f.3 r9)
+                                                          (set! g.2 fv0)
+                                                          (set! h.1 fv1)
+                                                          (begin
+                                                            (set! rbp (- rbp 72))
+                                                            (return-point L.rp.5
+                                                                          (begin
+                                                                            (set! rsi h.1)
+                                                                            (set! rdi g.2)
+                                                                            (set! r15 L.rp.5)
+                                                                            (jump L.+.3 rbp r15 rdi rsi)))
+                                                            (set! rbp (+ rbp 72)))
+                                                          (set! tmp.56 rax)
+                                                          (begin
+                                                            (set! rbp (- rbp 72))
+                                                            (return-point L.rp.6
+                                                                          (begin
+                                                                            (set! rsi tmp.56)
+                                                                            (set! rdi f.3)
+                                                                            (set! r15 L.rp.6)
+                                                                            (jump L.+.3 rbp r15 rdi rsi)))
+                                                            (set! rbp (+ rbp 72)))
+                                                          (set! tmp.55 rax)
+                                                          (begin
+                                                            (set! rbp (- rbp 72))
+                                                            (return-point L.rp.7
+                                                                          (begin
+                                                                            (set! rsi tmp.55)
+                                                                            (set! rdi e.4)
+                                                                            (set! r15 L.rp.7)
+                                                                            (jump L.+.3 rbp r15 rdi rsi)))
+                                                            (set! rbp (+ rbp 72)))
+                                                          (set! tmp.54 rax)
+                                                          (begin
+                                                            (set! rbp (- rbp 72))
+                                                            (return-point L.rp.8
+                                                                          (begin
+                                                                            (set! rsi tmp.54)
+                                                                            (set! rdi d.5)
+                                                                            (set! r15 L.rp.8)
+                                                                            (jump L.+.3 rbp r15 rdi rsi)))
+                                                            (set! rbp (+ rbp 72)))
+                                                          (set! tmp.53 rax)
+                                                          (begin
+                                                            (set! rbp (- rbp 72))
+                                                            (return-point L.rp.9
+                                                                          (begin
+                                                                            (set! rsi tmp.53)
+                                                                            (set! rdi c.6)
+                                                                            (set! r15 L.rp.9)
+                                                                            (jump L.+.3 rbp r15 rdi rsi)))
+                                                            (set! rbp (+ rbp 72)))
+                                                          (set! tmp.52 rax)
+                                                          (begin
+                                                            (set! rbp (- rbp 72))
+                                                            (return-point L.rp.10
+                                                                          (begin
+                                                                            (set! rsi tmp.52)
+                                                                            (set! rdi b.7)
+                                                                            (set! r15 L.rp.10)
+                                                                            (jump L.+.3 rbp r15 rdi rsi)))
+                                                            (set! rbp (+ rbp 72)))
+                                                          (set! tmp.51 rax)
+                                                          (set! rsi tmp.51)
+                                                          (set! rdi a.8)
+                                                          (set! r15 tmp-ra.59)
+                                                          (jump L.+.3 rbp r15 rdi rsi)))
+                                                      (define L.add-and-multiply.2
+                                                        ((locals (sum.18 h.10 g.11 f.12 e.13 d.14 c.15 b.16 a.17))
+                                                         (conflicts
+                                                          ((tmp-ra.60
+                                                            (sum.18
+                                                             i.9
+                                                             h.10
+                                                             g.11
+                                                             f.12
+                                                             e.13
+                                                             d.14
+                                                             c.15
+                                                             b.16
+                                                             a.17
+                                                             rbp
+                                                             fv2
+                                                             fv1
+                                                             fv0
+                                                             r9
+                                                             r8
+                                                             rcx
+                                                             rdx
+                                                             rsi
+                                                             rdi))
+                                                           (a.17
+                                                            (nfv.61
+                                                             nfv.62
+                                                             i.9
+                                                             h.10
+                                                             g.11
+                                                             f.12
+                                                             e.13
+                                                             d.14
+                                                             c.15
+                                                             b.16
+                                                             rbp
+                                                             tmp-ra.60
+                                                             fv2
+                                                             fv1
+                                                             fv0
+                                                             r9
+                                                             r8
+                                                             rcx
+                                                             rdx
+                                                             rsi))
+                                                           (b.16
+                                                            (nfv.61
+                                                             nfv.62
+                                                             i.9
+                                                             h.10
+                                                             g.11
+                                                             f.12
+                                                             e.13
+                                                             d.14
+                                                             c.15
+                                                             rbp
+                                                             tmp-ra.60
+                                                             a.17
+                                                             fv2
+                                                             fv1
+                                                             fv0
+                                                             r9
+                                                             r8
+                                                             rcx
+                                                             rdx))
+                                                           (c.15
+                                                            (nfv.61
+                                                             nfv.62
+                                                             i.9
+                                                             h.10
+                                                             g.11
+                                                             f.12
+                                                             e.13
+                                                             d.14
+                                                             rbp
+                                                             tmp-ra.60
+                                                             b.16
+                                                             a.17
+                                                             fv2
+                                                             fv1
+                                                             fv0
+                                                             r9
+                                                             r8
+                                                             rcx))
+                                                           (d.14
+                                                            (nfv.61
+                                                             nfv.62
+                                                             i.9
+                                                             h.10
+                                                             g.11
+                                                             f.12
+                                                             e.13
+                                                             rbp
+                                                             tmp-ra.60
+                                                             c.15
+                                                             b.16
+                                                             a.17
+                                                             fv2
+                                                             fv1
+                                                             fv0
+                                                             r9
+                                                             r8))
+                                                           (e.13
+                                                            (nfv.61
+                                                             nfv.62
+                                                             i.9
+                                                             h.10
+                                                             g.11
+                                                             f.12
+                                                             rbp
+                                                             tmp-ra.60
+                                                             d.14
+                                                             c.15
+                                                             b.16
+                                                             a.17
+                                                             fv2
+                                                             fv1
+                                                             fv0
+                                                             r9))
+                                                           (f.12
+                                                            (nfv.61
+                                                             nfv.62
+                                                             i.9
+                                                             h.10
+                                                             g.11
+                                                             rbp
+                                                             tmp-ra.60
+                                                             e.13
+                                                             d.14
+                                                             c.15
+                                                             b.16
+                                                             a.17
+                                                             fv2
+                                                             fv1
+                                                             fv0))
+                                                           (g.11
+                                                            (nfv.62 i.9 h.10 rbp tmp-ra.60 f.12 e.13 d.14 c.15 b.16 a.17 fv2 fv1))
+                                                           (h.10 (i.9 rbp tmp-ra.60 g.11 f.12 e.13 d.14 c.15 b.16 a.17 fv2))
+                                                           (i.9 (sum.18 rbp tmp-ra.60 h.10 g.11 f.12 e.13 d.14 c.15 b.16 a.17))
+                                                           (nfv.61
+                                                            (r15 rdi rsi rdx rcx r8 r9 rbp nfv.62 a.17 b.16 c.15 d.14 e.13 f.12))
+                                                           (nfv.62
+                                                            (r15
+                                                             rdi
+                                                             rsi
+                                                             rdx
+                                                             rcx
+                                                             r8
+                                                             r9
+                                                             nfv.61
+                                                             rbp
+                                                             a.17
+                                                             b.16
+                                                             c.15
+                                                             d.14
+                                                             e.13
+                                                             f.12
+                                                             g.11))
+                                                           (sum.18 (rsi rbp tmp-ra.60 i.9))
+                                                           (rdi (r15 rbp rsi rdx rcx r8 r9 nfv.61 nfv.62 tmp-ra.60))
+                                                           (rsi (sum.18 r15 rdi rbp rdx rcx r8 r9 nfv.61 nfv.62 a.17 tmp-ra.60))
+                                                           (rdx (r15 rdi rsi rbp rcx r8 r9 nfv.61 nfv.62 b.16 a.17 tmp-ra.60))
+                                                           (rcx (r15 rdi rsi rdx rbp r8 r9 nfv.61 nfv.62 c.15 b.16 a.17 tmp-ra.60))
+                                                           (r8
+                                                            (r15
+                                                             rdi
+                                                             rsi
+                                                             rdx
+                                                             rcx
+                                                             rbp
+                                                             r9
+                                                             nfv.61
+                                                             nfv.62
+                                                             d.14
+                                                             c.15
+                                                             b.16
+                                                             a.17
+                                                             tmp-ra.60))
+                                                           (r9
+                                                            (r15
+                                                             rdi
+                                                             rsi
+                                                             rdx
+                                                             rcx
+                                                             r8
+                                                             rbp
+                                                             nfv.61
+                                                             nfv.62
+                                                             e.13
+                                                             d.14
+                                                             c.15
+                                                             b.16
+                                                             a.17
+                                                             tmp-ra.60))
+                                                           (fv0 (f.12 e.13 d.14 c.15 b.16 a.17 tmp-ra.60))
+                                                           (fv1 (g.11 f.12 e.13 d.14 c.15 b.16 a.17 tmp-ra.60))
+                                                           (fv2 (h.10 g.11 f.12 e.13 d.14 c.15 b.16 a.17 tmp-ra.60))
+                                                           (rbp
+                                                            (sum.18
+                                                             r15
+                                                             rdi
+                                                             rsi
+                                                             rdx
+                                                             rcx
+                                                             r8
+                                                             r9
+                                                             nfv.61
+                                                             nfv.62
+                                                             i.9
+                                                             h.10
+                                                             g.11
+                                                             f.12
+                                                             e.13
+                                                             d.14
+                                                             c.15
+                                                             b.16
+                                                             a.17
+                                                             tmp-ra.60))
+                                                           (r15 (rbp rdi rsi rdx rcx r8 r9 nfv.61 nfv.62))))
+                                                         (assignment ((tmp-ra.60 fv3) (i.9 fv0) (nfv.61 fv4) (nfv.62 fv5))))
+                                                        (begin
+                                                          (set! tmp-ra.60 r15)
+                                                          (set! a.17 rdi)
+                                                          (set! b.16 rsi)
+                                                          (set! c.15 rdx)
+                                                          (set! d.14 rcx)
+                                                          (set! e.13 r8)
+                                                          (set! f.12 r9)
+                                                          (set! g.11 fv0)
+                                                          (set! h.10 fv1)
+                                                          (set! i.9 fv2)
+                                                          (begin
+                                                            (set! rbp (- rbp 32))
+                                                            (return-point L.rp.11
+                                                                          (begin
+                                                                            (set! nfv.62 h.10)
+                                                                            (set! nfv.61 g.11)
+                                                                            (set! r9 f.12)
+                                                                            (set! r8 e.13)
+                                                                            (set! rcx d.14)
+                                                                            (set! rdx c.15)
+                                                                            (set! rsi b.16)
+                                                                            (set! rdi a.17)
+                                                                            (set! r15 L.rp.11)
+                                                                            (jump L.add.1 rbp r15 rdi rsi rdx rcx r8 r9 nfv.61 nfv.62)))
+                                                            (set! rbp (+ rbp 32)))
+                                                          (set! sum.18 rax)
+                                                          (set! rsi i.9)
+                                                          (set! rdi sum.18)
+                                                          (set! r15 tmp-ra.60)
+                                                          (jump L.*.4 rbp r15 rdi rsi)))
+                                                      (begin
+                                                        (set! tmp-ra.63 r15)
+                                                        (set! fv2 16)
+                                                        (set! fv1 64)
+                                                        (set! fv0 56)
+                                                        (set! r9 48)
+                                                        (set! r8 40)
+                                                        (set! rcx 32)
+                                                        (set! rdx 24)
+                                                        (set! rsi 16)
+                                                        (set! rdi 8)
+                                                        (set! r15 tmp-ra.63)
+                                                        (jump L.add-and-multiply.2 rbp r15 rdi rsi rdx rcx r8 r9 fv0 fv1 fv2)))))))
