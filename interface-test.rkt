@@ -8,23 +8,26 @@
 
   (check-import-list
    "compiler.rkt"
-   '(check-values-lang
-     uniquify
+   '(uniquify
+     implement-safe-primops
+     specify-representation
+     remove-complex-opera*
      sequentialize-let
      normalize-bind
      impose-calling-conventions
      select-instructions
-     assign-homes-opt
      uncover-locals
      undead-analysis
      conflict-analysis
+     assign-call-undead-variables
+     allocate-frames
      assign-registers
+     assign-frame-variables
      replace-locations
      optimize-predicates
+     implement-fvars
      expose-basic-blocks
      resolve-predicates
      flatten-program
      patch-instructions
-     implement-fvars
-
      generate-x64)))

@@ -2,16 +2,16 @@
 
 (require
   cpsc411/compiler-lib
-  cpsc411/langs/v6
+  cpsc411/langs/v7
   rackunit)
 
 (provide implement-fvars)
 
-;; nested-asm-lang-fvars-v6 -> nested-asm-lang-v6
-;; compiles p to Nested-asm-lang v6 by reifying fvars into displacement mode
+;; nested-asm-lang-fvars-v7 -> nested-asm-lang-v7
+;; compiles p to Nested-asm-lang v7 by reifying fvars into displacement mode
 ;; operands
 (define/contract (implement-fvars p)
-  (-> nested-asm-lang-fvars-v6? nested-asm-lang-v6?)
+  (-> nested-asm-lang-fvars-v7? nested-asm-lang-v7?)
 
   ;; base-pointer-offset is Integer
   ;; keeps track of the frame base pointer offset after allocating/deallocating
@@ -35,7 +35,7 @@
       ['- (set! base-pointer-offset (- base-pointer-offset offset))]
       [else (set! base-pointer-offset offset)]))
 
-  ;; nested-asm-lang-fvars-v6.tail -> nested-asm-lang-v6.tail
+  ;; nested-asm-lang-fvars-v7.tail -> nested-asm-lang-v7.tail
   (define (implement-fvars-tail tail)
     (match tail
       [`(jump ,trg)
@@ -47,7 +47,7 @@
             ,(implement-fvars-tail t1)
             ,(implement-fvars-tail t2))]))
 
-  ;; nested-asm-lang-fvars-v6.effect -> nested-asm-lang-v6.effect
+  ;; nested-asm-lang-fvars-v7.effect -> nested-asm-lang-v7.effect
   (define (implement-fvars-effect effect)
     (match effect
       [`(set! ,loc (,binop ,loc ,opand))
@@ -70,7 +70,7 @@
       [`(return-point ,label ,tail)
        `(return-point ,label ,(implement-fvars-tail tail))]))
 
-  ;; nested-asm-lang-fvars-v6.pred -> nested-asm-lang-v6.pred
+  ;; nested-asm-lang-fvars-v7.pred -> nested-asm-lang-v7.pred
   (define (implement-fvars-pred pred)
     (match pred
       ['(true) pred]
@@ -85,25 +85,25 @@
       [`(,relop ,loc ,opand)
        `(,relop ,(implement-fvars-loc loc) ,(implement-fvars-opand opand))]))
 
-  ;; nested-asm-lang-fvars-v6.loc -> nested-asm-lang-v6.loc
+  ;; nested-asm-lang-fvars-v7.loc -> nested-asm-lang-v7.loc
   (define (implement-fvars-loc loc)
     (match loc
       [reg #:when (register? reg) reg]
       [fvar #:when (fvar? fvar) (fvar->addr fvar)]))
 
-  ;; nested-asm-lang-fvars-v6.trg -> nested-asm-lang-v6.trg
+  ;; nested-asm-lang-fvars-v7.trg -> nested-asm-lang-v7.trg
   (define (implement-fvars-trg trg)
     (match trg
       [label #:when (label? label) label]
       [loc (implement-fvars-loc loc)]))
 
-  ;; nested-asm-lang-fvars-v6.opand -> nested-asm-lang-v6.opand
+  ;; nested-asm-lang-fvars-v7.opand -> nested-asm-lang-v7.opand
   (define (implement-fvars-opand opand)
     (match opand
       [int64 #:when (int64? int64) int64]
       [loc (implement-fvars-loc loc)]))
 
-  ;; nested-asm-lang-fvars-v6.triv -> nested-asm-lang-v6.triv
+  ;; nested-asm-lang-fvars-v7.triv -> nested-asm-lang-v7.triv
   (define (implement-fvars-triv triv)
     (match triv
       [label #:when (label? label) label]
@@ -215,4 +215,46 @@
                      (set! (rbp - 8) 2)
                      (set! (rbp - 0) 1)
                      (set! r15 r15)
-                     (jump L.swap.1)))))
+                     (jump L.swap.1))))
+  (check-equal? (implement-fvars '(module
+                                      (define L.f.1
+                                        (begin
+                                          (set! rsp r15)
+                                          (set! rcx rdi)
+                                          (set! rdx 1)
+                                          (set! rbx 2)
+                                          (set! rdx rdx)
+                                          (set! rdx (bitwise-and rdx rcx))
+                                          (set! rbx rbx)
+                                          (set! rbx (bitwise-ior rbx rcx))
+                                          (set! rdx (bitwise-xor rdx rbx))
+                                          (set! rax rdx)
+                                          (set! rax (arithmetic-shift-right rax 3))
+                                          (jump rsp)))
+                                    (begin
+                                      (set! rbx r15)
+                                      (set! rcx 10)
+                                      (if (begin (set! rsp 100) (not (!= rcx rsp)))
+                                          (begin (set! rdi rcx) (set! r15 rbx) (jump L.f.1))
+                                          (begin (set! rdi 1000) (set! r15 rbx) (jump L.f.2))))))
+                '(module
+                     (define L.f.1
+                       (begin
+                         (set! rsp r15)
+                         (set! rcx rdi)
+                         (set! rdx 1)
+                         (set! rbx 2)
+                         (set! rdx rdx)
+                         (set! rdx (bitwise-and rdx rcx))
+                         (set! rbx rbx)
+                         (set! rbx (bitwise-ior rbx rcx))
+                         (set! rdx (bitwise-xor rdx rbx))
+                         (set! rax rdx)
+                         (set! rax (arithmetic-shift-right rax 3))
+                         (jump rsp)))
+                   (begin
+                     (set! rbx r15)
+                     (set! rcx 10)
+                     (if (begin (set! rsp 100) (not (!= rcx rsp)))
+                         (begin (set! rdi rcx) (set! r15 rbx) (jump L.f.1))
+                         (begin (set! rdi 1000) (set! r15 rbx) (jump L.f.2)))))))

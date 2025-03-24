@@ -4,17 +4,17 @@
 
 (require
   cpsc411/compiler-lib
-  cpsc411/langs/v6
+  cpsc411/langs/v7
   rackunit)
 
 (provide patch-instructions)
 
-;; para-asm-lang-v6 -> paren-x64-v6
-;; compiles p to to Paren-x64 v6 by patching each instruction that has no
+;; para-asm-lang-v7 -> paren-x64-v7
+;; compiles p to to Paren-x64 v7 by patching each instruction that has no
 ;; x64 analogue into a sequence of instructions using auxiliary register from
 ;; current-patch-instructions-registers
 (define/contract (patch-instructions p)
-  (-> para-asm-lang-v6? paren-x64-v6?)
+  (-> para-asm-lang-v7? paren-x64-v7?)
 
   ;; relop -> relop
   ;; produces the negation of relop
@@ -27,7 +27,7 @@
       [`> `<=]
       [`!= `=]))
 
-  ;; para-asm-lang-v6.s -> paren-x64-v6.s
+  ;; para-asm-lang-v7.s -> paren-x64-v7.s
   (define (compile-s s)
     (match s
       [`(set! ,loc (,binop ,loc ,triv))
@@ -129,185 +129,75 @@
   (check-equal? (patch-instructions '(begin
                                        (set! (rbp - 0) 0)
                                        (set! (rbp - 8) 1)
-                                       (set! r11 (rbp - 8))
-                                       (set! r10 (rbp - 0))
-                                       (compare r10 r11)
+                                       (set! r8 (rbp - 8))
+                                       (set! r9 (rbp - 0))
+                                       (compare r8 r9)
                                        (jump-if > L.foo.1)
                                        (jump done)
                                        (with-label L.foo.1 (jump done))))
                 '(begin
-                   (set! fv0 0)
-                   (set! fv1 1)
-                   (set! r11 fv1)
-                   (set! r10 fv0)
-                   (compare r10 r11)
+                   (set! (rbp - 0) 0)
+                   (set! (rbp - 8) 1)
+                   (set! r8 (rbp - 8))
+                   (set! r9 (rbp - 0))
+                   (compare r8 r9)
                    (jump-if > L.foo.1)
-                   (set! rax 0)
                    (jump done)
-                   (with-label L.foo.1 (set! rax 1))
-                   (jump done)))
+                   (with-label L.foo.1 (jump done))))
   (check-equal? (patch-instructions
                  '(begin
                     (set! rsi L.label.1)
                     (with-label L.label.1
                       (set! rbx 18))
-                    (halt rbx)))
-                '(begin
-                   (set! rsi L.label.1)
-                   (with-label L.label.1 (set! rbx 18))
-                   (set! rax rbx)
-                   (jump done)))
-  (check-equal? (patch-instructions
-                 '(begin
-                    (compare rax 10)
-                    (jump-if = done)))
-                `(begin (compare rax 10) (jump-if = done)))
-  (check-equal? (patch-instructions
-                 `(begin (jump done)))
-                `(begin (jump done)))
-  (check-equal? (patch-instructions
-                 `(begin (with-label L.my_label.1 (set! fv0 L.my_label.1))
-                         (with-label L.my_label.2 (halt 42))))
-                `(begin
-                   (with-label L.my_label.1 (set! r10 L.my_label.1))
-                   (set! fv0 r10)
-                   (with-label L.my_label.2 (set! rax 42))
-                   (jump done)))
-  (check-equal? (patch-instructions
-                 '(begin (set! rbx 42)
-                         (set! fv0 L.my_label.1)
-                         (set! fv1 L.my_label.2)
-                         (compare rbx 42)
-                         (jump-if = fv0)
-                         (halt rbx)
-                         (with-label L.my_label.1 (halt 32))
-                         (with-label L.my_label.2 (halt 42))))
-                '(begin
-                   (set! rbx 42)
-                   (set! r10 L.my_label.1)
-                   (set! fv0 r10)
-                   (set! r10 L.my_label.2)
-                   (set! fv1 r10)
-                   (compare rbx 42)
-                   (set! r10 fv0)
-                   (jump-if != L.tmp.4)
-                   (jump r10)
-                   (with-label L.tmp.4 (set! r10 r10))
-                   (set! rax rbx)
-                   (jump done)
-                   (with-label L.my_label.1 (set! rax 32))
-                   (jump done)
-                   (with-label L.my_label.2 (set! rax 42))
-                   (jump done)))
-  (check-equal? (patch-instructions
-                 `(begin
-                    (jump L.tmp.1)
-                    (halt 2)
-                    (with-label L.tmp.1 (halt 1))))
-                `(begin
-                   (jump L.tmp.1)
-                   (set! rax 2)
-                   (jump done)
-                   (with-label L.tmp.1 (set! rax 1))
-                   (jump done)))
-  (check-equal? (patch-instructions
-                 `(begin
-                    (jump fv1)
-                    (halt 2)
-                    (with-label L.tmp.1 (halt 1))))
-                `(begin
-                   (set! r10 fv1)
-                   (jump r10)
-                   (set! rax 2)
-                   (jump done)
-                   (with-label L.tmp.1 (set! rax 1))
-                   (jump done)))
-  (check-equal? (patch-instructions
-                 `(begin
-                    (jump rbx)
-                    (halt 1)))
-                `(begin
-                   (jump rbx)
-                   (set! rax 1)
-                   (jump done)))
-  (check-equal? (patch-instructions
-                 '(begin (set! rbx 42) (halt rbx)))
-                '(begin (set! rbx 42) (set! rax rbx) (jump done)))
-  (check-equal? (patch-instructions '(begin (set! rbx 42) (halt rbx)))
-                '(begin (set! rbx 42) (set! rax rbx) (jump done)))
-  (check-equal? (patch-instructions
-                 '(begin
-                    (set! fv0 0)
-                    (set! fv1 42)
-                    (set! fv0 fv1)
-                    (halt fv0)))
-                '(begin
-                   (set! fv0 0)
-                   (set! fv1 42)
-                   (set! r10 fv1)
-                   (set! fv0 r10)
-                   (set! rax fv0)
-                   (jump done)))
-  (check-equal? (patch-instructions
-                 '(begin
-                    (set! rbx 0)
-                    (set! rcx 0)
-                    (set! r9 42)
-                    (set! rbx rcx)
-                    (set! rbx (+ rbx r9))
-                    (halt rbx)))
-                '(begin
-                   (set! rbx 0)
-                   (set! rcx 0)
-                   (set! r9 42)
-                   (set! rbx rcx)
-                   (set! rbx (+ rbx r9))
-                   (set! rax rbx)
-                   (jump done)))
-  (check-equal? (patch-instructions
-                 '(begin
-                    (set! fv0 0)
-                    (set! fv0 (+ fv0 1))
-                    (halt 1)))
-                '(begin
-                   (set! fv0 0)
-                   (set! r10 fv0)
-                   (set! r10 (+ r10 1))
-                   (set! fv0 r10)
-                   (set! rax 1)
-                   (jump done)))
-  (check-equal? (patch-instructions
-                 '(begin
-                    (set! fv1 7)
-                    (set! fv2 0)
-                    (set! r8 5)
-                    (set! r12 fv1)
-                    (set! r12 (+ r12 r8))
-                    (set! fv2 (+ fv2 4))
-                    (halt fv2)))
-                '(begin
-                   (set! fv1 7)
-                   (set! fv2 0)
-                   (set! r8 5)
-                   (set! r12 fv1)
-                   (set! r12 (+ r12 r8))
-                   (set! r10 fv2)
-                   (set! r10 (+ r10 4))
-                   (set! fv2 r10)
-                   (set! rax fv2)
-                   (jump done)))
+                    (jump done)))
+                '(begin (set! rsi L.label.1) (with-label L.label.1 (set! rbx 18)) (jump done)))
   (check-equal? (patch-instructions '(begin
-                                       (with-label L.start.1 (set! rax 5))
-                                       (jump L.start.1)))
-                '(begin (with-label L.start.1 (set! rax 5)) (jump L.start.1)))
-  (check-equal? (patch-instructions '(begin
-                                       (set! fv0 10)
-                                       (set! r9 fv0)
-                                       (with-label L.init.1 (set! fv0 100))
-                                       (compare fv0 100)))
+                                       (with-label L.tmp.99 (set! rbx r15))
+                                       (set! rcx 10)
+                                       (set! rsp 100)
+                                       (compare rcx rsp)
+                                       (jump-if != L.tmp.101)
+                                       (jump L.tmp.100)
+                                       (with-label L.tmp.101 (set! rdi 1000))
+                                       (set! r15 rbx)
+                                       (jump L.f.2)
+                                       (with-label L.tmp.100 (set! rdi rcx))
+                                       (set! r15 rbx)
+                                       (jump L.f.1)
+                                       (with-label L.f.1 (set! rsp r15))
+                                       (set! rcx rdi)
+                                       (set! rdx 1)
+                                       (set! rbx 2)
+                                       (set! rdx rdx)
+                                       (set! rdx (bitwise-and rdx rcx))
+                                       (set! rbx rbx)
+                                       (set! rbx (bitwise-ior rbx rcx))
+                                       (set! rdx (bitwise-xor rdx rbx))
+                                       (set! rax rdx)
+                                       (set! rax (arithmetic-shift-right rax 3))
+                                       (jump rsp)))
                 '(begin
-                   (set! fv0 10)
-                   (set! r9 fv0)
-                   (with-label L.init.1 (set! fv0 100))
-                   (set! r10 fv0)
-                   (compare r10 100))))
+                   (with-label L.tmp.99 (set! rbx r15))
+                   (set! rcx 10)
+                   (set! rsp 100)
+                   (compare rcx rsp)
+                   (jump-if != L.tmp.101)
+                   (jump L.tmp.100)
+                   (with-label L.tmp.101 (set! rdi 1000))
+                   (set! r15 rbx)
+                   (jump L.f.2)
+                   (with-label L.tmp.100 (set! rdi rcx))
+                   (set! r15 rbx)
+                   (jump L.f.1)
+                   (with-label L.f.1 (set! rsp r15))
+                   (set! rcx rdi)
+                   (set! rdx 1)
+                   (set! rbx 2)
+                   (set! rdx rdx)
+                   (set! rdx (bitwise-and rdx rcx))
+                   (set! rbx rbx)
+                   (set! rbx (bitwise-ior rbx rcx))
+                   (set! rdx (bitwise-xor rdx rbx))
+                   (set! rax rdx)
+                   (set! rax (arithmetic-shift-right rax 3))
+                   (jump rsp))))

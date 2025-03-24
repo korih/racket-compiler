@@ -9,6 +9,9 @@
          extend-env*
          extend-env
          binop?
+         unsafe-binop?
+         safe-binop?
+         unop?
          relop?
          addr?
          rloc?)              
@@ -49,9 +52,24 @@
 ;; ================================================
 
 ;; any -> boolean
-;; produces true if op is a valid binop, which is either * or +
+;; produces true if op is a valid safe binop
+(define (safe-binop? op)
+  (and (member op '(* + - < eq? <= > >=)) #t))
+
+;; any -> boolean
+;; produces true if op is a valid unsafe binop
+(define (unsafe-binop? op)
+  (and (member op '(unsafe-fx* unsafe-fx+ unsafe-fx- eq? unsafe-fx< unsafe-fx<= unsafe-fx> unsafe-fx>=)) #t))
+
+;; any -> boolean
+;; produces true if op is a valid binop
 (define (binop? op)
-  (and (member op '(* + -)) #t))
+  (and (member op '(* + - bitwise-and bitwise-ior bitwise-xor arithmetic-shift-right)) #t))
+
+;; any -> boolean
+;; produces true if op is a valid unop
+(define (unop? op)
+  (and (member op '(fixnum? boolean? empty? void? ascii-char? error? not)) #t))
 
 ;; any -> boolean
 ;; produces true if op is a valid relop
@@ -97,15 +115,69 @@
                                        'z)
                            7))
   
+  (test-case "safe-binop?"
+             (check-true (safe-binop? '*))
+             (check-true (safe-binop? '+))
+             (check-true (safe-binop? '-))
+             (check-true (safe-binop? '>))
+             (check-true (safe-binop? '>=))
+             (check-true (safe-binop? 'eq?))
+             (check-true (safe-binop? '<))
+             (check-true (safe-binop? '<=))
+             (check-false (safe-binop? '^))
+             (check-false (safe-binop? ""))
+             (check-false (safe-binop? "*"))
+             (check-false (safe-binop? "+"))
+             (check-false (safe-binop? 1)))
+
+  (test-case "unsafe-binop?"
+             (check-true (unsafe-binop? 'unsafe-fx*))
+             (check-true (unsafe-binop? 'unsafe-fx+))
+             (check-true (unsafe-binop? 'unsafe-fx-))
+             (check-true (unsafe-binop? 'eq?))
+             (check-true (unsafe-binop? 'unsafe-fx<))
+             (check-true (unsafe-binop? 'unsafe-fx<=))
+             (check-true (unsafe-binop? 'unsafe-fx>))
+             (check-true (unsafe-binop? 'unsafe-fx>=))
+             (check-false (unsafe-binop? '*))
+             (check-false (unsafe-binop? '+))
+             (check-false (unsafe-binop? '-))
+             (check-false (unsafe-binop? 'bitwise-and))
+             (check-false (unsafe-binop? "unsafe-fx*"))
+             (check-false (unsafe-binop? 1))
+             (check-false (unsafe-binop? 'random-symbol)))
+
   (test-case "binop?"
              (check-true (binop? '*))
              (check-true (binop? '+))
              (check-true (binop? '-))
-             (check-false (binop? '^))
-             (check-false (binop? ""))
-             (check-false (binop? "*"))
-             (check-false (binop? "+"))
-             (check-false (binop? 1)))
+             (check-true (binop? 'bitwise-and))
+             (check-true (binop? 'bitwise-ior))
+             (check-true (binop? 'bitwise-xor))
+             (check-true (binop? 'arithmetic-shift-right))
+             (check-false (binop? 'eq?))
+             (check-false (binop? 'unsafe-fx*))
+             (check-false (binop? 'unsafe-fx+))
+             (check-false (binop? 'unsafe-fx-))
+             (check-false (binop? "bitwise-and"))
+             (check-false (binop? 2))
+             (check-false (binop? 'random-op)))
+
+  (test-case "unop?"
+             (check-true (unop? 'fixnum?))
+             (check-true (unop? 'boolean?))
+             (check-true (unop? 'empty?))
+             (check-true (unop? 'void?))
+             (check-true (unop? 'ascii-char?))
+             (check-true (unop? 'error?))
+             (check-true (unop? 'not))
+             (check-false (unop? 'eq?))
+             (check-false (unop? '*))
+             (check-false (unop? '+))
+             (check-false (unop? 'unsafe-fx*))
+             (check-false (unop? "boolean?"))
+             (check-false (unop? 3))
+             (check-false (unop? 'random-unary)))
 
   (test-case "relop?"
              (check-true (relop? '<=))
