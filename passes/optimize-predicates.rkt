@@ -21,6 +21,8 @@
   ;; - int64
   ;; - 'unknown
 
+  (define here true)
+
   ;; to get eval to work
   (define ns (make-base-namespace))
 
@@ -146,8 +148,7 @@
     (cond
       [(interp-relop-optimize-true? relop op1 op2) k-t]
       [(interp-relop-optimize-false? relop op1 op2) k-f]
-      [else `(,relop ,loc ,triv)]
-      #; [else `(if (,relop ,loc ,triv) ,k-t ,k-f)]))
+      [else `(if (,relop ,loc ,triv) ,k-t ,k-f)]))
 
 
   ;; nested-asm-lang-v7.relop RangeValue RangeValue -> boolean
@@ -197,44 +198,43 @@
                                optimized-f))
      `(module ,@optimized-funcs ,(optimize-predicates/tail tail empty-env))]))
 
-(check-equal? (optimize-predicates '(module
-                                        (begin
-                                          (set! r15 r15)
-                                          (set! r13 rdi)
-                                          (set! r14 rsi)
-                                          (if (begin
-                                                (if (begin (set! r9 r14) (set! r9 (bitwise-and r9 7)) (= r9 0))
-                                                    (set! r9 14)
-                                                    (set! r9 6))
-                                                (!= r9 6))
-                                              (if (begin
-                                                    (if (begin (set! r9 r13) (set! r9 (bitwise-and r9 7)) (= r9 0))
-                                                        (set! r9 14)
-                                                        (set! r9 6))
-                                                    (!= r9 6))
-                                                  (begin (set! rax r13) (set! rax (+ rax r14)) (jump r15))
-                                                  (begin (set! rax 574) (jump r15)))
-                                              (begin (set! rax 574) (jump r15))))))
-              '(module
-                   (begin
-                     (set! r15 r15)
-                     (set! r13 rdi)
-                     (set! r14 rsi)
-                     (if (begin
-                           (if (begin (set! r9 r14) (set! r9 (bitwise-and r9 7)) (= r9 0))
-                               (set! r9 14)
-                               (set! r9 6))
-                           (!= r9 6))
-                         (if (begin
-                               (if (begin (set! r9 r13) (set! r9 (bitwise-and r9 7)) (= r9 0))
-                                   (set! r9 14)
-                                   (set! r9 6))
-                               (!= r9 6))
-                             (begin (set! rax r13) (set! rax (+ rax r14)) (jump r15))
-                             (begin (set! rax 574) (jump r15)))
-                         (begin (set! rax 574) (jump r15))))))
-#;
 (module+ test
+  (check-equal? (optimize-predicates '(module
+                                          (begin
+                                            (set! r15 r15)
+                                            (set! r13 rdi)
+                                            (set! r14 rsi)
+                                            (if (begin
+                                                  (if (begin (set! r9 r14) (set! r9 (bitwise-and r9 7)) (= r9 0))
+                                                      (set! r9 14)
+                                                      (set! r9 6))
+                                                  (!= r9 6))
+                                                (if (begin
+                                                      (if (begin (set! r9 r13) (set! r9 (bitwise-and r9 7)) (= r9 0))
+                                                          (set! r9 14)
+                                                          (set! r9 6))
+                                                      (!= r9 6))
+                                                    (begin (set! rax r13) (set! rax (+ rax r14)) (jump r15))
+                                                    (begin (set! rax 574) (jump r15)))
+                                                (begin (set! rax 574) (jump r15))))))
+                '(module
+                     (begin
+                       (set! r15 r15)
+                       (set! r13 rdi)
+                       (set! r14 rsi)
+                       (if (begin
+                             (if (begin (set! r9 r14) (set! r9 (bitwise-and r9 7)) (= r9 0))
+                                 (set! r9 14)
+                                 (set! r9 6))
+                             (!= r9 6))
+                           (if (begin
+                                 (if (begin (set! r9 r13) (set! r9 (bitwise-and r9 7)) (= r9 0))
+                                     (set! r9 14)
+                                     (set! r9 6))
+                                 (!= r9 6))
+                               (begin (set! rax r13) (set! rax (+ rax r14)) (jump r15))
+                               (begin (set! rax 574) (jump r15)))
+                           (begin (set! rax 574) (jump r15))))))
   (check-equal? (optimize-predicates '(module
                                           (begin
                                             (set! fv2 0)
