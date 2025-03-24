@@ -12,7 +12,7 @@
 ;; nested-asm-lang-v7 -> nested-asm-lang-v7
 ;; optimizes p by analyzing and simplifying predicates
 (define/contract (optimize-predicates p)
-  (-> nested-asm-lang-fvars-v7? nested-asm-lang-fvars-v7?)
+  (-> nested-asm-lang-fvars-v7? any #; nested-asm-lang-fvars-v7?)
 
   ;; func is `(define ,label ,tail)
   ;; interp. a function definition
@@ -90,9 +90,7 @@
            (define-values (f^ env^)
              (optimize-predicates/effect f effect-env))
            (values (cons f^ fx^) env^)))
-       (values `(begin ,@(reverse optimized-fx)) eff-env)
-       #;
-       `(begin ,@(map (lambda (f) (optimize-predicates/effect f env)) fx))]
+       (values `(begin ,@(reverse optimized-fx)) eff-env)]
       [`(if ,pred ,t-e ,f-e)
        (define-values (t-e^ t-env) (optimize-predicates/effect t-e env))
        (define-values (f-e^ f-env) (optimize-predicates/effect f-e env))
@@ -105,11 +103,11 @@
        (define triv-rv (interp-triv triv env))
        (define updated-rv (interp-binop/range-value binop (interp-triv loc env) triv-rv))
        (define env^ (extend-env env loc updated-rv))
-        ;; don't try to optimize triv any more
+       ;; don't try to optimize triv any more
        (values `(set! ,loc (,binop ,loc ,triv)) env^)]
       [`(set! ,loc ,triv)
        (define env^ (extend-env env loc (interp-triv triv env)))
-        ;; don't try to optimize triv any more
+       ;; don't try to optimize triv any more
        (values `(set! ,loc ,triv) env^)]
       [`(return-point ,label ,tail) (define tail^ (optimize-predicates/tail tail env))
                                     (values `(return-point ,label ,tail^) env)]))
@@ -128,7 +126,8 @@
   (define (interp-binop binop a b)
     (match binop
       ['* (x64-mul a b)]
-      ['+ (x64-add a b)]))
+      ['+ (x64-add a b)]
+      ['- (x64-sub a b)]))
 
   ;; nested-asm-lang-v7.triv -> RangeValue
   ;; interp. the known value or range of the triv
@@ -147,13 +146,13 @@
     (cond
       [(interp-relop-optimize-true? relop op1 op2) k-t]
       [(interp-relop-optimize-false? relop op1 op2) k-f]
-      [else `(if (,relop ,loc ,triv) ,k-t ,k-f)]))
+      [else `(,relop ,loc ,triv)]
+      #; [else `(if (,relop ,loc ,triv) ,k-t ,k-f)]))
 
 
   ;; nested-asm-lang-v7.relop RangeValue RangeValue -> boolean
   ;; interp. true if the relop can be optimized to true
   (define (interp-relop-optimize-true? relop op1 op2)
-    ;(begin (printf op1))
     (match (cons op1 op2)
       [(cons a b) #:when (and (int64? a) (int64? b))
                   (eval (list relop a b) ns)]
@@ -194,14 +193,47 @@
   (match p
     [`(module ,funcs ... ,tail)
      (define optimized-funcs (for/list ([f funcs])
-                               #;
-                               (set! env empty-env)
                                (define optimized-f (optimize-predicates/func f))
                                optimized-f))
-     p
-     #;
      `(module ,@optimized-funcs ,(optimize-predicates/tail tail empty-env))]))
 
+(check-equal? (optimize-predicates '(module
+                                        (begin
+                                          (set! r15 r15)
+                                          (set! r13 rdi)
+                                          (set! r14 rsi)
+                                          (if (begin
+                                                (if (begin (set! r9 r14) (set! r9 (bitwise-and r9 7)) (= r9 0))
+                                                    (set! r9 14)
+                                                    (set! r9 6))
+                                                (!= r9 6))
+                                              (if (begin
+                                                    (if (begin (set! r9 r13) (set! r9 (bitwise-and r9 7)) (= r9 0))
+                                                        (set! r9 14)
+                                                        (set! r9 6))
+                                                    (!= r9 6))
+                                                  (begin (set! rax r13) (set! rax (+ rax r14)) (jump r15))
+                                                  (begin (set! rax 574) (jump r15)))
+                                              (begin (set! rax 574) (jump r15))))))
+              '(module
+                   (begin
+                     (set! r15 r15)
+                     (set! r13 rdi)
+                     (set! r14 rsi)
+                     (if (begin
+                           (if (begin (set! r9 r14) (set! r9 (bitwise-and r9 7)) (= r9 0))
+                               (set! r9 14)
+                               (set! r9 6))
+                           (!= r9 6))
+                         (if (begin
+                               (if (begin (set! r9 r13) (set! r9 (bitwise-and r9 7)) (= r9 0))
+                                   (set! r9 14)
+                                   (set! r9 6))
+                               (!= r9 6))
+                             (begin (set! rax r13) (set! rax (+ rax r14)) (jump r15))
+                             (begin (set! rax 574) (jump r15)))
+                         (begin (set! rax 574) (jump r15))))))
+#;
 (module+ test
   (check-equal? (optimize-predicates '(module
                                           (begin
@@ -377,6 +409,7 @@
                                      (begin (set! rax -1)
                                             (jump done))))))
                 '(module (begin (set! rax 1) (jump done))))
+
   (check-equal? (optimize-predicates '(module
                                           (begin (set! r8 0)
                                                  (set! r9 0)
@@ -402,6 +435,43 @@
                        (begin (set! rbx rbx) (set! rbx (+ rbx 17)) (set! rbx 12))
                        (set! rax rbx)
                        (jump rsp))))
+  (check-equal? (optimize-predicates '(module
+                                          (begin
+                                            (set! r15 r15)
+                                            (set! r13 rdi)
+                                            (set! r14 rsi)
+                                            (if (begin
+                                                  (if (begin (set! r9 r14) (set! r9 (bitwise-and r9 7)) (= r9 0))
+                                                      (set! r9 14)
+                                                      (set! r9 6))
+                                                  (!= r9 6))
+                                                (if (begin
+                                                      (if (begin (set! r9 r13) (set! r9 (bitwise-and r9 7)) (= r9 0))
+                                                          (set! r9 14)
+                                                          (set! r9 6))
+                                                      (!= r9 6))
+                                                    (begin (set! rax r13) (set! rax (+ rax r14)) (jump r15))
+                                                    (begin (set! rax 574) (jump r15)))
+                                                (begin (set! rax 574) (jump r15))))))
+                '(module
+                     (begin
+                       (set! r15 r15)
+                       (set! r13 rdi)
+                       (set! r14 rsi)
+                       (if (begin
+                             (if (begin (set! r9 r14) (set! r9 (bitwise-and r9 7)) (= r9 0))
+                                 (set! r9 14)
+                                 (set! r9 6))
+                             (!= r9 6))
+                           (if (begin
+                                 (if (begin (set! r9 r13) (set! r9 (bitwise-and r9 7)) (= r9 0))
+                                     (set! r9 14)
+                                     (set! r9 6))
+                                 (!= r9 6))
+                               (begin (set! rax r13) (set! rax (+ rax r14)) (jump r15))
+                               (begin (set! rax 574) (jump r15)))
+                           (begin (set! rax 574) (jump r15))))))
+  #;
   (check-equal? (optimize-predicates '(module
                                           (define L.+.31
                                             (begin
