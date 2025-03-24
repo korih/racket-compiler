@@ -198,8 +198,8 @@
                                (set! env empty-env)
                                (define optimized-f (optimize-predicates/func f))
                                optimized-f))
-     #;
      p
+     #;
      `(module ,@optimized-funcs ,(optimize-predicates/tail tail empty-env))]))
 
 (module+ test
