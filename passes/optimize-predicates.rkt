@@ -21,8 +21,6 @@
   ;; - int64
   ;; - 'unknown
 
-  (define here true)
-
   ;; to get eval to work
   (define ns (make-base-namespace))
 
