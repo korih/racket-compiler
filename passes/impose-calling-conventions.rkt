@@ -19,91 +19,109 @@
   ;; func is `(define ,label ,info ,tail)
   ;; interp. a function definition that uses calling conventions for arguments
 
-  ;; (List-of opand) (List-of register) Natural aloc -> (List-of imp-cmf-lang-v7.effect) (List-of imp-cmf-lang-v7.rloc)
-  ;; interp. converts a list of arguments from a tail call into a sequence of register assignments, following calling conventions
-  (define (transform-tail-call ops regs fvidx return-aloc)
-    (cond
-      [(empty? ops) (values (list `(set! ,(current-return-address-register) ,return-aloc)) '())]
-      [else
-       (if (not (empty? regs))
-           (let ([reg (first regs)])
-             (call-with-values
-              (lambda () (transform-tail-call (rest ops) (rest regs) fvidx return-aloc))
-              (lambda (rest-list used-list)
-                (values (cons `(set! ,reg ,(first ops)) rest-list) (cons reg used-list)))))
-           (let ([fvar (make-fvar fvidx)])
-             (call-with-values
-              (lambda () (transform-tail-call (rest ops) regs (+ fvidx 1) return-aloc))
-              (lambda (rest-list used-list)
-                (values (cons `(set! ,fvar ,(first ops)) rest-list) (cons fvar used-list))))))]))
+  ;; (List-of opand) (List-of register) aloc -> (values (List-of effect) (List-of rloc))
+  ;; interp. converts a list of arguments from a tail call into a sequence of
+  ;; register assignments, following calling conventions
+  (define (transform-tail-call ops regs return-aloc)
+    (define-values (effects rlocs _)
+      (for/fold ([effects '()]
+                 [rlocs '()]
+                 [fvidx 0])
+                ([op (in-list ops)]
+                 [maybe-reg (in-list (append regs (make-list (max 0 (- (length ops) (length regs))) #f)))])
+        (if maybe-reg
+            (values (cons `(set! ,maybe-reg ,op) effects)
+                    (cons maybe-reg rlocs)
+                    fvidx)
+            (let ([fvar (make-fvar fvidx)])
+              (values (cons `(set! ,fvar ,op) effects)
+                      (cons fvar rlocs)
+                      (add1 fvidx))))))
+    (values (reverse (cons `(set! ,(current-return-address-register) ,return-aloc) effects))
+            (reverse rlocs)))
 
   ;; (List-of opand) (List-of register) aloc -> (List-of imp-cmf-lang-v7.effect) (List-of imp-cmf-lang-v7.rloc) (List-of aloc)
-  ;; interp. converts a list of arguments from a non-tail call into a sequence of register assignments, following calling conventions
+  ;; interp. converts a list of arguments from a non-tail call into a sequence
+  ;; of register assignments, following calling conventions
   (define (transform-non-tail-call ops regs return-label)
-    (cond
-      [(empty? ops) (values (list `(set! ,(current-return-address-register) ,return-label)) '() '())]
-      [else
-       (if (not (empty? regs))
-           (let ([reg (first regs)])
-             (call-with-values
-              (lambda () (transform-non-tail-call (rest ops) (rest regs) return-label))
-              (lambda (rest-list used-list nfvar-list)
-                (values (cons `(set! ,reg ,(first ops)) rest-list) (cons reg used-list) nfvar-list))))
-           (let ([nfvar (fresh 'nfv)])
-             (call-with-values
-              (lambda () (transform-non-tail-call (rest ops) regs return-label))
-              (lambda (rest-list used-list nfvar-list)
-                (values (cons `(set! ,nfvar ,(first ops)) rest-list) (cons nfvar used-list) (cons nfvar nfvar-list))))))]))
+    (define-values (effects rlocs nfvars)
+      (for/fold ([effects '()]
+                 [rlocs '()]
+                 [nfvars '()])
+                ([op (in-list ops)]
+                 [maybe-reg (in-list (append regs (make-list (max 0 (- (length ops) (length regs))) #f)))])
+        (if maybe-reg
+            (values (cons `(set! ,maybe-reg ,op) effects)
+                    (cons maybe-reg rlocs)
+                    nfvars)
+            (let ([nfvar (fresh 'nfv)])
+              (values (cons `(set! ,nfvar ,op) effects)
+                      (cons nfvar rlocs)
+                      (cons nfvar nfvars))))))
+    (values (reverse (cons `(set! ,(current-return-address-register) ,return-label) effects))
+            (reverse rlocs)
+            (reverse nfvars)))
 
-  ;; (List-of aloc) (List-of register) Natural -> (List-of imp-cmf-lang-v7.effect)
+  ;; (List-of aloc) (List-of register) -> (List-of imp-cmf-lang-v7.effect)
   ;; interp. transforms procedure parameter allocations by assigning them to registers based on calling conventions
-  (define (transform-procedure alocs regs fvidx)
-    (cond
-      [(empty? alocs) '()]
-      [else
-       (if (not (empty? regs))
-           (cons `(set! ,(first alocs) ,(first regs))
-                 (transform-procedure (rest alocs) (rest regs) fvidx))
-           (cons `(set! ,(first alocs) ,(make-fvar fvidx))
-                 (transform-procedure (rest alocs) regs (+ fvidx 1))))]))
+  (define (transform-procedure alocs regs)
+    (define-values (effects _)
+      (for/foldr ([effects '()]
+                  [next-fvidx 0])
+        ([aloc (in-list alocs)]
+         [maybe-reg (in-list (append regs (make-list (max 0 (- (length alocs) (length regs))) #f)))])
+        (if maybe-reg
+            (values (cons `(set! ,aloc ,maybe-reg) effects) next-fvidx)
+            (let ([fvar (make-fvar next-fvidx)])
+              (values (cons `(set! ,aloc ,fvar) effects) (add1 next-fvidx))))))
+    effects)
 
-  ;; info is info
+  ;; info is imp-cmf-lang-v7.info
   ;; interp. keeps track of new frames for a given entry
   (define info (info-set '() 'new-frames '()))
 
-  ;; info (List-of aloc) -> info
+  ;; imp-cmf-lang-v7.info (List-of aloc) -> imp-cmf-lang-v7.info
   ;; EFFECTS: adds the frame to the end of the new-frames's info
   (define (add-frame! frame)
     (set! info (info-set '() 'new-frames (cons frame (info-ref info 'new-frames)))))
 
-  ;; ->
-  ;; EFFECTS: resets the new-frames of info to an empty list
+  ;; void -> void
+  ;; EFFECTS: resets the new-frames of new-frames of info to an empty list
   (define (reset-info!)
-    (set! info (info-set '() 'new-frames '())))
+    (set! info (info-set info 'new-frames '())))
 
   ;; func-lambda -> func
   (define (impose-calling-conventions-func func)
     (match func
       [`(define ,label (lambda (,alocs ...) ,entry))
        (reset-info!)
-       (define entry^ (impose-calling-conventions-entry entry alocs))
+       (define entry^ (impose-calling-conventions-proc-entry entry alocs))
        `(define ,label ,info ,entry^)]))
 
   ;; proc-imp-cmf-lang-v7.entry (List-of aloc) -> imp-cmf-lang-v7.tail
-  (define (impose-calling-conventions-entry entry alocs)
-    (match entry
-      [tail
-       (define return-aloc (fresh 'tmp-ra))
-       (if (empty? alocs)
-           `(begin
-              (set! ,return-aloc ,(current-return-address-register))
-              ,(impose-calling-conventions-tail tail return-aloc))
-           (let ([calling-convention (transform-procedure alocs (current-parameter-registers) 0)])
-             `(begin
-                (set! ,return-aloc ,(current-return-address-register))
-                (begin
-                  ,@calling-convention
-                  ,(impose-calling-conventions-tail tail return-aloc)))))]))
+  ;; interp. transforms the entry point of a procedure by assigning arguments
+  ;; according to the calling convention and setting up the return address
+  ;; register
+  (define (impose-calling-conventions-proc-entry entry alocs)
+    (define return-aloc (fresh 'tmp-ra))
+    (define call-setup
+      (if (empty? alocs)
+          '()
+          (transform-procedure alocs (current-parameter-registers))))
+    `(begin
+       (set! ,return-aloc ,(current-return-address-register))
+       (begin
+         ,@call-setup
+         ,(impose-calling-conventions-tail entry return-aloc))))
+
+  ;; proc-imp-cmf-lang-v7.entry -> imp-cmf-lang-v7.tail
+  ;; interp. transforms the module-level entry point by setting up the return
+  ;; address register
+  (define (impose-calling-conventions-module-entry entry)
+    (define return-aloc (fresh 'tmp-ra))
+    `(begin
+       (set! ,return-aloc ,(current-return-address-register))
+       ,(impose-calling-conventions-tail entry return-aloc)))
 
   ;; proc-imp-cmf-lang-v7.tail aloc -> imp-cmf-lang-v7.tail
   (define (impose-calling-conventions-tail tail return-aloc)
@@ -115,7 +133,7 @@
             ,(impose-calling-conventions-tail t1 return-aloc)
             ,(impose-calling-conventions-tail t2 return-aloc))]
       [`(call ,triv ,ops ...)
-       (define-values (effects used-rlocs) (transform-tail-call ops (current-parameter-registers) 0 return-aloc))
+       (define-values (effects used-rlocs) (transform-tail-call ops (current-parameter-registers) return-aloc))
        `(begin
           ,@effects
           (jump ,triv ,(current-frame-base-pointer-register) ,(current-return-address-register) ,@used-rlocs))]
@@ -177,7 +195,7 @@
     [`(module ,funcs ... ,entry)
      (define funcs^ (map impose-calling-conventions-func funcs))
      (reset-info!)
-     (define entry^ (impose-calling-conventions-entry entry '()))
+     (define entry^ (impose-calling-conventions-module-entry entry))
      `(module ,info ,@funcs^ ,entry^)]))
 
 (module+ test
@@ -322,10 +340,8 @@
                      ((new-frames ()))
                      (begin
                        (set! tmp-ra.11 r15)
-                       (begin (set! rax (* 1 2)) (jump tmp-ra.11 rbp rax))))
-                   (begin
-                     (set! tmp-ra.12 r15)
-                     (begin (set! r15 tmp-ra.12) (jump L.f.1 rbp r15)))))
+                       (begin (begin (set! rax (* 1 2)) (jump tmp-ra.11 rbp rax)))))
+                   (begin (set! tmp-ra.12 r15) (begin (set! r15 tmp-ra.12) (jump L.f.1 rbp r15)))))
   (check-equal? (impose-calling-conventions '(module (define L.f.1 (lambda (a.1 b.1 c.1 d.1 e.1 f.1 g.1 h.1 i.1 j.1 k.1) 10))
                                                (begin
                                                  (set! a.1 1)
@@ -353,11 +369,11 @@
                          (set! d.1 rcx)
                          (set! e.1 r8)
                          (set! f.1 r9)
-                         (set! g.1 fv0)
-                         (set! h.1 fv1)
+                         (set! g.1 fv4)
+                         (set! h.1 fv3)
                          (set! i.1 fv2)
-                         (set! j.1 fv3)
-                         (set! k.1 fv4)
+                         (set! j.1 fv1)
+                         (set! k.1 fv0)
                          (begin (set! rax 10) (jump tmp-ra.13 rbp rax)))))
                    (begin
                      (set! tmp-ra.14 r15)
@@ -452,11 +468,11 @@
                          (set! d.1 rcx)
                          (set! e.1 r8)
                          (set! f.1 r9)
-                         (set! g.1 fv0)
-                         (set! h.1 fv1)
+                         (set! g.1 fv4)
+                         (set! h.1 fv3)
                          (set! i.1 fv2)
-                         (set! j.1 fv3)
-                         (set! k.1 fv4)
+                         (set! j.1 fv1)
+                         (set! k.1 fv0)
                          (begin
                            (set! a.1 (+ a.1 b.1))
                            (set! a.1 (+ a.1 c.1))
@@ -583,8 +599,8 @@
                      (begin
                        (set! tmp-ra.24 r15)
                        (begin
-                         (set! x.1 fv0)
-                         (set! y.1 fv1)
+                         (set! x.1 fv1)
+                         (set! y.1 fv0)
                          (begin (set! rax (+ x.1 y.1)) (jump tmp-ra.24 rbp rax)))))
                    (define L.g.1
                      ((new-frames
@@ -750,178 +766,221 @@
                                                      (call L.*.2 sum.78 i.77))))
                                                (call L.add-and-multiply.11 8 16 24 32 40 48 56 64 16)))
                 '(module
-                    ((new-frames ()))
-                  (define L.*.2
-                    ((new-frames ()))
-                    (begin
-                      (set! tmp-ra.39 r15)
-                      (begin
-                        (set! tmp.1 rdi)
-                        (set! tmp.2 rsi)
-                        (if (begin
-                              (if (begin (set! tmp.24 (bitwise-and tmp.2 7)) (= tmp.24 0))
-                                  (set! tmp.23 14)
-                                  (set! tmp.23 6))
-                              (!= tmp.23 6))
-                            (if (begin
-                                  (if (begin (set! tmp.26 (bitwise-and tmp.1 7)) (= tmp.26 0))
-                                      (set! tmp.25 14)
-                                      (set! tmp.25 6))
-                                  (!= tmp.25 6))
-                                (begin
-                                  (set! tmp.27 (arithmetic-shift-right tmp.2 3))
-                                  (begin (set! rax (* tmp.1 tmp.27)) (jump tmp-ra.39 rbp rax)))
-                                (begin (set! rax 318) (jump tmp-ra.39 rbp rax)))
-                            (begin (set! rax 318) (jump tmp-ra.39 rbp rax))))))
-                  (define L.+.1
-                    ((new-frames ()))
-                    (begin
-                      (set! tmp-ra.40 r15)
-                      (begin
-                        (set! tmp.3 rdi)
-                        (set! tmp.4 rsi)
-                        (if (begin
-                              (if (begin (set! tmp.29 (bitwise-and tmp.4 7)) (= tmp.29 0))
-                                  (set! tmp.28 14)
-                                  (set! tmp.28 6))
-                              (!= tmp.28 6))
-                            (if (begin
-                                  (if (begin (set! tmp.31 (bitwise-and tmp.3 7)) (= tmp.31 0))
-                                      (set! tmp.30 14)
-                                      (set! tmp.30 6))
-                                  (!= tmp.30 6))
-                                (begin (set! rax (+ tmp.3 tmp.4)) (jump tmp-ra.40 rbp rax))
-                                (begin (set! rax 574) (jump tmp-ra.40 rbp rax)))
-                            (begin (set! rax 574) (jump tmp-ra.40 rbp rax))))))
-                  (define L.add.10
-                    ((new-frames (() () () () () ())))
-                    (begin
-                      (set! tmp-ra.41 r15)
-                      (begin
-                        (set! a.61 rdi)
-                        (set! b.62 rsi)
-                        (set! c.63 rdx)
-                        (set! d.64 rcx)
-                        (set! e.65 r8)
-                        (set! f.66 r9)
-                        (set! g.67 fv0)
-                        (set! h.68 fv1)
-                        (begin
-                          (begin
-                            (begin
-                              (begin
-                                (begin
-                                  (begin
-                                    (begin
-                                      (return-point L.rp.12
-                                                    (begin
-                                                      (set! rdi g.67)
-                                                      (set! rsi h.68)
-                                                      (set! r15 L.rp.12)
-                                                      (jump L.+.1 rbp r15 rdi rsi)))
-                                      (set! tmp.37 rax))
-                                    (begin
-                                      (return-point L.rp.13
-                                                    (begin
-                                                      (set! rdi f.66)
-                                                      (set! rsi tmp.37)
-                                                      (set! r15 L.rp.13)
-                                                      (jump L.+.1 rbp r15 rdi rsi)))
-                                      (set! tmp.36 rax)))
-                                  (begin
-                                    (return-point L.rp.14
-                                                  (begin
-                                                    (set! rdi e.65)
-                                                    (set! rsi tmp.36)
-                                                    (set! r15 L.rp.14)
-                                                    (jump L.+.1 rbp r15 rdi rsi)))
-                                    (set! tmp.35 rax)))
-                                (begin
-                                  (return-point L.rp.15
-                                                (begin
-                                                  (set! rdi d.64)
-                                                  (set! rsi tmp.35)
-                                                  (set! r15 L.rp.15)
-                                                  (jump L.+.1 rbp r15 rdi rsi)))
-                                  (set! tmp.34 rax)))
-                              (begin
-                                (return-point L.rp.16
-                                              (begin
-                                                (set! rdi c.63)
-                                                (set! rsi tmp.34)
-                                                (set! r15 L.rp.16)
-                                                (jump L.+.1 rbp r15 rdi rsi)))
-                                (set! tmp.33 rax)))
-                            (begin
-                              (return-point L.rp.17
-                                            (begin
-                                              (set! rdi b.62)
-                                              (set! rsi tmp.33)
-                                              (set! r15 L.rp.17)
-                                              (jump L.+.1 rbp r15 rdi rsi)))
-                              (set! tmp.32 rax)))
-                          (begin
-                            (set! rdi a.61)
-                            (set! rsi tmp.32)
-                            (set! r15 tmp-ra.41)
-                            (jump L.+.1 rbp r15 rdi rsi))))))
-                  (define L.add-and-multiply.11
-                    ((new-frames ((nfv.43 nfv.44))))
-                    (begin
-                      (set! tmp-ra.42 r15)
-                      (begin
-                        (set! a.69 rdi)
-                        (set! b.70 rsi)
-                        (set! c.71 rdx)
-                        (set! d.72 rcx)
-                        (set! e.73 r8)
-                        (set! f.74 r9)
-                        (set! g.75 fv0)
-                        (set! h.76 fv1)
-                        (set! i.77 fv2)
-                        (begin
-                          (begin
-                            (return-point L.rp.18
-                                          (begin
-                                            (set! rdi a.69)
-                                            (set! rsi b.70)
-                                            (set! rdx c.71)
-                                            (set! rcx d.72)
-                                            (set! r8 e.73)
-                                            (set! r9 f.74)
-                                            (set! nfv.43 g.75)
-                                            (set! nfv.44 h.76)
-                                            (set! r15 L.rp.18)
-                                            (jump L.add.10 rbp r15 rdi rsi rdx rcx r8 r9 nfv.43 nfv.44)))
-                            (set! sum.78 rax))
-                          (begin
-                            (set! rdi sum.78)
-                            (set! rsi i.77)
-                            (set! r15 tmp-ra.42)
-                            (jump L.*.2 rbp r15 rdi rsi))))))
-                  (begin
-                    (set! tmp-ra.45 r15)
-                    (begin
-                      (set! rdi 8)
-                      (set! rsi 16)
-                      (set! rdx 24)
-                      (set! rcx 32)
-                      (set! r8 40)
-                      (set! r9 48)
-                      (set! fv0 56)
-                      (set! fv1 64)
-                      (set! fv2 16)
-                      (set! r15 tmp-ra.45)
-                      (jump
-                       L.add-and-multiply.11
-                       rbp
-                       r15
-                       rdi
-                       rsi
-                       rdx
-                       rcx
-                       r8
-                       r9
-                       fv0
-                       fv1
-                       fv2))))))
+                     ((new-frames ()))
+                   (define L.*.2
+                     ((new-frames ()))
+                     (begin
+                       (set! tmp-ra.39 r15)
+                       (begin
+                         (set! tmp.1 rdi)
+                         (set! tmp.2 rsi)
+                         (if (begin
+                               (if (begin (set! tmp.24 (bitwise-and tmp.2 7)) (= tmp.24 0))
+                                   (set! tmp.23 14)
+                                   (set! tmp.23 6))
+                               (!= tmp.23 6))
+                             (if (begin
+                                   (if (begin (set! tmp.26 (bitwise-and tmp.1 7)) (= tmp.26 0))
+                                       (set! tmp.25 14)
+                                       (set! tmp.25 6))
+                                   (!= tmp.25 6))
+                                 (begin
+                                   (set! tmp.27 (arithmetic-shift-right tmp.2 3))
+                                   (begin (set! rax (* tmp.1 tmp.27)) (jump tmp-ra.39 rbp rax)))
+                                 (begin (set! rax 318) (jump tmp-ra.39 rbp rax)))
+                             (begin (set! rax 318) (jump tmp-ra.39 rbp rax))))))
+                   (define L.+.1
+                     ((new-frames ()))
+                     (begin
+                       (set! tmp-ra.40 r15)
+                       (begin
+                         (set! tmp.3 rdi)
+                         (set! tmp.4 rsi)
+                         (if (begin
+                               (if (begin (set! tmp.29 (bitwise-and tmp.4 7)) (= tmp.29 0))
+                                   (set! tmp.28 14)
+                                   (set! tmp.28 6))
+                               (!= tmp.28 6))
+                             (if (begin
+                                   (if (begin (set! tmp.31 (bitwise-and tmp.3 7)) (= tmp.31 0))
+                                       (set! tmp.30 14)
+                                       (set! tmp.30 6))
+                                   (!= tmp.30 6))
+                                 (begin (set! rax (+ tmp.3 tmp.4)) (jump tmp-ra.40 rbp rax))
+                                 (begin (set! rax 574) (jump tmp-ra.40 rbp rax)))
+                             (begin (set! rax 574) (jump tmp-ra.40 rbp rax))))))
+                   (define L.add.10
+                     ((new-frames (() () () () () ())))
+                     (begin
+                       (set! tmp-ra.41 r15)
+                       (begin
+                         (set! a.61 rdi)
+                         (set! b.62 rsi)
+                         (set! c.63 rdx)
+                         (set! d.64 rcx)
+                         (set! e.65 r8)
+                         (set! f.66 r9)
+                         (set! g.67 fv1)
+                         (set! h.68 fv0)
+                         (begin
+                           (begin
+                             (begin
+                               (begin
+                                 (begin
+                                   (begin
+                                     (begin
+                                       (return-point L.rp.12
+                                                     (begin
+                                                       (set! rdi g.67)
+                                                       (set! rsi h.68)
+                                                       (set! r15 L.rp.12)
+                                                       (jump L.+.1 rbp r15 rdi rsi)))
+                                       (set! tmp.37 rax))
+                                     (begin
+                                       (return-point L.rp.13
+                                                     (begin
+                                                       (set! rdi f.66)
+                                                       (set! rsi tmp.37)
+                                                       (set! r15 L.rp.13)
+                                                       (jump L.+.1 rbp r15 rdi rsi)))
+                                       (set! tmp.36 rax)))
+                                   (begin
+                                     (return-point L.rp.14
+                                                   (begin
+                                                     (set! rdi e.65)
+                                                     (set! rsi tmp.36)
+                                                     (set! r15 L.rp.14)
+                                                     (jump L.+.1 rbp r15 rdi rsi)))
+                                     (set! tmp.35 rax)))
+                                 (begin
+                                   (return-point L.rp.15
+                                                 (begin
+                                                   (set! rdi d.64)
+                                                   (set! rsi tmp.35)
+                                                   (set! r15 L.rp.15)
+                                                   (jump L.+.1 rbp r15 rdi rsi)))
+                                   (set! tmp.34 rax)))
+                               (begin
+                                 (return-point L.rp.16
+                                               (begin
+                                                 (set! rdi c.63)
+                                                 (set! rsi tmp.34)
+                                                 (set! r15 L.rp.16)
+                                                 (jump L.+.1 rbp r15 rdi rsi)))
+                                 (set! tmp.33 rax)))
+                             (begin
+                               (return-point L.rp.17
+                                             (begin
+                                               (set! rdi b.62)
+                                               (set! rsi tmp.33)
+                                               (set! r15 L.rp.17)
+                                               (jump L.+.1 rbp r15 rdi rsi)))
+                               (set! tmp.32 rax)))
+                           (begin
+                             (set! rdi a.61)
+                             (set! rsi tmp.32)
+                             (set! r15 tmp-ra.41)
+                             (jump L.+.1 rbp r15 rdi rsi))))))
+                   (define L.add-and-multiply.11
+                     ((new-frames ((nfv.43 nfv.44))))
+                     (begin
+                       (set! tmp-ra.42 r15)
+                       (begin
+                         (set! a.69 rdi)
+                         (set! b.70 rsi)
+                         (set! c.71 rdx)
+                         (set! d.72 rcx)
+                         (set! e.73 r8)
+                         (set! f.74 r9)
+                         (set! g.75 fv2)
+                         (set! h.76 fv1)
+                         (set! i.77 fv0)
+                         (begin
+                           (begin
+                             (return-point L.rp.18
+                                           (begin
+                                             (set! rdi a.69)
+                                             (set! rsi b.70)
+                                             (set! rdx c.71)
+                                             (set! rcx d.72)
+                                             (set! r8 e.73)
+                                             (set! r9 f.74)
+                                             (set! nfv.43 g.75)
+                                             (set! nfv.44 h.76)
+                                             (set! r15 L.rp.18)
+                                             (jump L.add.10 rbp r15 rdi rsi rdx rcx r8 r9 nfv.43 nfv.44)))
+                             (set! sum.78 rax))
+                           (begin
+                             (set! rdi sum.78)
+                             (set! rsi i.77)
+                             (set! r15 tmp-ra.42)
+                             (jump L.*.2 rbp r15 rdi rsi))))))
+                   (begin
+                     (set! tmp-ra.45 r15)
+                     (begin
+                       (set! rdi 8)
+                       (set! rsi 16)
+                       (set! rdx 24)
+                       (set! rcx 32)
+                       (set! r8 40)
+                       (set! r9 48)
+                       (set! fv0 56)
+                       (set! fv1 64)
+                       (set! fv2 16)
+                       (set! r15 tmp-ra.45)
+                       (jump
+                        L.add-and-multiply.11
+                        rbp
+                        r15
+                        rdi
+                        rsi
+                        rdx
+                        rcx
+                        r8
+                        r9
+                        fv0
+                        fv1
+                        fv2)))))
+  (check-equal? (impose-calling-conventions '(module (define L.f.1 (lambda ()
+                                                                     (begin
+                                                                       (set! x.1 1)
+                                                                       x.1)))
+                                               (begin
+                                                 (set! x.1 (call L.f.1))
+                                                 x.1)))
+                '(module
+                     ((new-frames (())))
+                   (define L.f.1
+                     ((new-frames ()))
+                     (begin
+                       (set! tmp-ra.46 r15)
+                       (begin
+                         (begin (set! x.1 1) (begin (set! rax x.1) (jump tmp-ra.46 rbp rax))))))
+                   (begin
+                     (set! tmp-ra.47 r15)
+                     (begin
+                       (begin
+                         (return-point L.rp.19 (begin (set! r15 L.rp.19) (jump L.f.1 rbp r15)))
+                         (set! x.1 rax))
+                       (begin (set! rax x.1) (jump tmp-ra.47 rbp rax))))))
+  (check-equal? (impose-calling-conventions '(module (define L.f.1 (lambda () (if (true) 0 1)))
+                                               (begin
+                                                 (set! x.1 (call L.f.1))
+                                                 x.1)))
+                '(module
+                     ((new-frames (())))
+                   (define L.f.1
+                     ((new-frames ()))
+                     (begin
+                       (set! tmp-ra.48 r15)
+                       (begin
+                         (if (true)
+                             (begin (set! rax 0) (jump tmp-ra.48 rbp rax))
+                             (begin (set! rax 1) (jump tmp-ra.48 rbp rax))))))
+                   (begin
+                     (set! tmp-ra.49 r15)
+                     (begin
+                       (begin
+                         (return-point L.rp.20 (begin (set! r15 L.rp.20) (jump L.f.1 rbp r15)))
+                         (set! x.1 rax))
+                       (begin (set! rax x.1) (jump tmp-ra.49 rbp rax)))))))
