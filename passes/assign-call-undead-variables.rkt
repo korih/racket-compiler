@@ -18,44 +18,45 @@
   ;; func is `(define ,label ,info ,tail)
   ;; interp. a function definition
 
-  ;; (List-of asm-lang-v7/conflicts.loc) (Graph-of asm-lang-v7/conflicts.loc) (List-of (list aloc fvar)) -> (List-of (list aloc fvar))
+  ;; (List-of loc) (Graph-of loc) (List-of (list aloc fvar)) -> (List-of (list aloc fvar))
   ;; interp. recursively assigns each variable in call-undead-set to the first
   ;; compatible frame variable without conflicts
   (define (graph-colouring call-undead-set conflicts-graph assignments)
-    (if (null? call-undead-set)
-        assignments
-        (let* ([x (car call-undead-set)]
-               [rest (cdr call-undead-set)]
-               [assignments^ (graph-colouring rest conflicts-graph assignments)]
-               ;; Collect vars assigned to each frame variable
-               [frame-assignments (foldl (lambda (pair acc)
-                                           (let* ([var (car pair)]
-                                                  [fv (cadr pair)]
-                                                  [existing (assoc fv acc)])
-                                             (if existing
-                                                 (cons (list fv (cons var (cadr existing))) (remove existing acc))
-                                                 (cons (list fv (list var)) acc))))
-                                         '()
-                                         assignments^)]
-               [conflict-vars (get-neighbors conflicts-graph x)])
+    (cond
+      [(empty? call-undead-set) assignments]
+      [else
+       (let* ([x (car call-undead-set)]
+              [rest (cdr call-undead-set)]
+              [assignments^ (graph-colouring rest conflicts-graph assignments)]
+              ;; Collect vars assigned to each frame variable
+              [frame-assignments (foldl (lambda (pair acc)
+                                          (let* ([var (car pair)]
+                                                 [fv (cadr pair)]
+                                                 [existing (assoc fv acc)])
+                                            (if existing
+                                                (cons (list fv (cons var (cadr existing))) (remove existing acc))
+                                                (cons (list fv (list var)) acc))))
+                                        '()
+                                        assignments^)]
+              [conflict-vars (get-neighbors conflicts-graph x)])
 
-          ;; Recursively find the first valid frame slot
-          (define (find-fvar i)
-            (let* ([candidate-fv (make-fvar i)]
-                   [assigned-vars (let ([entry (assoc candidate-fv frame-assignments)])
-                                    (if entry (cadr entry) '()))]
-                   [incompatible?
-                    (or (member candidate-fv (get-neighbors conflicts-graph x))
-                        (ormap (lambda (y)
-                                 (or (member y (get-neighbors conflicts-graph x))
-                                     (member x (get-neighbors conflicts-graph y))))
-                               assigned-vars))])
-              (if incompatible?
-                  (find-fvar (add1 i))
-                  candidate-fv)))
+         ;; Recursively find the first valid frame slot
+         (define (find-fvar i)
+           (let* ([candidate-fv (make-fvar i)]
+                  [assigned-vars (let ([entry (assoc candidate-fv frame-assignments)])
+                                   (if entry (cadr entry) '()))]
+                  [incompatible?
+                   (or (member candidate-fv (get-neighbors conflicts-graph x))
+                       (ormap (lambda (y)
+                                (or (member y (get-neighbors conflicts-graph x))
+                                    (member x (get-neighbors conflicts-graph y))))
+                              assigned-vars))])
+             (if incompatible?
+                 (find-fvar (add1 i))
+                 candidate-fv)))
 
-          ;; Assign x to the first safe frame var
-          (cons (list x (find-fvar 0)) assignments^))))
+         ;; Assign x to the first safe frame var
+         (cons (list x (find-fvar 0)) assignments^))]))
 
   ;; asm-lang-v7/conflicts.info -> asm-lang-v7/pre-framed.info
   (define (assign-call-undead-variables-info info)
