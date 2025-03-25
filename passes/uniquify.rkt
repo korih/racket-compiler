@@ -9,8 +9,8 @@
 
 (provide uniquify)
 
-;; exprs-lang-v7 -> exprs-unique-lang-v7
-;; compiles p to Exprs-unique-lang v7 by resolving top-level lexical
+;; exprs-lang-v8 -> exprs-unique-lang-v8
+;; compiles p to Exprs-unique-lang v8 by resolving top-level lexical
 ;; identifiers into unique labels, and all other lexical identifiers into
 ;; unique abstract locations
 (define/contract (uniquify p)
@@ -19,18 +19,18 @@
   ;; func is `(define ,label (lambda (,alocs ...) ,value))
   ;; interp. a function definition
 
-  ;; (List-of func) -> (Env-of exprs-unique-lang-v7.triv)
+  ;; (List-of func) -> (Env-of exprs-unique-lang-v8.triv)
   ;; interp. creates an environment with all the unique function labels
   (define (initialize-env funcs)
     (for/fold ([env empty-env])
               ([fun funcs])
       (match fun
-        [`(define ,funcName (lambda (,args ...) ,tail))
+        [`(define ,funcName (lambda (args ...) tail))
          (define unique-label (fresh-label funcName))
          (define env^ (extend-env env funcName unique-label))
          env^])))
 
-  ;; (List-of func) (Env-of exprs-unique-lang-v7.triv) -> (values (List-of func) (Env-of exprs-unique-lang-v7.triv))
+  ;; (List-of func) (Env-of exprs-unique-lang-v8.triv) -> (values (List-of func) (Env-of exprs-unique-lang-v8.triv))
   ;; interp. processes each function definition by assigning lexical identifiers with unique labels and abstract locations
   (define (process-functions funcs env)
     (for/fold ([updated-funcs '()]
@@ -39,7 +39,7 @@
       (define-values (updated-func new-env) (uniquify-func func updated-env))
       (values (cons updated-func updated-funcs) new-env)))
 
-  ;; func (Env-of exprs-unique-lang-v7.triv) -> (values func (Env-of exprs-unique-lang-v7.triv))
+  ;; func (Env-of exprs-unique-lang-v8.triv) -> (values func (Env-of exprs-unique-lang-v8.triv))
   (define (uniquify-func func env)
     (match func
       [`(define ,funcName (lambda (,args ...) ,value))
@@ -49,7 +49,7 @@
        (values `(define ,unique-label (lambda (,@unique-args) ,(uniquify-value value new-env)))
                env)]))
 
-  ;; exprs-lang-v7.value (Env-of exprs-unique-lang-v7.triv) -> exprs-unique-lang-v7.value
+  ;; exprs-lang-v8.value (Env-of exprs-unique-lang-v8.triv) -> exprs-unique-lang-v8.value
   (define (uniquify-value value env)
     (match value
       [`(let ([,xs ,vs] ...) ,v)
@@ -68,10 +68,13 @@
        `(call ,@(map (lambda (v) (uniquify-value v env)) vs))]
       [triv (uniquify-triv triv env)]))
 
-  ;; exprs-lang-v7.triv (Env-of exprs-unique-lang-v7.triv) -> exprs-unique-lang-v7.triv
+  ;; exprs-lang-v8.triv (Env-of exprs-unique-lang-v8.triv) -> exprs-unique-lang-v8.triv
   (define (uniquify-triv triv env)
     (match triv
-      ['empty triv]
+      ['empty triv] ; italics means something else?
+      [x #:when (name? x) ; name or primf
+         (lookup-env env x)]
+      #;
       [x #:when (or (name? x) (safe-binop? x) (unop? x))
          (cond
            [(and (or (safe-binop? x) (unop? x)) (not (assoc x env))) x]
@@ -79,6 +82,7 @@
       ;; Wildcard collapse case used because all terminal triv values do not
       ;; require any further processing or transformation, allowing them to be
       ;; returned as-is
+      ;; primf case
       [_ triv]))
 
   (match p
