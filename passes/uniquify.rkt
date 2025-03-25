@@ -25,7 +25,7 @@
     (for/fold ([env empty-env])
               ([fun funcs])
       (match fun
-        [`(define ,funcName (lambda (args ...) tail))
+        [`(define ,funcName (lambda (,args ...) ,tail))
          (define unique-label (fresh-label funcName))
          (define env^ (extend-env env funcName unique-label))
          env^])))
@@ -72,12 +72,9 @@
   (define (uniquify-triv triv env)
     (match triv
       ['empty triv] ; italics means something else?
-      [x #:when (name? x) ; name or primf
-         (lookup-env env x)]
-      #;
-      [x #:when (or (name? x) (safe-binop? x) (unop? x))
+      [x #:when (or (name? x) (prim-f? x))
          (cond
-           [(and (or (safe-binop? x) (unop? x)) (not (assoc x env))) x]
+           [(and (prim-f? x) (not (assoc x env))) x]
            [else (lookup-env env x)])]
       ;; Wildcard collapse case used because all terminal triv values do not
       ;; require any further processing or transformation, allowing them to be
