@@ -4,86 +4,49 @@
  cpsc411/compiler-lib
  cpsc411/ptr-run-time)
 
+(require
+  "passes/assign-fvars.rkt"
+  "passes/assign-homes-opt.rkt"
+  "passes/assign-homes.rkt"
+  "passes/assign-call-undead-variables.rkt"
+  "passes/assign-registers.rkt"
+  "passes/conflict-analysis.rkt"
+  "passes/flatten-begins.rkt"
+  "passes/implement-fvars.rkt"
+  "passes/normalize-bind.rkt"
+  "passes/patch-instructions.rkt"
+  "passes/replace-locations.rkt"
+  "passes/select-instructions.rkt"
+  "passes/sequentialize-let.rkt"
+  "passes/uncover-locals.rkt"
+  "passes/undead-analysis.rkt"
+  "passes/uniquify.rkt"
+  "passes/generate-x64.rkt"
+  "passes/resolve-predicates.rkt"
+  "passes/optimize-predicates.rkt"
+  "passes/flatten-program.rkt"
+  "passes/expose-basic-blocks.rkt"
+  "passes/link-paren-x64.rkt"
+  "passes/interp-paren-x64.rkt"
+  "passes/impose-calling-conventions.rkt"
+  "passes/assign-call-undead-variables.rkt"
+  "passes/allocate-frames.rkt"
+  "passes/assign-frame-variables.rkt"
+  "passes/implement-safe-primops.rkt"
+  "passes/specify-representation.rkt"
+  "passes/remove-complex-opera.rkt")
+
 (provide
- uniquify
- implement-safe-primops
- specify-representation
- remove-complex-opera*
- sequentialize-let
- normalize-bind
- impose-calling-conventions
- select-instructions
  expose-allocation-pointer
- uncover-locals
- undead-analysis
- conflict-analysis
- assign-call-undead-variables
- allocate-frames
- assign-registers
- assign-frame-variables
- replace-locations
- implement-fvars
- optimize-predicates
- expose-basic-blocks
- resolve-predicates
- flatten-program
- patch-instructions
- implement-mops
- generate-x64)
+ implement-mops)
 
 ;; TODO: Fill in.
 ;; You'll want to merge milestone-7 code in
 
 ;; Stubs; remove or replace with your definitions.
-(define-values (uniquify
-                implement-safe-primops
-                specify-representation
-                remove-complex-opera*
-                sequentialize-let
-                normalize-bind
-                impose-calling-conventions
-                select-instructions
-                expose-allocation-pointer
-                uncover-locals
-                undead-analysis
-                conflict-analysis
-                assign-call-undead-variables
-                allocate-frames
-                assign-registers
-                assign-frame-variables
-                replace-locations
-                implement-fvars
-                optimize-predicates
-                expose-basic-blocks
-                resolve-predicates
-                flatten-program
-                patch-instructions
-                implement-mops
-                generate-x64)
+(define-values (expose-allocation-pointer
+                implement-mops)
   (values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
    values
    values))
 
