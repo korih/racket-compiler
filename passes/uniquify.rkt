@@ -40,6 +40,7 @@
       (values (cons updated-func updated-funcs) new-env)))
 
   ;; func (Env-of exprs-unique-lang-v8.triv) -> (values func (Env-of exprs-unique-lang-v8.triv))
+  ;; for a given function definition, go through its args and body and produce uniquified version
   (define (uniquify-func func env)
     (match func
       [`(define ,funcName (lambda (,args ...) ,value))
@@ -50,6 +51,7 @@
                env)]))
 
   ;; exprs-lang-v8.value (Env-of exprs-unique-lang-v8.triv) -> exprs-unique-lang-v8.value
+  ;; From a given value and environment, produce the uniquified version of it
   (define (uniquify-value value env)
     (match value
       [`(let ([,xs ,vs] ...) ,v)
@@ -69,9 +71,10 @@
       [triv (uniquify-triv triv env)]))
 
   ;; exprs-lang-v8.triv (Env-of exprs-unique-lang-v8.triv) -> exprs-unique-lang-v8.triv
+  ;; Check if our triv is defined prim-f or name in the environment. Else it is some value
   (define (uniquify-triv triv env)
     (match triv
-      ['empty triv] ; italics means something else?
+      ['empty triv]
       [x #:when (or (name? x) (prim-f? x))
          (cond
            [(and (prim-f? x) (not (assoc x env))) x]
