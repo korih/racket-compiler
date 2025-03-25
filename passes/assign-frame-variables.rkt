@@ -3,60 +3,65 @@
 (require
   cpsc411/compiler-lib
   cpsc411/graph-lib
-  cpsc411/langs/v7)
+  cpsc411/langs/v7
+  rackunit)
 
 (provide assign-frame-variables)
 
-;; Asm-pred-lang-v7/spilled -> Asm-pred-lang-v7/assignments
-;; Compiles Asm-pred-lang-v7/spilled to Asm-pred-lang-v7/assignments by
-;; allocating all abstract locations in the locals set to free frame variables.
+;; asm-pred-lang-v7/spilled -> asm-pred-lang-v7/assignments
+;; compiles p to Asm-pred-lang-v7/assignments by allocating all abstract
+;; locations in the locals set to free frame variables
 (define/contract (assign-frame-variables p)
   (-> asm-pred-lang-v7/spilled? asm-pred-lang-v7/assignments?)
 
-  ;; local (Graph of conflicts) assignments -> assignments
-  ;; recursive call over call-undead-set that produces an assignment
-  ;; for the physical locations in the call-undead-set
-  (define (graph-colouring x conflicts-graph assignments)
-    (cond
-      ; empty set, default assignment
-      ; select x from input, remove from conflict and input to return assignment
-      [else
-       (define conflict-list (get-neighbors conflicts-graph x))
-       ;; look for available fvar
-       (define fvar-assignment (for/or ([i (in-naturals)])
-                                 (define var (string->symbol (format "fv~a" i)))
-                                 (if (and (not (member var conflict-list))
-                                          (not (ormap (lambda (assignment) (symbol=? var (cadr assignment))) assignments)))
-                                     var
-                                     #f)))
-       `(,x ,fvar-assignment)]))
+  ;; func is `(define ,label ,info ,tail)
+  ;; interp. a function definition
 
-  ;; info -> info
-  ;; update the assignments for a given info
+  ;; (List-of aloc) (Graph-of loc) (List-of (list aloc rloc)) -> (List-of (list aloc rloc))
+  ;; Recursively assigns frame variables to each aloc, avoiding conflicts
+  (define (graph-colouring alocs conflicts-graph assignments)
+    (cond
+      [(empty? alocs) assignments]
+      [else
+       (define x (first alocs))
+       (define conflict-list (get-neighbors conflicts-graph x))
+       (define fvar-assignment
+         (for/or ([i (in-naturals)])
+           (define fv (make-fvar i))
+           (if (and (not (member fv conflict-list))
+                    (not (ormap (lambda (assignment) (symbol=? fv (cadr assignment)))
+                                assignments)))
+               fv
+               #f)))
+       (graph-colouring (rest alocs)
+                        conflicts-graph
+                        (cons (list x fvar-assignment) assignments))]))
+
+
+  ;; asm-pred-lang-v7/spilled.info -> asm-pred-lang-v7/assignments.info
   (define (assign-call-variables-info info)
     (define conflicts-graph (info-ref info 'conflicts))
-    (define assignments
-      (for/fold ([assignments (info-ref info 'assignment)])
-                ([x (info-ref info 'locals)])
-        (cons (graph-colouring x conflicts-graph assignments) assignments)))
+    (define locals (info-ref info 'locals))
+    (define existing-assignments (info-ref info 'assignment))
 
-    (define info^ (info-set info 'assignment assignments))
-    info^)
+    (define final-assignments
+      (if (empty? locals)
+          existing-assignments
+          (graph-colouring locals conflicts-graph existing-assignments)))
 
-  ;; (Function Definition) -> (Function Definition)
-  ;; Take a function definition and update its assignments in info
+    (info-set info 'assignment final-assignments))
+
+  ;; func -> func
   (define (assign-call-fun f)
     (match f
-      [`(define ,name ,info ,tail) (define info^ (assign-call-variables-info info))
-                                   `(define ,name ,info^ ,tail)]))
+      [`(define ,name ,info ,tail)
+       `(define ,name ,(assign-call-variables-info info) ,tail)]))
 
   (match p
-    [`(module ,info ,funs ... ,tail) (define funs^ (map assign-call-fun funs))
-                                     (define info^ (assign-call-variables-info info))
-                                     `(module ,info^ ,@funs^ ,tail)]))
+    [`(module ,info ,funs ... ,tail)
+     `(module ,(assign-call-variables-info info) ,@(map assign-call-fun funs) ,tail)]))
 
 (module+ test
-  (require rackunit)
   (check-equal? (assign-frame-variables '(module
                                              ((locals ()) (conflicts ()) (assignment ()))
                                            (define L.f.1
