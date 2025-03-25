@@ -36,6 +36,8 @@
     (define new-frames (if (empty? (info-ref info 'new-frames))
                            '()
                            (first (info-ref info 'new-frames))))
+  
+    ;; Remove new-frames from locals since they're now frame allocated
     (define locals^ (remove* new-frames (info-ref info 'locals)))
 
     (define existing-assignments (info-ref info 'assignment))
@@ -46,6 +48,7 @@
           0
           (add1 (apply max (map fvar->index existing-fvars)))))
 
+    ;; Assign fresh fvars to new-frames
     (define-values (final-assignments _)
       (for/fold ([assignments^ existing-assignments]
                  [next-idx start-index])
@@ -58,14 +61,13 @@
                 (values candidate (add1 i)))))
         (values (cons (list frame fvar) assignments^) idx)))
     
-    (info-set (info-set
-               (info-remove
-                (info-remove
-                 (info-remove info 'undead-out)
-                 'call-undead)
-                'new-frames)
-               'locals (reverse locals^))
-              'assignment final-assignments))
+    (define cleaned-info
+      (for/fold ([acc info]) ([field '(undead-out call-undead new-frames)])
+        (info-remove acc field)))
+
+    (info-set
+     (info-set cleaned-info 'locals (reverse locals^))
+     'assignment final-assignments))
 
   ;; func -> func
   (define (allocate-frames-func f)
