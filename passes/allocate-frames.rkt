@@ -33,34 +33,41 @@
 
   ;; asm-pred-lang-v7/pre-framed.info -> asm-pred-lang-v7/framed.info
   (define (allocate-frames-info info)
-    ;; new frames for assignment
     (define new-frames (if (empty? (info-ref info 'new-frames))
                            '()
                            (first (info-ref info 'new-frames))))
+  
+    ;; Remove new-frames from locals since they're now frame allocated
     (define locals^ (remove* new-frames (info-ref info 'locals)))
-    ;; existing assignments
-    (define assignments (map cadr (info-ref info 'assignment)))
-    ;; all variables that could conflict with assignments
-    (define conflicts (map car (info-ref info 'conflicts)))
-    ;; all frame variables
-    (define conflict-frame-variables (append assignments conflicts))
-    (define new-assignments (for/fold ([assignments^ (info-ref info 'assignment)])
-                                      ([frame new-frames])
-                              (define frame-assignment (for/or ([i (in-naturals)])
-                                                         (define fvar (make-fvar i))
-                                                         (cond
-                                                           [(member fvar conflict-frame-variables) #f]
-                                                           [else (set! conflict-frame-variables (cons fvar conflict-frame-variables))
-                                                                 `(,frame ,fvar)])))
-                              (append assignments^ `(,frame-assignment))))
-    (info-set (info-set
-               (info-remove
-                (info-remove
-                 (info-remove info 'undead-out)
-                 'call-undead)
-                'new-frames)
-               'locals (reverse locals^))
-              'assignment new-assignments))
+
+    (define existing-assignments (info-ref info 'assignment))
+    (define existing-fvars (map cadr existing-assignments))
+
+    (define start-index
+      (if (empty? existing-fvars)
+          0
+          (add1 (apply max (map fvar->index existing-fvars)))))
+
+    ;; Assign fresh fvars to new-frames
+    (define-values (final-assignments _)
+      (for/fold ([assignments^ existing-assignments]
+                 [next-idx start-index])
+                ([frame new-frames])
+        (define-values (fvar idx)
+          (let loop ([i next-idx])
+            (define candidate (make-fvar i))
+            (if (member candidate existing-fvars)
+                (loop (add1 i))
+                (values candidate (add1 i)))))
+        (values (cons (list frame fvar) assignments^) idx)))
+    
+    (define cleaned-info
+      (for/fold ([acc info]) ([field '(undead-out call-undead new-frames)])
+        (info-remove acc field)))
+
+    (info-set
+     (info-set cleaned-info 'locals (reverse locals^))
+     'assignment final-assignments))
 
   ;; func -> func
   (define (allocate-frames-func f)
@@ -73,10 +80,10 @@
     (match t
       [`(jump ,trg ,locs ...) `(jump ,trg ,@locs)]
       [`(begin ,effects ... ,tail)
-       (define effects^ (for/fold ([compiled-effects '()])
+       (define effects^ (for/fold ([compiled-effects empty])
                                   ([effect effects])
-                          (append compiled-effects (list (allocate-frames-effect effect info)))))
-       `(begin ,@effects^ ,(allocate-frames-tail tail info))]
+                          (cons (allocate-frames-effect effect info) compiled-effects)))
+       `(begin ,@(reverse effects^) ,(allocate-frames-tail tail info))]
       [`(if ,pred ,t1 ,t2)
        `(if ,(allocate-frames-pred pred info)
             ,(allocate-frames-tail t1 info)
@@ -86,10 +93,10 @@
   (define (allocate-frames-effect e info)
     (match e
       [`(begin ,effects ...)
-       (define effects^ (for/fold ([compiled-effects '()])
+       (define effects^ (for/fold ([compiled-effects empty])
                                   ([effect effects])
-                          (append compiled-effects (list (allocate-frames-effect effect info)))))
-       `(begin ,@effects^)]
+                          (cons (allocate-frames-effect effect info) compiled-effects)))
+       `(begin ,@(reverse effects^))]
       [`(return-point ,label ,tail)
        (define frame-size (compute-frame-size info))
        (define fbp (current-frame-base-pointer-register))
@@ -215,7 +222,7 @@
                         (rax (rbp tmp-ra.7))
                         (fv0 (tmp-ra.7))
                         (fv1 (x.1 tmp-ra.7))))
-                      (assignment ((tmp-ra.7 fv2) (nfv.8 fv3) (nfv.9 fv4))))
+                      (assignment ((nfv.9 fv4) (nfv.8 fv3) (tmp-ra.7 fv2))))
                      (begin
                        (set! tmp-ra.7 r15)
                        (set! x.1 fv0)
@@ -4250,7 +4257,7 @@
                           rbp
                           tmp-ra.42))
                         (r15 (nfv.44 nfv.43 r9 r8 rcx rdx rsi rdi rbp))))
-                      (assignment ((tmp-ra.42 fv3) (i.77 fv0) (nfv.43 fv4) (nfv.44 fv5))))
+                      (assignment ((nfv.44 fv5) (nfv.43 fv4) (tmp-ra.42 fv3) (i.77 fv0))))
                      (begin
                        (set! tmp-ra.42 r15)
                        (set! a.69 rdi)
