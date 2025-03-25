@@ -4,7 +4,7 @@
 
 (require
   cpsc411/compiler-lib
-  cpsc411/langs/v7
+  cpsc411/langs/v8
   rackunit)
 
 (provide uniquify)
@@ -14,7 +14,7 @@
 ;; identifiers into unique labels, and all other lexical identifiers into
 ;; unique abstract locations
 (define/contract (uniquify p)
-  (-> exprs-lang-v7? exprs-unique-lang-v7?)
+  (-> exprs-lang-v8? exprs-unique-lang-v8?)
 
   ;; func is `(define ,label (lambda (,alocs ...) ,value))
   ;; interp. a function definition
