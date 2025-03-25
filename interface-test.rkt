@@ -1,4 +1,6 @@
-#lang racket/base
+#lang racket
+
+(require rackunit)
 
 (module+ test
   (require
@@ -11,6 +13,7 @@
      specify-representation
      remove-complex-opera*
      sequentialize-let
+     normalize-bind
      impose-calling-conventions
      normalize-bind
      select-instructions
