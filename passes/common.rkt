@@ -9,12 +9,13 @@
          extend-env*
          extend-env
          binop?
+         prim-f?
          unsafe-binop?
          safe-binop?
          unop?
          relop?
          addr?
-         rloc?)              
+         rloc?)
 
 ;; ================================================
 ;; Environment
@@ -50,6 +51,11 @@
 ;; ================================================
 ;; Helper Functions
 ;; ================================================
+
+;; prim-f -> boolean
+;; produces true if the expression is a primitive function
+(define (prim-f? op)
+  (or (safe-binop? op) (unop? op)))
 
 ;; any -> boolean
 ;; produces true if op is a valid safe binop
@@ -114,7 +120,7 @@
                                         '(a x c) '(5 6 7))
                                        'z)
                            7))
-  
+
   (test-case "safe-binop?"
              (check-true (safe-binop? '*))
              (check-true (safe-binop? '+))
@@ -190,13 +196,13 @@
              (check-false (relop? '!))
              (check-false (relop? "<="))
              (check-false (relop? #t))
-             (check-false (relop? 1)))  
+             (check-false (relop? 1)))
 
   (test-case "addr?"
              (check-true (addr? `(rbp - 8)))
              (check-true (addr? `(rbp - 0)))
              (check-false (addr? `(rbp - 2147483647)))
-             (check-false (addr? `(rax - 8))) 
+             (check-false (addr? `(rax - 8)))
              (check-false (addr? `(foo - 8)))
              (check-false (addr? `(rbp - "8")))
              (check-false (addr? `(rbp - 3.14)))
