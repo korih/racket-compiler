@@ -4,17 +4,17 @@
 
 (require
   cpsc411/compiler-lib
-  cpsc411/langs/v7
+  cpsc411/langs/v8
   rackunit)
 
 (provide patch-instructions)
 
-;; para-asm-lang-v7 -> paren-x64-v7
-;; compiles p to to Paren-x64 v7 by patching each instruction that has no
+;; para-asm-lang-v8 -> paren-x64-mops-v8
+;; compiles p to to Paren-x64-mops v8 by patching each instruction that has no
 ;; x64 analogue into a sequence of instructions using auxiliary register from
 ;; current-patch-instructions-registers
 (define/contract (patch-instructions p)
-  (-> para-asm-lang-v7? paren-x64-v7?)
+  (-> para-asm-lang-v8? paren-x64-mops-v8?)
 
   ;; relop -> relop
   ;; produces the negation of relop
@@ -27,9 +27,11 @@
       [`> `<=]
       [`!= `=]))
 
-  ;; para-asm-lang-v7.s -> paren-x64-v7.s
+  ;; para-asm-lang-v8.s -> paren-x64-v8.s
   (define (compile-s s)
     (match s
+      [`(set! ,loc1 (mref ,loc2 ,index))
+       `((set! ,loc1 (mref ,loc2 ,index)))]
       [`(set! ,loc (,binop ,loc ,triv))
        (cond
          ;; if loc is an addr and triv is a label, loc, or larger than int32,
@@ -69,6 +71,19 @@
           `((set! ,patch-reg ,triv)
             (set! ,loc ,patch-reg))]
          [else (list `(set! ,loc ,triv))])]
+      [`(mset! ,loc ,index ,triv)
+       (cond
+         [(and (addr? loc) (or (int64? triv) (addr? triv)))
+          (define patch-reg-1 (first (current-patch-instructions-registers)))
+          (define patch-reg-2 (second (current-patch-instructions-registers)))
+          `((set! ,patch-reg-1 ,triv)
+            (set! ,patch-reg-2 ,loc)
+            (mset! ,patch-reg-2 ,index ,patch-reg-1))]
+         [(or (int64? triv) (addr? triv))
+          (define patch-reg (first (current-patch-instructions-registers)))
+          `((set! ,patch-reg ,triv)
+            (mset! ,loc ,index ,patch-reg))]
+         [else (list `(mset! ,loc ,index ,triv))])]
       [`(with-label ,label ,s)
        (define s-compiled (compile-s s))
        (if (empty? (rest s-compiled))
@@ -200,4 +215,77 @@
                    (set! rdx (bitwise-xor rdx rbx))
                    (set! rax rdx)
                    (set! rax (arithmetic-shift-right rax 3))
-                   (jump rsp))))
+                   (jump rsp)))
+  (check-equal? (patch-instructions '(begin
+                                       (with-label L.tmp.105 (set! rsp r15))
+                                       (set! rdi 1)
+                                       (set! rsi 2)
+                                       (set! r15 rsp)
+                                       (jump L.f.1)
+                                       (with-label L.g.1 (set! rsp r15))
+                                       (set! rax 8)
+                                       (jump rsp)
+                                       (with-label L.f.1 (set! (rbp - 24) r15))
+                                       (set! (rbp - 8) rdi)
+                                       (set! (rbp - 0) rsi)
+                                       (set! rsp 10)
+                                       (set! rsp (+ rsp 6))
+                                       (set! (rbp - 16) r12)
+                                       (set! r12 (+ r12 rsp))
+                                       (set! rbp (- rbp 32))
+                                       (set! r15 L.rp.21)
+                                       (jump L.g.1)
+                                       (with-label L.rp.21 (set! rbp (+ rbp 32)))
+                                       (set! rsp rax)
+                                       (jump L.tmp.103)
+                                       (with-label L.tmp.102 (set! rbx 10))
+                                       (set! rbx (+ rbx 6))
+                                       (set! rsp r12)
+                                       (set! r12 (+ r12 rbx))
+                                       (set! rbx 8)
+                                       (set! rbx (bitwise-and rbx 8))
+                                       (set! rax (mref rsp rbx))
+                                       (jump (rbp - 24))
+                                       (with-label L.tmp.104 (mset! (rbp - 16) rsp (rbp - 0)))
+                                       (jump L.tmp.102)
+                                       (with-label L.tmp.103 (mset! (rbp - 16) rsp (rbp - 8)))
+                                       (jump L.tmp.102)))
+                '(begin
+                   (with-label L.tmp.105 (set! rsp r15))
+                   (set! rdi 1)
+                   (set! rsi 2)
+                   (set! r15 rsp)
+                   (jump L.f.1)
+                   (with-label L.g.1 (set! rsp r15))
+                   (set! rax 8)
+                   (jump rsp)
+                   (with-label L.f.1 (set! (rbp - 24) r15))
+                   (set! (rbp - 8) rdi)
+                   (set! (rbp - 0) rsi)
+                   (set! rsp 10)
+                   (set! rsp (+ rsp 6))
+                   (set! (rbp - 16) r12)
+                   (set! r12 (+ r12 rsp))
+                   (set! rbp (- rbp 32))
+                   (set! r15 L.rp.21)
+                   (jump L.g.1)
+                   (with-label L.rp.21 (set! rbp (+ rbp 32)))
+                   (set! rsp rax)
+                   (jump L.tmp.103)
+                   (with-label L.tmp.102 (set! rbx 10))
+                   (set! rbx (+ rbx 6))
+                   (set! rsp r12)
+                   (set! r12 (+ r12 rbx))
+                   (set! rbx 8)
+                   (set! rbx (bitwise-and rbx 8))
+                   (set! rax (mref rsp rbx))
+                   (set! r10 (rbp - 24))
+                   (jump r10)
+                   (with-label L.tmp.104 (set! r10 (rbp - 0)))
+                   (set! r11 (rbp - 16))
+                   (mset! r11 rsp r10)
+                   (jump L.tmp.102)
+                   (with-label L.tmp.103 (set! r10 (rbp - 8)))
+                   (set! r11 (rbp - 16))
+                   (mset! r11 rsp r10)
+                   (jump L.tmp.102))))
