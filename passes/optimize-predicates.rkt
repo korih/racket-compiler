@@ -195,8 +195,6 @@
                                (define optimized-f (optimize-predicates/func f))
                                optimized-f))
      ;; NOTE: returning p passes all public and private tests.
-     p
-     #;
      `(module ,@optimized-funcs ,(optimize-predicates/tail tail empty-env))]))
 
 (module+ test

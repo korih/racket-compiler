@@ -43,28 +43,30 @@
   ;; interp. map of data sturcture allocations to unsafe counter parts. The natural represents the error code
   ;; TODO: Use this when i see a pair or vector operation
   (define truth-map
-    `((* unsafe-fx*   (fixnum? fixnum?) 1)
-      (+ unsafe-fx+   (fixnum? fixnum?) 2)
-      (- unsafe-fx-   (fixnum? fixnum?) 3)
-      (< unsafe-fx<   (fixnum? fixnum?) 4)
-      (<= unsafe-fx<= (fixnum? fixnum?) 5)
-      (> unsafe-fx>   (fixnum? fixnum?) 6)
-      (>= unsafe-fx>= (fixnum? fixnum?) 7)
+    (hash '*       '(* unsafe-fx*   (fixnum? fixnum?) 1)
+          '+       '(+ unsafe-fx+   (fixnum? fixnum?) 2)
+          '-       '(- unsafe-fx-   (fixnum? fixnum?) 3)
+          '<       '(< unsafe-fx<   (fixnum? fixnum?) 4)
+          '<=      '(<= unsafe-fx<= (fixnum? fixnum?) 5)
+          '>       '(> unsafe-fx>   (fixnum? fixnum?) 6)
+          '>=      '(>= unsafe-fx>= (fixnum? fixnum?) 7)
 
-      (make-vector   make-init-vector-label   (fixnum?)               8)
-      (vector-length unsafe-vector-length     (vector?)               9)
-      (vector-set!   unsafe-vector-set!-label (vector? fixnum? any?) 10)
-      (vector-ref    unsafe-vector-ref-label  (vector? fixnum?) 11)
+          'make-vector   '(make-vector   make-init-vector-label   (fixnum?)               8)
+          'vector-length '(vector-length unsafe-vector-length     (vector?)               9)
+          'vector-set!   '(vector-set!   unsafe-vector-set!-label (vector? fixnum? any?) 10)
+          'vector-ref    '(vector-ref    unsafe-vector-ref-label  (vector? fixnum?)      11)
 
-      (car unsafe-car (pair?) 12)
-      (cdr unsafe-cdr (pair?) 13)
+          'car           '(car unsafe-car (pair?) 12)
+          'cdr           '(cdr unsafe-cdr (pair?) 13)
 
-      ,@(map (lambda (x) `(,x ,x (any?) 14))
-             '(fixnum? boolean? empty? void? ascii-char? error? pair?
-                       vector? not))
+          #;
+          ,@(map (lambda (x) `(,x ,x (any?) 14))
+                 '(fixnum? boolean? empty? void? ascii-char? error? pair?
+                           vector? not))
 
-      ,@(map (lambda (x) `(,x ,x (any? any?) 15))
-             '(cons eq?))))
+          #;
+          ,@(map (lambda (x) `(,x ,x (any? any?) 15))
+                 '(cons eq?))))
 
   ;; new-funcs is (Mutable Map-of exprs-unique-lang-v8.binop (list label func))
   ;; interp. keeps track of new funcs that were created by compiling binop or unops
