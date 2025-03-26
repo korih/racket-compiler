@@ -14,8 +14,8 @@
 ;; transformation, unnesting all non-trivial operators and operands to binops,
 ;; calls, and relops, making data flow explicit and simple to implement
 ;; imperatively
-(define (remove-complex-opera* p)
-  #;(-> exprs-bits-lang-v8? values-bits-lang-v8?)
+(define/contract (remove-complex-opera* p)
+  (-> exprs-bits-lang-v8? values-bits-lang-v8?)
 
   ;; func-value is `(define ,label (lambda (,aloc ...) ,value))
   ;; interp. a function definition with the body being a value

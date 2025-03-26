@@ -1,16 +1,16 @@
 #lang racket
 
 (require
-  cpsc411/langs/v7
+  cpsc411/langs/v8
   rackunit)
 
 (provide sequentialize-let)
 
-;; values-bits-lang-v7 -> imp-mf-lang-v7
-;; compiles p to Imp-mf-lang v7 by picking a particular order to implement
+;; values-bits-lang-v8 -> imp-mf-lang-v8
+;; compiles p to Imp-mf-lang v8 by picking a particular order to implement
 ;; let expressions using set!
 (define/contract (sequentialize-let p)
-  (-> values-bits-lang-v7? imp-mf-lang-v7?)
+  (-> values-bits-lang-v8? imp-mf-lang-v8?)
 
   ;; func is `(define ,label (lambda (,alocs ...) ,tail))
   ;; interp. a function definition
@@ -21,7 +21,7 @@
       [`(define ,label (lambda (,alocs ...) ,tail))
        `(define ,label (lambda (,@alocs) ,(sequentialize-let-tail tail)))]))
 
-  ;; values-bits-lang-v7.tail -> imp-mf-lang-v7.tail
+  ;; values-bits-lang-v8.tail -> imp-mf-lang-v8.tail
   (define (sequentialize-let-tail tail)
     (match tail
       [`(let ([,xs ,vs] ...) ,tail)
@@ -34,9 +34,11 @@
        (define t2^ (sequentialize-let-tail t2))
        `(if ,p^ ,t1^ ,t2^)]
       [`(call ,triv ,opand ...) tail]
+      [`(begin ,es ... ,t)
+       `(begin ,@(map sequentialize-let-effect es) ,(sequentialize-let-tail t))]
       [value (sequentialize-let-value value)]))
 
-  ;; values-bits-lang-v7.value -> imp-mf-lang-v7.value
+  ;; values-bits-lang-v8.value -> imp-mf-lang-v8.value
   (define (sequentialize-let-value v)
     (match v
       [`(let ([,xs ,vs] ...) ,v)
@@ -44,15 +46,16 @@
                                           `(set! ,x ,(sequentialize-let-value v))))
        `(begin ,@sequentialize-let-values ,(sequentialize-let-value v))]
       [`(if ,p ,v1 ,v2)
-       (define p^ (sequentialize-let-pred p))
-       (define v1^ (sequentialize-let-value v1))
-       (define v2^ (sequentialize-let-value v2))
-       `(if ,p^ ,v1^ ,v2^)]
-      ;; Using wildcard collapse case because in the other two cases, the
-      ;; expression is already in imp-mf-lang-v7.value form
+       `(if ,(sequentialize-let-pred p)
+            ,(sequentialize-let-value v1)
+            ,(sequentialize-let-value v2))]
+      [`(begin ,es ... ,value)
+       `(begin ,@(map sequentialize-let-effect es) ,(sequentialize-let-value value))]
+      ;; Using wildcard collapse case because in all other cases, the
+      ;; expression is already in imp-mf-lang-v8.value form
       [_ v]))
 
-  ;; values-bits-lang-v7.pred -> imp-mf-lang-v7.pred
+  ;; values-bits-lang-v8.pred -> imp-mf-lang-v8.pred
   (define (sequentialize-let-pred p)
     (match p
       [`(let ([,xs ,vs] ...) ,pred)
@@ -69,13 +72,51 @@
        (define p1^ (sequentialize-let-pred p1))
        (define p2^ (sequentialize-let-pred p2))
        (define p3^ (sequentialize-let-pred p3))
-       `(if ,p1^ ,p2^ ,p3^)]))
+       `(if ,p1^ ,p2^ ,p3^)]
+      [`(begin ,es ... ,pred)
+       `(begin ,@(map sequentialize-let-effect es) ,(sequentialize-let-pred pred))]))
+
+  ;; values-bits-lang-v8.effect -> imp-mf-lang-v8.effect
+  (define (sequentialize-let-effect e)
+    (match e
+      [`(let ([,xs ,vs] ...) ,eff)
+       (define sequentialize-let-values (for/list ([x xs] [v vs])
+                                          `(set! ,x ,(sequentialize-let-value v))))
+       `(begin ,@sequentialize-let-values ,(sequentialize-let-effect eff))]
+      [`(begin ,es ...)
+       `(begin ,@(map sequentialize-let-effect es))]
+      [`(mset! ,aloc ,opand ,value) e]))
 
   (match p
     [`(module ,funcs ... ,tail)
      `(module ,@(map sequentialize-let-func funcs) ,(sequentialize-let-tail tail))]))
 
 (module+ test
+  (check-equal? (sequentialize-let '(module
+                                        (define L.f.1
+                                          (lambda (x.1 x.2)
+                                            (begin
+                                              (let ((tmp.38 (let ((tmp.39 (+ 10 6))) (alloc tmp.39))))
+                                                (let ((tmp.40 (call L.g.1)))
+                                                  (mset! tmp.38 tmp.40 (if (true) x.1 x.2))))
+                                              (let ((tmp.41 (let ((tmp.42 (+ 10 6))) (alloc tmp.42))))
+                                                (let ((tmp.43 (bitwise-and 8 8))) (mref tmp.41 tmp.43))))))
+                                      (define L.g.1 (lambda () 8))
+                                      (call L.f.1 1 2)))
+                '(module
+                     (define L.f.1
+                       (lambda (x.1 x.2)
+                         (begin
+                           (begin
+                             (set! tmp.38 (begin (set! tmp.39 (+ 10 6)) (alloc tmp.39)))
+                             (begin
+                               (set! tmp.40 (call L.g.1))
+                               (mset! tmp.38 tmp.40 (if (true) x.1 x.2))))
+                           (begin
+                             (set! tmp.41 (begin (set! tmp.42 (+ 10 6)) (alloc tmp.42)))
+                             (begin (set! tmp.43 (bitwise-and 8 8)) (mref tmp.41 tmp.43))))))
+                   (define L.g.1 (lambda () 8))
+                   (call L.f.1 1 2)))
   (check-equal? (sequentialize-let '(module
                                         (define L.f.1 (lambda (x.1 y.1)
                                                         (let ([a.1 2] [b.1 (call L.g.1 x.1 y.1)])
