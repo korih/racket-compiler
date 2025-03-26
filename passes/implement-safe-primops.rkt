@@ -14,59 +14,46 @@
 ;; operations by inserting procedure definitions for each primitive operation
 ;; which perform dynamic tag checking, to ensure type safety
 (define/contract (implement-safe-primops p)
-  (-> exprs-unique-lang-v8? exprs-unsafe-data-lang-v8?)
+  (-> exprs-unique-lang-v8? any #; exprs-unsafe-data-lang-v8?)
 
   ;; func is `(define ,label (lambda (,alocs ...) ,value))
   ;; interp. a function definition
 
-  ;; NOTE: Should abstract to the common file or out of this file? unless only used here
-  ;; ERROR CODES
+  ;; Listof primitive operations safety specifications
+  ;; Symbol Symbol (Listof Parameter-types) Natural
+  ;; interp. Represents the safety specifications for primitive operations, the first symbol is the safe label
+  ;; the second symbol is the unsafe label, the list of parameter types are the types that the operation, and
+  ;; the natural is the error code for that operation
+  (define primop-spec-table
+    `((* unsafe-fx*   (fixnum? fixnum?) 1)
+      (+ unsafe-fx+   (fixnum? fixnum?) 2)
+      (- unsafe-fx-   (fixnum? fixnum?) 3)
+      (< unsafe-fx<   (fixnum? fixnum?) 4)
+      (<= unsafe-fx<= (fixnum? fixnum?) 5)
+      (> unsafe-fx>   (fixnum? fixnum?) 6)
+      (>= unsafe-fx>= (fixnum? fixnum?) 7)
 
-  ;; 1 ...
-  ;; 8 - pair operation errors
-  ;; 9 - vector operation errors
+      (make-vector   make-init-vector-label   (fixnum?)               8)
+      (vector-length unsafe-vector-length     (vector?)               9)
+      (vector-set!   unsafe-vector-set!-label (vector? fixnum? any?) 10)
+      (vector-ref    unsafe-vector-ref-label  (vector? fixnum?)      11)
 
-  ;; NOTE: Should understand book example of the mappings to see why it was done that way
+      (car unsafe-car (pair?) 12)
+      (cdr unsafe-cdr (pair?) 13)
 
-  ;; binop-unsafe-map is (Immutable Map-of exprs-unique-lang-v8.binop (list exprs-unsafe-data-lang-v8.binop Natural))
-  ;; interp. maps the exprs-unique-lang-v8.binop with its unsafe binop and error code
-  (define binop-unsafe-map
-    (hash '*   (cons 'unsafe-fx*  1)
-          '+   (cons 'unsafe-fx+  2)
-          '-   (cons 'unsafe-fx-  3)
-          '<   (cons 'unsafe-fx<  4)
-          '<=  (cons 'unsafe-fx<= 5)
-          '>   (cons 'unsafe-fx>  6)
-          '>=  (cons 'unsafe-fx>= 7)))
+      ,@(map (lambda (x) `(,x ,x (any?) 0))
+             '(fixnum? boolean? empty? void? ascii-char? error? pair?
+                       vector? not))
 
-  ;; vector-unsafe-map is (Immutable Map-of exprs-unique-lang-v8.prim-f -> (List-of exprs-unsafe-data-lang-v8.prim-f Natural)
-  ;; interp. map of data sturcture allocations to unsafe counter parts. The natural represents the error code
-  ;; TODO: Use this when i see a pair or vector operation
-  (define truth-map
-    (hash '*       '(* unsafe-fx*   (fixnum? fixnum?) 1)
-          '+       '(+ unsafe-fx+   (fixnum? fixnum?) 2)
-          '-       '(- unsafe-fx-   (fixnum? fixnum?) 3)
-          '<       '(< unsafe-fx<   (fixnum? fixnum?) 4)
-          '<=      '(<= unsafe-fx<= (fixnum? fixnum?) 5)
-          '>       '(> unsafe-fx>   (fixnum? fixnum?) 6)
-          '>=      '(>= unsafe-fx>= (fixnum? fixnum?) 7)
+      ,@(map (lambda (x) `(,x ,x (any? any?) 0))
+             '(cons eq?))))
 
-          'make-vector   '(make-vector   make-init-vector-label   (fixnum?)               8)
-          'vector-length '(vector-length unsafe-vector-length     (vector?)               9)
-          'vector-set!   '(vector-set!   unsafe-vector-set!-label (vector? fixnum? any?) 10)
-          'vector-ref    '(vector-ref    unsafe-vector-ref-label  (vector? fixnum?)      11)
-
-          'car           '(car unsafe-car (pair?) 12)
-          'cdr           '(cdr unsafe-cdr (pair?) 13)
-
-          #;
-          ,@(map (lambda (x) `(,x ,x (any?) 14))
-                 '(fixnum? boolean? empty? void? ascii-char? error? pair?
-                           vector? not))
-
-          #;
-          ,@(map (lambda (x) `(,x ,x (any? any?) 15))
-                 '(cons eq?))))
+  ;; (Immutable Map-of exprs-unique-lang-v8.prim-f) -> (Listof exprs-unsafe-data-lang-v8.prim-f unsafe-prim-f (Listof Paramter-Type) Natural)
+  ;; interp. map of data sturcture allocations to unsafe counter parts with specifications such as the types of the parameters and
+  ;; the natural represents the error code
+  (define primop-spec-map
+    (for/fold ([h (hash)]) ([prim-table^ primop-spec-table])
+      (hash-set h (first prim-table^) (rest prim-table^))))
 
   ;; new-funcs is (Mutable Map-of exprs-unique-lang-v8.binop (list label func))
   ;; interp. keeps track of new funcs that were created by compiling binop or unops
@@ -101,43 +88,37 @@
   ;; produce unsafe trivs from exprs-unique-lang-v8
   (define (implement-safe-primops-triv triv)
     (match triv
-      [prim-f #:when (prim-f? prim-f) (implement-safe-primops-prim prim-f)]
+      [prim-f #:when (hash-has-key? primop-spec-map prim-f) (implement-safe-primops-prim prim-f)]
       ;; Wildcard collapse case used because they are terminal cases with no transformation
       [_ triv]))
 
   ;; exprs-unique-lang-v8.prim-f -> exprs-unsafe-data-lang-v8.prim-f
   ;; convert safe primops to unsafe equivilents
+  (define (primop-spec-builder prim unsafe-primop args args-const p-types error-code k)
+    (cond
+      ;; if there is only one type left or the next type is any? then we can just use the unsafe primop
+      [(or (empty? args) (eq? (first p-types) 'any?))
+       (k `(,unsafe-primop ,@args-const))]
+      ;; else we need to generate a safety check and pass the continuation along for the rest of the computation
+      [else
+       (define kont (lambda (inner)
+                      (k `(if (,(first p-types) ,(first args))
+                              ,inner
+                              (error ,error-code)))))
+       (primop-spec-builder prim
+                            unsafe-primop
+                            (rest args)
+                            args-const
+                            (rest p-types)
+                            error-code
+                            kont)]))
+
+  ;; exprs-unique-lang-v8.prim-f -> exprs-unsafe-data-lang-v8.prim-f
+  ;; produce safety checks for unsafe primops
   ;; TODO: replace this with handle-prim (also change that name)
   ;; the hash isn't ever used here
   (define (implement-safe-primops-prim prim-f)
     (match prim-f
-      ['eq?
-       (define label (fresh-label prim-f))
-       (define arg1 (fresh))
-       (define arg2 (fresh))
-       (define fun `(define ,label (lambda (,arg1 ,arg2) (eq? ,arg1 ,arg2))))
-       (hash-set! new-funcs 'eq? (list label fun))
-       label]
-      [binop #:when (or (binop? binop) (relop? binop))
-             (define label (fresh-label binop))
-             (define arg1 (fresh))
-             (define arg2 (fresh))
-             (define unsafe-binop (hash-ref binop-unsafe-map binop))
-             (define fun `(define ,label (lambda (,arg1 ,arg2)
-                                           (if (fixnum? ,arg2)
-                                               (if (fixnum? ,arg1)
-                                                   (,(car unsafe-binop) ,arg1 ,arg2)
-                                                   (error ,(cdr unsafe-binop)))
-                                               (error ,(cdr unsafe-binop))))))
-             (hash-set! new-funcs binop (list label fun))
-             label]
-      [unop #:when (unop? unop)
-            (define label (fresh-label unop))
-            (define arg1 (fresh))
-            (define fun `(define ,label (lambda (,arg1) (,unop ,arg1))))
-            (hash-set! new-funcs unop (list label fun))
-            label]
-
       ['make-vector (define make-label (fresh-label 'make-vector))
                     (define init-label (fresh-label 'make-init-vector))
                     (define loop-label (fresh-label 'vector-init-loop))
@@ -223,7 +204,53 @@
                                                  (unsafe-vector-length ,arg)
                                                  (error 9)))))
                       (hash-set! new-funcs 'vector-length (list label fun))
-                      label]))
+                      label]
+
+      [_ (define primop (hash-ref primop-spec-map prim-f))
+         (define label (fresh-label prim-f))
+         (define-values (unsafe-primop args error-code)
+           (match primop
+             [`(,unsafe-primop ,args ,error-code)
+              (values unsafe-primop args error-code)]))
+         (define tmp-vars (map (lambda (x) (fresh)) args))
+         (define fun (primop-spec-builder primop unsafe-primop tmp-vars tmp-vars args error-code
+                                          (lambda (inner)
+                                            `(define ,label (lambda (,@tmp-vars)
+                                                              ,inner)))))
+         (hash-set! new-funcs primop (list label fun))
+         label]
+
+      #;
+      ['eq?
+       (define label (fresh-label prim-f))
+       (define arg1 (fresh))
+       (define arg2 (fresh))
+       (define fun `(define ,label (lambda (,arg1 ,arg2) (eq? ,arg1 ,arg2))))
+       (hash-set! new-funcs 'eq? (list label fun))
+       label]
+      #;
+      [binop #:when (or (binop? binop) (relop? binop))
+             (define label (fresh-label binop))
+             (define arg1 (fresh))
+             (define arg2 (fresh))
+             (define unsafe-binop (hash-ref primop-spec-map binop))
+             (define fun `(define ,label (lambda (,arg1 ,arg2)
+                                           (if (fixnum? ,arg2)
+                                               (if (fixnum? ,arg1)
+                                                   (,(car unsafe-binop) ,arg1 ,arg2)
+                                                   (error ,(last unsafe-binop)))
+                                               (error ,(last unsafe-binop))))))
+             (hash-set! new-funcs binop (list label fun))
+             label]
+      #;
+      [unop #:when (unop? unop)
+            (define label (fresh-label unop))
+            (define arg1 (fresh))
+            (define fun `(define ,label (lambda (,arg1) (,unop ,arg1))))
+            (hash-set! new-funcs unop (list label fun))
+            label]
+
+      ))
 
   (match p
     [`(module ,funcs ... ,value)
