@@ -12,7 +12,7 @@
 ;; nested-asm-lang-v7 -> nested-asm-lang-v7
 ;; optimizes p by analyzing and simplifying predicates
 (define/contract (optimize-predicates p)
-  (-> nested-asm-lang-fvars-v7? any #; nested-asm-lang-fvars-v7?)
+  (-> nested-asm-lang-fvars-v7? nested-asm-lang-fvars-v7?)
 
   ;; func is `(define ,label ,tail)
   ;; interp. a function definition
