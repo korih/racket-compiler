@@ -3,24 +3,24 @@
 (require
   cpsc411/compiler-lib
   cpsc411/2c-run-time
-  cpsc411/langs/v7
+  cpsc411/langs/v8
   rackunit)
 
 (provide resolve-predicates)
 
-;; block-pred-lang-v7 -> block-asm-lang-v7
-;; compiles p to Block-asm-lang v7 by manipulating the branches of if statements
+;; block-pred-lang-v8 -> block-asm-lang-v8
+;; compiles p to Block-asm-lang v8 by manipulating the branches of if statements
 ;; to resolve branches
 (define/contract (resolve-predicates p)
-  (-> block-pred-lang-v7? block-asm-lang-v7?)
+  (-> block-pred-lang-v8? block-asm-lang-v8?)
 
-  ;; block-pred-lang-v7.b -> block-asm-lang-v7.b
+  ;; block-pred-lang-v8.b -> block-asm-lang-v8.b
   (define (resolve-predicates-b b)
     (match b
       [`(define ,label ,tail)
        `(define ,label ,(resolve-predicates-tail tail))]))
 
-  ;; block-pred-lang-v7.tail -> block-asm-lang-v7.tail
+  ;; block-pred-lang-v8.tail -> block-asm-lang-v8.tail
   (define (resolve-predicates-tail t)
     (match t
       [`(if ,pred (jump ,trg1) (jump ,trg2))
@@ -31,7 +31,7 @@
       ;; expressions without any needed transformations
       [_ t]))
 
-  ;; block-pred-lang-v7.pred block-pred-lang-v7.tail block-pred-lang-v7.tail -> block-asm-lang-v7.tail
+  ;; block-pred-lang-v8.pred block-pred-lang-v8.tail block-pred-lang-v8.tail -> block-asm-lang-v8.tail
   (define (resolve-predicates-pred p t f)
     (match p
       [`(,relop ,loc ,opand)
@@ -130,4 +130,78 @@
                        (set! rdx (bitwise-xor rdx rbx))
                        (set! rax rdx)
                        (set! rax (arithmetic-shift-right rax 3))
-                       (jump rsp))))))
+                       (jump rsp)))))
+  (check-equal? (resolve-predicates '(module
+                                         (define L.tmp.105
+                                           (begin
+                                             (set! rsp r15)
+                                             (set! rdi 1)
+                                             (set! rsi 2)
+                                             (set! r15 rsp)
+                                             (jump L.f.1)))
+                                       (define L.g.1 (begin (set! rsp r15) (set! rax 8) (jump rsp)))
+                                       (define L.f.1
+                                         (begin
+                                           (set! (rbp - 24) r15)
+                                           (set! (rbp - 8) rdi)
+                                           (set! (rbp - 0) rsi)
+                                           (set! rsp 10)
+                                           (set! rsp (+ rsp 6))
+                                           (set! (rbp - 16) r12)
+                                           (set! r12 (+ r12 rsp))
+                                           (set! rbp (- rbp 32))
+                                           (set! r15 L.rp.21)
+                                           (jump L.g.1)))
+                                       (define L.rp.21
+                                         (begin
+                                           (set! rbp (+ rbp 32))
+                                           (set! rsp rax)
+                                           (if (true) (jump L.tmp.103) (jump L.tmp.104))))
+                                       (define L.tmp.102
+                                         (begin
+                                           (set! rbx 10)
+                                           (set! rbx (+ rbx 6))
+                                           (set! rsp r12)
+                                           (set! r12 (+ r12 rbx))
+                                           (set! rbx 8)
+                                           (set! rbx (bitwise-and rbx 8))
+                                           (set! rax (mref rsp rbx))
+                                           (jump (rbp - 24))))
+                                       (define L.tmp.104 (begin (mset! (rbp - 16) rsp (rbp - 0)) (jump L.tmp.102)))
+                                       (define L.tmp.103
+                                         (begin (mset! (rbp - 16) rsp (rbp - 8)) (jump L.tmp.102)))))
+                '(module
+                     (define L.tmp.105
+                       (begin
+                         (set! rsp r15)
+                         (set! rdi 1)
+                         (set! rsi 2)
+                         (set! r15 rsp)
+                         (jump L.f.1)))
+                   (define L.g.1 (begin (set! rsp r15) (set! rax 8) (jump rsp)))
+                   (define L.f.1
+                     (begin
+                       (set! (rbp - 24) r15)
+                       (set! (rbp - 8) rdi)
+                       (set! (rbp - 0) rsi)
+                       (set! rsp 10)
+                       (set! rsp (+ rsp 6))
+                       (set! (rbp - 16) r12)
+                       (set! r12 (+ r12 rsp))
+                       (set! rbp (- rbp 32))
+                       (set! r15 L.rp.21)
+                       (jump L.g.1)))
+                   (define L.rp.21
+                     (begin (set! rbp (+ rbp 32)) (set! rsp rax) (jump L.tmp.103)))
+                   (define L.tmp.102
+                     (begin
+                       (set! rbx 10)
+                       (set! rbx (+ rbx 6))
+                       (set! rsp r12)
+                       (set! r12 (+ r12 rbx))
+                       (set! rbx 8)
+                       (set! rbx (bitwise-and rbx 8))
+                       (set! rax (mref rsp rbx))
+                       (jump (rbp - 24))))
+                   (define L.tmp.104 (begin (mset! (rbp - 16) rsp (rbp - 0)) (jump L.tmp.102)))
+                   (define L.tmp.103 (begin (mset! (rbp - 16) rsp (rbp - 8)) (jump L.tmp.102))))))

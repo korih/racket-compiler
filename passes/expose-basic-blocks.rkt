@@ -2,27 +2,27 @@
 
 (require
   cpsc411/compiler-lib
-  cpsc411/langs/v7
+  cpsc411/langs/v8
   rackunit)
 
 (provide expose-basic-blocks)
 
-;; nested-asm-lang-v7 -> block-pred-lang-v7
+;; nested-asm-lang-v8 -> block-pred-lang-v8
 ;; compiles p to Block-pred-lang v4 by eliminating all nested expressions by
 ;; generating fresh basic blocks and jumps
 (define/contract (expose-basic-blocks p)
-  (-> nested-asm-lang-v7? block-pred-lang-v7?)
+  (-> nested-asm-lang-v8? block-pred-lang-v8?)
 
-  ;; blocks is (Box (List-of block-pred-lang-v7.b))
+  ;; blocks is (Box (List-of block-pred-lang-v8.b))
   ;; stores new block definitions created
   (define blocks (box '()))
 
-  ;; block-pred-lang-v7.b ->
+  ;; block-pred-lang-v8.b ->
   ;; adds blk to blocks
   (define (add-block blk)
     (set-box! blocks (cons blk (unbox blocks))))
 
-  ;; block-pred-lang-v7.tail (list-of block-pred-lang-v7.effect) -> block-pred-lang-v7.tail
+  ;; block-pred-lang-v8.tail (list-of block-pred-lang-v8.effect) -> block-pred-lang-v8.tail
   ;; creates a new tail with the given effects
   (define (make-new-tail tail fx)
     (match tail
@@ -32,7 +32,7 @@
              tail
              `(begin ,@fx ,tail))]))
 
-  ;; nested-asm-lang-v7.tail -> block-pred-lang-v7.tail
+  ;; nested-asm-lang-v8.tail -> block-pred-lang-v8.tail
   ;; interp. converts the tail program into a list of basic blocks
   (define (expose-basic-blocks-tail tail)
     (match tail
@@ -49,13 +49,17 @@
       [`(jump ,trg) `(jump ,trg)]))
 
   ;; interp. returns the effects and tails of the current block
-  ;; nested-asm-lang-v7.effect block-pred-lang-v7.tail -> block-pred-lang-v7.tail
+  ;; nested-asm-lang-v8.effect block-pred-lang-v8.tail -> block-pred-lang-v8.tail
   (define (expose-basic-blocks-effect e bpl-tail)
     (match e
+      [`(set! ,loc1 (mref ,loc2 ,index))
+       (make-begin (list `(set! ,loc1 (mref ,loc2 ,index))) bpl-tail)]
       [`(set! ,loc (,binop ,loc ,triv))
        (make-begin (list `(set! ,loc (,binop ,loc ,triv))) bpl-tail)]
       [`(set! ,loc ,triv)
        (make-begin (list `(set! ,loc ,triv)) bpl-tail)]
+      [`(mset! ,loc ,index ,triv)
+       (make-begin (list `(mset! ,loc ,index ,triv)) bpl-tail)]
       [`(begin ,fx ...)
        (for/foldr ([bpl-tail bpl-tail])
          ([e fx])
@@ -82,8 +86,8 @@
        (add-block `(define ,label ,bpl-tail))
        tail]))
 
-  ;; nested-asm-lang-v7.pred
-  ;; -> (block-pred-lang-v7.trg block-pred-lang-v7.trg -> block-pred-lang-v7.tail)
+  ;; nested-asm-lang-v8.pred
+  ;; -> (block-pred-lang-v8.trg block-pred-lang-v8.trg -> block-pred-lang-v8.tail)
   (define (expose-basic-blocks-pred p)
     (match p
       ['(true)
@@ -92,9 +96,7 @@
        (lambda (t f) `(if ,p (jump ,t) (jump ,f)))]
       [`(not ,pred)
        (lambda (t f)
-         ((expose-basic-blocks-pred pred) f t)
-         #;
-         `(if ,pred (jump ,f) (jump ,t) ))]
+         ((expose-basic-blocks-pred pred) f t))]
       [`(begin ,e ... ,pred)
        (define pred-fn (expose-basic-blocks-pred pred))
        (lambda (t f)
@@ -526,4 +528,69 @@
                        (set! rdx (bitwise-xor rdx rbx))
                        (set! rax rdx)
                        (set! rax (arithmetic-shift-right rax 3))
-                       (jump rsp))))))
+                       (jump rsp)))))
+  (check-equal? (expose-basic-blocks '(module
+                                          (define L.f.1
+                                            (begin
+                                              (set! (rbp - 24) r15)
+                                              (set! (rbp - 8) rdi)
+                                              (set! (rbp - 0) rsi)
+                                              (set! rsp 10)
+                                              (set! rsp (+ rsp 6))
+                                              (begin (set! (rbp - 16) r12) (set! r12 (+ r12 rsp)))
+                                              (begin
+                                                (set! rbp (- rbp 32))
+                                                (return-point L.rp.21 (begin (set! r15 L.rp.21) (jump L.g.1)))
+                                                (set! rbp (+ rbp 32)))
+                                              (set! rsp rax)
+                                              (if (true)
+                                                  (mset! (rbp - 16) rsp (rbp - 8))
+                                                  (mset! (rbp - 16) rsp (rbp - 0)))
+                                              (set! rbx 10)
+                                              (set! rbx (+ rbx 6))
+                                              (begin (set! rsp r12) (set! r12 (+ r12 rbx)))
+                                              (set! rbx 8)
+                                              (set! rbx (bitwise-and rbx 8))
+                                              (set! rax (mref rsp rbx))
+                                              (jump (rbp - 24))))
+                                        (define L.g.1 (begin (set! rsp r15) (set! rax 8) (jump rsp)))
+                                        (begin (set! rsp r15) (set! rdi 1) (set! rsi 2) (set! r15 rsp) (jump L.f.1))))
+                '(module
+                     (define L.tmp.105
+                       (begin
+                         (set! rsp r15)
+                         (set! rdi 1)
+                         (set! rsi 2)
+                         (set! r15 rsp)
+                         (jump L.f.1)))
+                   (define L.g.1 (begin (set! rsp r15) (set! rax 8) (jump rsp)))
+                   (define L.f.1
+                     (begin
+                       (set! (rbp - 24) r15)
+                       (set! (rbp - 8) rdi)
+                       (set! (rbp - 0) rsi)
+                       (set! rsp 10)
+                       (set! rsp (+ rsp 6))
+                       (set! (rbp - 16) r12)
+                       (set! r12 (+ r12 rsp))
+                       (set! rbp (- rbp 32))
+                       (set! r15 L.rp.21)
+                       (jump L.g.1)))
+                   (define L.rp.21
+                     (begin
+                       (set! rbp (+ rbp 32))
+                       (set! rsp rax)
+                       (if (true) (jump L.tmp.103) (jump L.tmp.104))))
+                   (define L.tmp.102
+                     (begin
+                       (set! rbx 10)
+                       (set! rbx (+ rbx 6))
+                       (set! rsp r12)
+                       (set! r12 (+ r12 rbx))
+                       (set! rbx 8)
+                       (set! rbx (bitwise-and rbx 8))
+                       (set! rax (mref rsp rbx))
+                       (jump (rbp - 24))))
+                   (define L.tmp.104 (begin (mset! (rbp - 16) rsp (rbp - 0)) (jump L.tmp.102)))
+                   (define L.tmp.103
+                     (begin (mset! (rbp - 16) rsp (rbp - 8)) (jump L.tmp.102))))))
