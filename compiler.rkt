@@ -34,20 +34,18 @@
   "passes/assign-frame-variables.rkt"
   "passes/implement-safe-primops.rkt"
   "passes/specify-representation.rkt"
-  "passes/remove-complex-opera.rkt")
+  "passes/remove-complex-opera.rkt"
+  "passes/expose-allocation-pointer.rkt")
 
 (provide
- expose-allocation-pointer
  implement-mops)
 
 ;; TODO: Fill in.
 ;; You'll want to merge milestone-7 code in
 
 ;; Stubs; remove or replace with your definitions.
-(define-values (expose-allocation-pointer
-                implement-mops)
+(define-values (implement-mops)
   (values
-   values
    values))
 
 (module+ test
