@@ -14,8 +14,8 @@
   (-> nested-asm-lang-fvars-v7? nested-asm-lang-v7?)
 
   ;; base-pointer-offset is Integer
-  ;; keeps track of the frame base pointer offset after allocating/deallocating
-  ;; a frame
+  ;; interp. keeps track of the frame base pointer offset after
+  ;; allocating/deallocating a frame
   (define base-pointer-offset 0)
 
   ;; fvar -> addr
@@ -25,7 +25,7 @@
                                                       (current-word-size-bytes))
                                                    base-pointer-offset)))
 
-  ;; Symbol Integer ->
+  ;; nested-asm-lang-fvars-v7.binop Integer -> void
   ;; EFFECTS: mutates `base-pointer-offset` by applying the given binop with the
   ;; offset
   (define (update-base-pointer-offset! binop offset)
