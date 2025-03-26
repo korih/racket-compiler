@@ -4,18 +4,18 @@
 
 (require
   cpsc411/compiler-lib
-  cpsc411/langs/v7
+  cpsc411/langs/v8
   rackunit)
 
 (provide remove-complex-opera*)
 
-;; exprs-bits-lang-v7 -> values-bits-lang-v7
-;; compiles p to Values-bits-lang v7 by performing the monadic form
+;; exprs-bits-lang-v8 -> values-bits-lang-v8
+;; compiles p to Values-bits-lang v8 by performing the monadic form
 ;; transformation, unnesting all non-trivial operators and operands to binops,
 ;; calls, and relops, making data flow explicit and simple to implement
 ;; imperatively
-(define/contract (remove-complex-opera* p)
-  (-> exprs-bits-lang-v7? values-bits-lang-v7?)
+(define (remove-complex-opera* p)
+  #;(-> exprs-bits-lang-v8? values-bits-lang-v8?)
 
   ;; func-value is `(define ,label (lambda (,aloc ...) ,value))
   ;; interp. a function definition with the body being a value
@@ -29,7 +29,7 @@
       [`(define ,label (lambda (,alocs ...) ,tail))
        `(define ,label (lambda (,@alocs) ,(remove-complex-opera*-tail tail (λ (v) v))))]))
 
-  ;; exprs-bits-lang-v7.value (values-bits-lang-v7.value -> values-bits-lang-v7.value) -> values-bits-lang-v7.tail
+  ;; exprs-bits-lang-v8.value (values-bits-lang-v8.value -> values-bits-lang-v8.value) -> values-bits-lang-v8.tail
   (define (remove-complex-opera*-tail tail k)
     (match tail
       [`(let ([,alocs ,vs] ...) ,t)
@@ -43,19 +43,21 @@
             ,(remove-complex-opera*-tail t1 k)
             ,(remove-complex-opera*-tail t2 k))]
       [`(call ,triv ,ops ...)
-       (remove-complex-opera*-triv triv
-                                   (lambda (triv^)
-                                     (let loop ([remaining-ops ops]
-                                                [accum '()]
-                                                [k k])
-                                       (if (empty? remaining-ops)
-                                           (k `(call ,triv^ ,@(reverse accum)))
-                                           (remove-complex-opera*-opand (car remaining-ops)
-                                                                        (lambda (op^)
-                                                                          (loop (cdr remaining-ops) (cons op^ accum) k)))))))]
+       (trivialize-value triv
+                         (lambda (triv^)
+                           (let loop ([remaining-ops ops]
+                                      [accum '()]
+                                      [k k])
+                             (if (empty? remaining-ops)
+                                 (k `(call ,triv^ ,@(reverse accum)))
+                                 (trivialize-value (car remaining-ops)
+                                                   (lambda (op^)
+                                                     (loop (cdr remaining-ops) (cons op^ accum) k)))))))]
+      [`(begin ,es ... ,t)
+       `(begin ,@(map (lambda (e) (remove-complex-opera*-effect e k)) es) ,(remove-complex-opera*-tail t k))]
       [value (remove-complex-opera*-value value k)]))
 
-  ;; exprs-bits-lang-v7.value (values-bits-lang-v7.value -> values-bits-lang-v7.value) -> values-bits-lang-v7.value
+  ;; exprs-bits-lang-v8.value (values-bits-lang-v8.value -> values-bits-lang-v8.value) -> values-bits-lang-v8.value
   (define (remove-complex-opera*-value value k)
     (match value
       [`(let ([,alocs ,vs] ...) ,v)
@@ -69,25 +71,37 @@
             ,(remove-complex-opera*-value v1 k)
             ,(remove-complex-opera*-value v2 k))]
       [`(call ,triv ,ops ...)
-       (remove-complex-opera*-triv triv
-                                   (lambda (triv^)
-                                     (let loop ([remaining-ops ops]
-                                                [accum '()]
-                                                [k k])
-                                       (if (empty? remaining-ops)
-                                           (k `(call ,triv^ ,@(reverse accum)))
-                                           (remove-complex-opera*-opand (car remaining-ops)
-                                                                        (lambda (op^)
-                                                                          (loop (cdr remaining-ops) (cons op^ accum) k)))))))]
+       (trivialize-value triv
+                         (lambda (triv^)
+                           (let loop ([remaining-ops ops]
+                                      [accum '()]
+                                      [k k])
+                             (if (empty? remaining-ops)
+                                 (k `(call ,triv^ ,@(reverse accum)))
+                                 (trivialize-value (car remaining-ops)
+                                                   (lambda (op^)
+                                                     (loop (cdr remaining-ops) (cons op^ accum) k)))))))]
+      [`(mref ,aloc ,opand)
+       (trivialize-value aloc
+                         (lambda (aloc^)
+                           (trivialize-value opand
+                                             (lambda (opand^)
+                                               (k `(mref ,aloc^ ,opand^))))))]
+      [`(alloc ,opand)
+       (trivialize-value opand
+                         (lambda (opand^)
+                           (k `(alloc ,opand^))))]
+      [`(begin ,es ... ,v)
+       `(begin ,@(map (lambda (e) (remove-complex-opera*-effect e k)) es) ,(remove-complex-opera*-value v k))]
       [`(,binop ,op1 ,op2)
-       (remove-complex-opera*-opand op1
-                                    (lambda (op1^)
-                                      (remove-complex-opera*-opand op2
-                                                                   (lambda (op2^)
-                                                                     (k `(,binop ,op1^ ,op2^))))))]
-      [triv (remove-complex-opera*-triv triv k)]))
+       (trivialize-value op1
+                         (lambda (op1^)
+                           (trivialize-value op2
+                                             (lambda (op2^)
+                                               (k `(,binop ,op1^ ,op2^))))))]
+      [triv (trivialize-value triv k)]))
 
-  ;; exprs-bits-lang-v7.pred (values-bits-lang-v7.value -> values-bits-lang-v7.value) -> values-bits-lang-v7.pred
+  ;; exprs-bits-lang-v8.pred (values-bits-lang-v8.value -> values-bits-lang-v8.value) -> values-bits-lang-v8.pred
   (define (remove-complex-opera*-pred pred k)
     (match pred
       ['(true) pred]
@@ -103,27 +117,42 @@
        `(if ,(remove-complex-opera*-pred p1 k)
             ,(remove-complex-opera*-pred p2 k)
             ,(remove-complex-opera*-pred p3 k))]
+      [`(begin ,es ... ,p)
+       `(begin ,@(map (lambda (e) (remove-complex-opera*-effect e k)) es) ,(remove-complex-opera*-pred p k))]
       [`(,relop ,op1 ,op2)
-       (remove-complex-opera*-opand op1
-                                    (lambda (op1^)
-                                      (remove-complex-opera*-opand op2
-                                                                   (lambda (op2^)
-                                                                     (k `(,relop ,op1^ ,op2^))))))]))
+       (trivialize-value op1
+                         (lambda (op1^)
+                           (trivialize-value op2
+                                             (lambda (op2^)
+                                               (k `(,relop ,op1^ ,op2^))))))]))
 
-  ;; exprs-bits-lang-v7.value (values-bits-lang-v7.value -> values-bits-lang-v7.value) -> values-bits-lang-v7.triv
-  (define (remove-complex-opera*-triv triv k)
-    (match triv
+  ;; exprs-bits-lang-v8.effect (values-bits-lang-v8.value -> values-bits-lang-v8.value) -> values-bits-lang-v8.effect
+  (define (remove-complex-opera*-effect effect k)
+    (match effect
+      [`(mset! ,aloc ,opand ,value)
+       (trivialize-value aloc
+                         (lambda (aloc^)
+                           (trivialize-value opand
+                                             (lambda (opand^)
+                                               (k `(mset! ,aloc^ ,opand^ ,(remove-complex-opera*-value value k)))))))]
+      [`(let ([,alocs ,vs] ...) ,eff)
+       (define bindings
+         (map (lambda (aloc val)
+                (list aloc (remove-complex-opera*-value val k)))
+              alocs vs))
+       `(let (,@bindings) ,(remove-complex-opera*-effect eff k))]
+      [`(begin ,es ...)
+       `(begin ,@(map (lambda (e) (remove-complex-opera*-effect e k)) es))]))
+
+  ;; exprs-bits-lang-v8.value (values-bits-lang-v8.value -> values-bits-lang-v8.value) -> values-bits-lang-v8.opand
+  (define (trivialize-value value k)
+    (match value
       [label #:when (label? label) (k label)]
-      [opand (remove-complex-opera*-opand opand k)]))
-
-  ;; exprs-bits-lang-v7.value (values-bits-lang-v7.value -> values-bits-lang-v7.value) -> values-bits-lang-v7.opand
-  (define (remove-complex-opera*-opand opand k)
-    (match opand
       [int64 #:when (int64? int64) (k int64)]
       [aloc #:when (aloc? aloc) (k aloc)]
       [else
        (define tmp (fresh))
-       `(let ([,tmp ,(remove-complex-opera*-value opand (λ (v) v))])
+       `(let ([,tmp ,(remove-complex-opera*-value value (λ (v) v))])
           ,(k tmp))]))
 
   (match p
@@ -338,4 +367,21 @@
                      (lambda (a.69 b.70 c.71 d.72 e.73 f.74 g.75 h.76 i.77)
                        (let ((sum.78 (call L.add.10 a.69 b.70 c.71 d.72 e.73 f.74 g.75 h.76)))
                          (call L.*.2 sum.78 i.77))))
-                   (call L.add-and-multiply.11 8 16 24 32 40 48 56 64 16))))
+                   (call L.add-and-multiply.11 8 16 24 32 40 48 56 64 16)))
+  (check-equal? (remove-complex-opera* '(module (define L.f.1 (lambda (x.1 x.2)
+                                                                (begin
+                                                                  (mset! (alloc (+ 10 6)) (call L.g.1) (if (true) x.1 x.2))
+                                                                  (mref (alloc (+ 10 6)) (bitwise-and 8 8)))))
+                                          (define L.g.1 (lambda () 8))
+                                          (call L.f.1 1 2)))
+                '(module
+                     (define L.f.1
+                       (lambda (x.1 x.2)
+                         (begin
+                           (let ((tmp.38 (let ((tmp.39 (+ 10 6))) (alloc tmp.39))))
+                             (let ((tmp.40 (call L.g.1)))
+                               (mset! tmp.38 tmp.40 (if (true) x.1 x.2))))
+                           (let ((tmp.41 (let ((tmp.42 (+ 10 6))) (alloc tmp.42))))
+                             (let ((tmp.43 (bitwise-and 8 8))) (mref tmp.41 tmp.43))))))
+                   (define L.g.1 (lambda () 8))
+                   (call L.f.1 1 2))))
