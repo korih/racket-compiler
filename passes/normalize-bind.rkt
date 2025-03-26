@@ -38,8 +38,8 @@
        (normalize-bind-value v (lambda (simple-v)
                                  `(set! ,aloc ,simple-v)))]
       [`(mset! ,aloc ,opand ,v)
-       (normalize-bind-value v (lambda (simple-v)
-                                 `(mset! ,aloc ,opand ,simple-v)))]
+       (normalize-bind-value v (lambda (triv)
+                                 `(mset! ,aloc ,opand ,triv)))]
       [`(if ,pred ,e1 ,e2)
        `(if ,(normalize-bind-pred pred) ,(normalize-bind-effect e1) ,(normalize-bind-effect e2))]
       [`(begin ,e ...)

@@ -2,16 +2,16 @@
 
 (require
   cpsc411/compiler-lib
-  cpsc411/langs/v7
+  cpsc411/langs/v8
   rackunit)
 
 (provide impose-calling-conventions)
 
-;; proc-imp-cmf-lang-v7 -> imp-cmf-lang-v7
-;; compiles p to Imp-cmf-lang v7 by imposing calling conventions on all calls
+;; proc-imp-cmf-lang-v8 -> imp-cmf-lang-v8
+;; compiles p to Imp-cmf-lang v8 by imposing calling conventions on all calls
 ;; and procedure definitions
 (define/contract (impose-calling-conventions p)
-  (-> proc-imp-cmf-lang-v7? imp-cmf-lang-v7?)
+  (-> proc-imp-cmf-lang-v8? imp-cmf-lang-v8?)
 
   ;; func-lambda is `(define ,label (lambda (,alocs ...) ,entry))
   ;; interp. a function definition that uses lambdas
@@ -40,7 +40,7 @@
     (values (reverse (cons `(set! ,(current-return-address-register) ,return-aloc) effects))
             (reverse rlocs)))
 
-  ;; (List-of opand) (List-of register) aloc -> (List-of imp-cmf-lang-v7.effect) (List-of imp-cmf-lang-v7.rloc) (List-of aloc)
+  ;; (List-of opand) (List-of register) aloc -> (List-of imp-cmf-lang-v8.effect) (List-of imp-cmf-lang-v8.rloc) (List-of aloc)
   ;; interp. converts a list of arguments from a non-tail call into a sequence
   ;; of register assignments, following calling conventions
   (define (transform-non-tail-call ops regs return-label)
@@ -62,7 +62,7 @@
             (reverse rlocs)
             (reverse nfvars)))
 
-  ;; (List-of aloc) (List-of register) -> (List-of imp-cmf-lang-v7.effect)
+  ;; (List-of aloc) (List-of register) -> (List-of imp-cmf-lang-v8.effect)
   ;; interp. transforms procedure parameter allocations by assigning them to registers based on calling conventions
   (define (transform-procedure alocs regs)
     (define-values (effects _)
@@ -76,11 +76,11 @@
               (values (cons `(set! ,aloc ,fvar) effects) (add1 next-fvidx))))))
     effects)
 
-  ;; info is imp-cmf-lang-v7.info
+  ;; info is imp-cmf-lang-v8.info
   ;; interp. keeps track of new frames for a given entry
   (define info (info-set '() 'new-frames '()))
 
-  ;; imp-cmf-lang-v7.info (List-of aloc) -> imp-cmf-lang-v7.info
+  ;; imp-cmf-lang-v8.info (List-of aloc) -> imp-cmf-lang-v8.info
   ;; EFFECTS: adds the frame to the end of the new-frames's info
   (define (add-frame! frame)
     (set! info (info-set '() 'new-frames (cons frame (info-ref info 'new-frames)))))
@@ -98,7 +98,7 @@
        (define entry^ (impose-calling-conventions-proc-entry entry alocs))
        `(define ,label ,info ,entry^)]))
 
-  ;; proc-imp-cmf-lang-v7.entry (List-of aloc) -> imp-cmf-lang-v7.tail
+  ;; proc-imp-cmf-lang-v8.entry (List-of aloc) -> imp-cmf-lang-v8.tail
   ;; interp. transforms the entry point of a procedure by assigning arguments
   ;; according to the calling convention and setting up the return address
   ;; register
@@ -114,7 +114,7 @@
          ,@call-setup
          ,(impose-calling-conventions-tail entry return-aloc))))
 
-  ;; proc-imp-cmf-lang-v7.entry -> imp-cmf-lang-v7.tail
+  ;; proc-imp-cmf-lang-v8.entry -> imp-cmf-lang-v8.tail
   ;; interp. transforms the module-level entry point by setting up the return
   ;; address register
   (define (impose-calling-conventions-module-entry entry)
@@ -123,7 +123,7 @@
        (set! ,return-aloc ,(current-return-address-register))
        ,(impose-calling-conventions-tail entry return-aloc)))
 
-  ;; proc-imp-cmf-lang-v7.tail aloc -> imp-cmf-lang-v7.tail
+  ;; proc-imp-cmf-lang-v8.tail aloc -> imp-cmf-lang-v8.tail
   (define (impose-calling-conventions-tail tail return-aloc)
     (match tail
       [`(begin ,es ... ,t)
@@ -145,7 +145,7 @@
               (jump ,return-aloc ,(current-frame-base-pointer-register) ,(current-return-value-register)))
            effect^)]))
 
-  ;; proc-imp-cmf-lang-v7.effect -> imp-cmf-lang-v7.effect
+  ;; proc-imp-cmf-lang-v8.effect -> imp-cmf-lang-v8.effect
   (define (impose-calling-conventions-effect effect)
     (match effect
       [`(set! ,aloc ,value)
@@ -155,6 +155,7 @@
            `(begin
               (return-point ,value^ ,effect^)
               (set! ,aloc ,(current-return-value-register))))]
+      [`(mset! ,aloc ,opand ,triv) effect]
       [`(begin ,es ...)
        `(begin ,@(map impose-calling-conventions-effect es))]
       [`(if ,pred ,e1 ,e2)
@@ -162,7 +163,7 @@
             ,(impose-calling-conventions-effect e1)
             ,(impose-calling-conventions-effect e2))]))
 
-  ;; proc-imp-cmf-lang-v7.pred -> imp-cmf-lang-v7.pred
+  ;; proc-imp-cmf-lang-v8.pred -> imp-cmf-lang-v8.pred
   (define (impose-calling-conventions-pred pred)
     (match pred
       ['(true) pred]
@@ -177,7 +178,7 @@
             ,(impose-calling-conventions-pred p3))]
       [`(,relop ,op1 ,op2) pred]))
 
-  ;; proc-imp-cmf-lang-v7.value -> imp-cmf-lang-v7.effect imp-cmf-lang-v7.value
+  ;; proc-imp-cmf-lang-v8.value -> imp-cmf-lang-v8.effect imp-cmf-lang-v8.value
   (define (impose-calling-conventions-value value)
     (match value
       [`(call ,triv ,ops ...)
@@ -188,8 +189,9 @@
                           ,@effects
                           (jump ,triv ,(current-frame-base-pointer-register) ,(current-return-address-register) ,@used-rlocs)))
        (values effect^ return-label)]
-      [`(,binop ,op1 ,op2) (values '() value)]
-      [triv (values '() triv)]))
+      ;; Using wildcard collapse case because in all other cases, the
+      ;; expression is already in imp-cmf-lang-v8.value form
+      [_ (values '() value)]))
 
   (match p
     [`(module ,funcs ... ,entry)
@@ -983,4 +985,57 @@
                        (begin
                          (return-point L.rp.20 (begin (set! r15 L.rp.20) (jump L.f.1 rbp r15)))
                          (set! x.1 rax))
-                       (begin (set! rax x.1) (jump tmp-ra.49 rbp rax)))))))
+                       (begin (set! rax x.1) (jump tmp-ra.49 rbp rax))))))
+  (check-equal? (impose-calling-conventions '(module
+                                                 (define L.f.1
+                                                   (lambda (x.1 x.2)
+                                                     (begin
+                                                       (begin
+                                                         (begin (set! tmp.39 (+ 10 6)) (set! tmp.38 (alloc tmp.39)))
+                                                         (begin
+                                                           (set! tmp.40 (call L.g.1))
+                                                           (if (true) (mset! tmp.38 tmp.40 x.1) (mset! tmp.38 tmp.40 x.2))))
+                                                       (begin
+                                                         (begin (set! tmp.42 (+ 10 6)) (set! tmp.41 (alloc tmp.42)))
+                                                         (begin (set! tmp.43 (bitwise-and 8 8)) (mref tmp.41 tmp.43))))))
+                                               (define L.g.1 (lambda () 8))
+                                               (call L.f.1 1 2)))
+                '(module
+                     ((new-frames ()))
+                   (define L.f.1
+                     ((new-frames (())))
+                     (begin
+                       (set! tmp-ra.50 r15)
+                       (begin
+                         (set! x.1 rdi)
+                         (set! x.2 rsi)
+                         (begin
+                           (begin
+                             (begin (set! tmp.39 (+ 10 6)) (set! tmp.38 (alloc tmp.39)))
+                             (begin
+                               (begin
+                                 (return-point L.rp.21
+                                               (begin (set! r15 L.rp.21) (jump L.g.1 rbp r15)))
+                                 (set! tmp.40 rax))
+                               (if (true)
+                                   (mset! tmp.38 tmp.40 x.1)
+                                   (mset! tmp.38 tmp.40 x.2))))
+                           (begin
+                             (begin (set! tmp.42 (+ 10 6)) (set! tmp.41 (alloc tmp.42)))
+                             (begin
+                               (set! tmp.43 (bitwise-and 8 8))
+                               (begin
+                                 (set! rax (mref tmp.41 tmp.43))
+                                 (jump tmp-ra.50 rbp rax))))))))
+                   (define L.g.1
+                     ((new-frames ()))
+                     (begin
+                       (set! tmp-ra.51 r15)
+                       (begin (begin (set! rax 8) (jump tmp-ra.51 rbp rax)))))
+                   (begin
+                     (set! tmp-ra.52 r15)
+                     (begin
+                       (set! rdi 1)
+                       (set! rsi 2)
+                       (set! r15 tmp-ra.52)
+                       (jump L.f.1 rbp r15 rdi rsi))))))
