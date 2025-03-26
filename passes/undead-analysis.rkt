@@ -4,22 +4,22 @@
 
 (require
   cpsc411/compiler-lib
-  cpsc411/langs/v7
+  cpsc411/langs/v8
   rackunit)
 
 (provide undead-analysis)
 
-;; asm-pred-lang-v7/locals -> asm-pred-lang-v7/undead
-;; compiles p to Asm-pred-lang v7/undead by performing undeadness analysis,
+;; asm-pred-lang-v8/locals -> asm-pred-lang-v8/undead
+;; compiles p to Asm-pred-lang v8/undead by performing undeadness analysis,
 ;; decorating the program with undead-set tree
 (define/contract (undead-analysis p)
-  (-> asm-pred-lang-v7/locals? asm-pred-lang-v7/undead?)
+  (-> asm-pred-lang-v8/locals? asm-pred-lang-v8/undead?)
 
   ;; func-info is `(define ,label ,info ,tail)
   ;; interp. a function definition that has metadata
 
-  ;; call-undead is (setof? aloc)
-  ;; this is the set of abstract locations in the undead-out set of a return-point
+  ;; call-undead is (Set-of aloc)
+  ;; interp. the set of abstract locations in the undead-out set of a return-point
 
   ;; func-info -> func-info
   (define (analyze-func f)
@@ -29,7 +29,7 @@
        (define updated-info (info-set (info-set info 'undead-out undead-tree) 'call-undead call-undead))
        `(define ,label ,updated-info ,tail)]))
 
-  ;; asm-pred-lang-v7/locals.tail -> (values undead-set-tree undead-set call-undead)
+  ;; asm-pred-lang-v8/locals.tail -> (values undead-set-tree undead-set call-undead)
   (define (analyze-tail t)
     (match t
       [`(begin ,effects ... ,tail)
@@ -54,7 +54,7 @@
       [`(jump ,trg ,locs ...)
        (values locs (set-union (analyze-trg trg) locs) '())]))
 
-  ;; asm-pred-lang-v7/locals.effect undead-set -> (values undead-set-tree undead-set call-undead)
+  ;; asm-pred-lang-v8/locals.effect undead-set -> (values undead-set-tree undead-set call-undead)
   (define (analyze-effects e undead-out)
     (match e
       [`(begin ,effects ...)
@@ -70,6 +70,13 @@
             undead-in
             (set-union call-undead call-undead-effect))))
        (values rev-ust undead-in call-undead)]
+      [`(set! ,loc1 (mref ,loc2 ,index))
+       (define undead-loc1 (analyze-loc loc1))
+       (define undead-out^ (if (empty? undead-loc1)
+                               undead-out
+                               (set-remove undead-out (first undead-loc1))))
+       (define undead-in (set-union undead-out^ (analyze-loc loc2) (analyze-opand index)))
+       (values undead-out undead-in '())]
       [`(set! ,loc (,binop ,loc ,triv))
        (define undead-loc (analyze-loc loc))
        (define undead-set (if (empty? undead-loc)
@@ -84,6 +91,9 @@
                               (set-remove undead-out (first undead-loc))))
        (define undead-in (set-union undead-set (analyze-triv triv)))
        (values undead-out undead-in '())]
+      [`(mset! ,loc ,index ,triv)
+       (define undead-in (set-union undead-out (analyze-loc loc) (analyze-opand index) (analyze-triv triv)))
+       (values undead-out undead-in '())]
       [`(if ,pred ,e1 ,e2)
        (define-values (e1-ust e1-undead-out e1-call-undead) (analyze-effects e1 undead-out))
        (define-values (e2-ust e2-undead-out e2-call-undead) (analyze-effects e2 undead-out))
@@ -97,7 +107,7 @@
                (set-remove (set-union t-undead-out undead-out) (current-return-value-register))
                (set-subtract (set-union t-call-undead undead-out) (current-register-set)))]))
 
-  ;; asm-pred-lang-v7/locals.pred undead-set -> (values undead-set-tree undead-set call-undead)
+  ;; asm-pred-lang-v8/locals.pred undead-set -> (values undead-set-tree undead-set call-undead)
   (define (analyze-pred p undead-out)
     (match p
       [`(not ,pred)
@@ -131,25 +141,25 @@
       ['(true) (values undead-out undead-out '())]
       ['(false) (values undead-out undead-out '())]))
 
-  ;; asm-pred-lang-v7/locals.triv -> (List-of loc)
+  ;; asm-pred-lang-v8/locals.triv -> (List-of loc)
   (define (analyze-triv triv)
     (match triv
       [label #:when (label? label) '()]
       [opand (analyze-opand opand)]))
 
-  ;; asm-pred-lang-v7/locals.loc -> (List-of loc)
+  ;; asm-pred-lang-v8/locals.loc -> (List-of loc)
   (define (analyze-loc loc)
     (match loc
       [rloc #:when (rloc? rloc) (list rloc)]
       [aloc #:when (aloc? aloc) (list aloc)]))
 
-  ;; asm-pred-lang-v7/locals.trg -> (List-of loc)
+  ;; asm-pred-lang-v8/locals.trg -> (List-of loc)
   (define (analyze-trg trg)
     (match trg
       [label #:when (label? label) '()]
       [loc (analyze-loc loc)]))
 
-  ;; asm-pred-lang-v7/locals.opand -> (List-of loc)
+  ;; asm-pred-lang-v8/locals.opand -> (List-of loc)
   (define (analyze-opand op)
     (match op
       [int64 #:when (int64? int64) '()]
@@ -2433,4 +2443,98 @@
      (set! fv1 64)
      (set! fv2 16)
      (set! r15 tmp-ra.45)
-     (jump L.add-and-multiply.11 rbp r15 rdi rsi rdx rcx r8 r9 fv0 fv1 fv2)))))
+     (jump L.add-and-multiply.11 rbp r15 rdi rsi rdx rcx r8 r9 fv0 fv1 fv2))))
+  (check-equal? (undead-analysis '(module
+                                      ((new-frames ()) (locals (tmp-ra.52)))
+                                    (define L.f.1
+                                      ((new-frames (()))
+                                       (locals (tmp.41 x.1 x.2 tmp.40 tmp.43 tmp.39 tmp.42 tmp-ra.50 tmp.38)))
+                                      (begin
+                                        (set! tmp-ra.50 r15)
+                                        (set! x.1 rdi)
+                                        (set! x.2 rsi)
+                                        (set! tmp.39 10)
+                                        (set! tmp.39 (+ tmp.39 6))
+                                        (begin (set! tmp.38 r12) (set! r12 (+ r12 tmp.39)))
+                                        (return-point L.rp.21 (begin (set! r15 L.rp.21) (jump L.g.1 rbp r15)))
+                                        (set! tmp.40 rax)
+                                        (if (true) (mset! tmp.38 tmp.40 x.1) (mset! tmp.38 tmp.40 x.2))
+                                        (set! tmp.42 10)
+                                        (set! tmp.42 (+ tmp.42 6))
+                                        (begin (set! tmp.41 r12) (set! r12 (+ r12 tmp.42)))
+                                        (set! tmp.43 8)
+                                        (set! tmp.43 (bitwise-and tmp.43 8))
+                                        (set! rax (mref tmp.41 tmp.43))
+                                        (jump tmp-ra.50 rbp rax)))
+                                    (define L.g.1
+                                      ((new-frames ()) (locals (tmp-ra.51)))
+                                      (begin (set! tmp-ra.51 r15) (set! rax 8) (jump tmp-ra.51 rbp rax)))
+                                    (begin
+                                      (set! tmp-ra.52 r15)
+                                      (set! rdi 1)
+                                      (set! rsi 2)
+                                      (set! r15 tmp-ra.52)
+                                      (jump L.f.1 rbp r15 rdi rsi))))
+                '(module
+                     ((new-frames ())
+                      (locals (tmp-ra.52))
+                      (call-undead ())
+                      (undead-out
+                       ((tmp-ra.52 rbp)
+                        (tmp-ra.52 rdi rbp)
+                        (tmp-ra.52 rsi rdi rbp)
+                        (rsi rdi r15 rbp)
+                        (rbp r15 rdi rsi))))
+                   (define L.f.1
+                     ((new-frames (()))
+                      (locals (tmp.41 x.1 x.2 tmp.40 tmp.43 tmp.39 tmp.42 tmp-ra.50 tmp.38))
+                      (undead-out
+                       ((rdi rsi r12 tmp-ra.50 rbp)
+                        (rsi r12 tmp-ra.50 x.1 rbp)
+                        (r12 tmp-ra.50 x.1 x.2 rbp)
+                        (tmp.39 r12 tmp-ra.50 x.1 x.2 rbp)
+                        (tmp.39 r12 tmp-ra.50 x.1 x.2 rbp)
+                        ((tmp.39 r12 tmp-ra.50 tmp.38 x.1 x.2 rbp)
+                         (tmp-ra.50 r12 tmp.38 x.1 x.2 rbp))
+                        ((rax x.2 x.1 tmp.38 r12 rbp tmp-ra.50) ((r15 rbp) (rbp r15)))
+                        (x.2 x.1 tmp.40 tmp.38 r12 rbp tmp-ra.50)
+                        ((x.2 x.1 tmp.40 tmp.38 r12 rbp tmp-ra.50)
+                         (r12 rbp tmp-ra.50)
+                         (r12 rbp tmp-ra.50))
+                        (tmp.42 r12 rbp tmp-ra.50)
+                        (tmp.42 r12 rbp tmp-ra.50)
+                        ((tmp.42 r12 tmp.41 rbp tmp-ra.50) (tmp.41 rbp tmp-ra.50))
+                        (tmp.43 tmp.41 rbp tmp-ra.50)
+                        (tmp.43 tmp.41 rbp tmp-ra.50)
+                        (rax rbp tmp-ra.50)
+                        (rbp rax)))
+                      (call-undead (tmp-ra.50 tmp.38 x.1 x.2)))
+                     (begin
+                       (set! tmp-ra.50 r15)
+                       (set! x.1 rdi)
+                       (set! x.2 rsi)
+                       (set! tmp.39 10)
+                       (set! tmp.39 (+ tmp.39 6))
+                       (begin (set! tmp.38 r12) (set! r12 (+ r12 tmp.39)))
+                       (return-point L.rp.21 (begin (set! r15 L.rp.21) (jump L.g.1 rbp r15)))
+                       (set! tmp.40 rax)
+                       (if (true) (mset! tmp.38 tmp.40 x.1) (mset! tmp.38 tmp.40 x.2))
+                       (set! tmp.42 10)
+                       (set! tmp.42 (+ tmp.42 6))
+                       (begin (set! tmp.41 r12) (set! r12 (+ r12 tmp.42)))
+                       (set! tmp.43 8)
+                       (set! tmp.43 (bitwise-and tmp.43 8))
+                       (set! rax (mref tmp.41 tmp.43))
+                       (jump tmp-ra.50 rbp rax)))
+                   (define L.g.1
+                     ((new-frames ())
+                      (locals (tmp-ra.51))
+                      (undead-out ((rbp tmp-ra.51) (rax rbp tmp-ra.51) (rbp rax)))
+                      (call-undead ()))
+                     (begin (set! tmp-ra.51 r15) (set! rax 8) (jump tmp-ra.51 rbp rax)))
+                   (begin
+                     (set! tmp-ra.52 r15)
+                     (set! rdi 1)
+                     (set! rsi 2)
+                     (set! r15 tmp-ra.52)
+                     (jump L.f.1 rbp r15 rdi rsi)))))

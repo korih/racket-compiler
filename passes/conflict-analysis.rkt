@@ -7,16 +7,16 @@
 (require
   cpsc411/compiler-lib
   cpsc411/graph-lib
-  cpsc411/langs/v7
+  cpsc411/langs/v8
   rackunit)
 
 (provide conflict-analysis)
 
-;; asm-pred-lang-v7/undead -> asm-pred-lang-v7/conflicts
+;; asm-pred-lang-v8/undead -> asm-pred-lang-v8/conflicts
 ;; compiles p to Asm-pred-lang v5/conflicts by performing conflict analysis and
 ;; decorating programs with their conflict graph
 (define/contract (conflict-analysis p)
-  (-> asm-pred-lang-v7/undead? asm-pred-lang-v7/conflicts?)
+  (-> asm-pred-lang-v8/undead? asm-pred-lang-v8/conflicts?)
 
   ;; func-info is `(define ,label ,info ,tail)
   ;; interp. a function definition that has metadata
@@ -37,7 +37,7 @@
                                       conflict-graph))
        `(define ,label ,updated-info ,tail)]))
 
-  ;; undead-set-tree/rloc asm-pred-lang-v7/undead.tail -> asm-pred-lang-v7/conflicts.tail
+  ;; undead-set-tree/rloc asm-pred-lang-v8/undead.tail -> asm-pred-lang-v8/conflicts.tail
   (define (conflict-analysis-tail udt tail)
     (match (cons udt tail)
       [(cons `(,undead-set-trees ... ,undead-set-tree-tail) `(begin ,fx ... ,inner-tail))
@@ -57,7 +57,7 @@
             ,(conflict-analysis-tail undead-set-tree-t tail-t)
             ,(conflict-analysis-tail undead-set-tree-f tail-f))]))
 
-  ;; undead-set-tree/rloc asm-pred-lang-v7/undead.effect -> asm-pred-lang-v7/conflicts.effect
+  ;; undead-set-tree/rloc asm-pred-lang-v8/undead.effect -> asm-pred-lang-v8/conflicts.effect
   (define (conflict-analysis-effect udt e)
     (match (cons udt e)
       [(cons `(,undead-set-trees ... ,last-undead-set-tree) `(begin ,fx ... ,effect))
@@ -65,6 +65,9 @@
                                       [ust undead-set-trees])
                              (conflict-analysis-effect ust e)))
        `(begin ,@analyzed-fx ,(conflict-analysis-effect last-undead-set-tree effect))]
+      [(cons `(,undead-out ...) `(set! ,loc1 (mref ,loc2 ,index)))
+       (set! conflict-graph (add-edges conflict-graph loc1 (set-subtract undead-out (list loc1))))
+       `(set! ,loc1 (mref ,loc2 ,index))]
       [(cons `(,undead-out ...) `(set! ,loc (,binop ,loc ,op)))
        (set! conflict-graph (add-edges conflict-graph loc (set-subtract udt (list loc))))
        `(set! ,loc (,binop ,loc ,op))]
@@ -75,6 +78,8 @@
                                  (list analyzed-triv)))
        (set! conflict-graph (add-edges conflict-graph loc (set-subtract udt (list loc) extracted-loc)))
        `(set! ,loc ,triv)]
+      [(cons `(,undead-out ...) `(mset! ,loc ,index ,triv))
+       `(mset! ,loc ,index ,triv)]
       [(cons `(,udt-p ,udt-t ,udt-f) `(if ,pred ,t-e ,f-e))
        `(if ,(conflict-analysis-pred udt-p pred)
             ,(conflict-analysis-effect udt-t t-e)
@@ -82,7 +87,7 @@
       [(cons `(,udt-inner ,udt-outer) `(return-point ,label ,tail))
        `(return-point ,label ,(conflict-analysis-tail udt-outer tail))]))
 
-  ;; undead-set-tree/rloc asm-pred-lang-v7/undead.pred -> asm-pred-lang-v7/conflicts.pred
+  ;; undead-set-tree/rloc asm-pred-lang-v8/undead.pred -> asm-pred-lang-v8/conflicts.pred
   (define (conflict-analysis-pred udt pred)
     (match (cons udt pred)
       [(cons undead-set-tree '(true)) '(true)]
@@ -1070,6 +1075,181 @@
                      (if (begin (set! x.3 100) (not (!= x.2 x.3)))
                          (begin (set! rdi x.2) (set! r15 tmp-ra.2) (jump L.f.1 rbp r15 rdi))
                          (begin (set! rdi 1000) (set! r15 tmp-ra.2) (jump L.f.2 rbp r15 rdi))))))
+  (check-equal? (conflict-analysis '(module
+                                        ((new-frames ())
+                                         (locals (tmp-ra.52))
+                                         (call-undead ())
+                                         (undead-out
+                                          ((tmp-ra.52 rbp)
+                                           (tmp-ra.52 rdi rbp)
+                                           (tmp-ra.52 rsi rdi rbp)
+                                           (rsi rdi r15 rbp)
+                                           (rbp r15 rdi rsi))))
+                                      (define L.f.1
+                                        ((new-frames (()))
+                                         (locals (tmp.41 x.1 x.2 tmp.40 tmp.43 tmp.39 tmp.42 tmp-ra.50 tmp.38))
+                                         (undead-out
+                                          ((rdi rsi r12 tmp-ra.50 rbp)
+                                           (rsi r12 tmp-ra.50 x.1 rbp)
+                                           (r12 tmp-ra.50 x.1 x.2 rbp)
+                                           (tmp.39 r12 tmp-ra.50 x.1 x.2 rbp)
+                                           (tmp.39 r12 tmp-ra.50 x.1 x.2 rbp)
+                                           ((tmp.39 r12 tmp-ra.50 tmp.38 x.1 x.2 rbp)
+                                            (tmp-ra.50 r12 tmp.38 x.1 x.2 rbp))
+                                           ((rax x.2 x.1 tmp.38 r12 rbp tmp-ra.50) ((r15 rbp) (rbp r15)))
+                                           (x.2 x.1 tmp.40 tmp.38 r12 rbp tmp-ra.50)
+                                           ((x.2 x.1 tmp.40 tmp.38 r12 rbp tmp-ra.50)
+                                            (r12 rbp tmp-ra.50)
+                                            (r12 rbp tmp-ra.50))
+                                           (tmp.42 r12 rbp tmp-ra.50)
+                                           (tmp.42 r12 rbp tmp-ra.50)
+                                           ((tmp.42 r12 tmp.41 rbp tmp-ra.50) (tmp.41 rbp tmp-ra.50))
+                                           (tmp.43 tmp.41 rbp tmp-ra.50)
+                                           (tmp.43 tmp.41 rbp tmp-ra.50)
+                                           (rax rbp tmp-ra.50)
+                                           (rbp rax)))
+                                         (call-undead (tmp-ra.50 tmp.38 x.1 x.2)))
+                                        (begin
+                                          (set! tmp-ra.50 r15)
+                                          (set! x.1 rdi)
+                                          (set! x.2 rsi)
+                                          (set! tmp.39 10)
+                                          (set! tmp.39 (+ tmp.39 6))
+                                          (begin (set! tmp.38 r12) (set! r12 (+ r12 tmp.39)))
+                                          (return-point L.rp.21 (begin (set! r15 L.rp.21) (jump L.g.1 rbp r15)))
+                                          (set! tmp.40 rax)
+                                          (if (true) (mset! tmp.38 tmp.40 x.1) (mset! tmp.38 tmp.40 x.2))
+                                          (set! tmp.42 10)
+                                          (set! tmp.42 (+ tmp.42 6))
+                                          (begin (set! tmp.41 r12) (set! r12 (+ r12 tmp.42)))
+                                          (set! tmp.43 8)
+                                          (set! tmp.43 (bitwise-and tmp.43 8))
+                                          (set! rax (mref tmp.41 tmp.43))
+                                          (jump tmp-ra.50 rbp rax)))
+                                      (define L.g.1
+                                        ((new-frames ())
+                                         (locals (tmp-ra.51))
+                                         (undead-out ((rbp tmp-ra.51) (rax rbp tmp-ra.51) (rbp rax)))
+                                         (call-undead ()))
+                                        (begin (set! tmp-ra.51 r15) (set! rax 8) (jump tmp-ra.51 rbp rax)))
+                                      (begin
+                                        (set! tmp-ra.52 r15)
+                                        (set! rdi 1)
+                                        (set! rsi 2)
+                                        (set! r15 tmp-ra.52)
+                                        (jump L.f.1 rbp r15 rdi rsi))))
+                '(module
+                     ((new-frames ())
+                      (locals (tmp-ra.52))
+                      (call-undead ())
+                      (undead-out
+                       ((tmp-ra.52 rbp)
+                        (tmp-ra.52 rdi rbp)
+                        (tmp-ra.52 rsi rdi rbp)
+                        (rsi rdi r15 rbp)
+                        (rbp r15 rdi rsi)))
+                      (conflicts
+                       ((tmp-ra.52 (rsi rdi rbp))
+                        (rbp (r15 rsi rdi tmp-ra.52))
+                        (rdi (r15 rsi tmp-ra.52 rbp))
+                        (rsi (r15 tmp-ra.52 rdi rbp))
+                        (r15 (rsi rdi rbp)))))
+                   (define L.f.1
+                     ((new-frames (()))
+                      (locals (tmp.41 x.1 x.2 tmp.40 tmp.43 tmp.39 tmp.42 tmp-ra.50 tmp.38))
+                      (undead-out
+                       ((rdi rsi r12 tmp-ra.50 rbp)
+                        (rsi r12 tmp-ra.50 x.1 rbp)
+                        (r12 tmp-ra.50 x.1 x.2 rbp)
+                        (tmp.39 r12 tmp-ra.50 x.1 x.2 rbp)
+                        (tmp.39 r12 tmp-ra.50 x.1 x.2 rbp)
+                        ((tmp.39 r12 tmp-ra.50 tmp.38 x.1 x.2 rbp)
+                         (tmp-ra.50 r12 tmp.38 x.1 x.2 rbp))
+                        ((rax x.2 x.1 tmp.38 r12 rbp tmp-ra.50) ((r15 rbp) (rbp r15)))
+                        (x.2 x.1 tmp.40 tmp.38 r12 rbp tmp-ra.50)
+                        ((x.2 x.1 tmp.40 tmp.38 r12 rbp tmp-ra.50)
+                         (r12 rbp tmp-ra.50)
+                         (r12 rbp tmp-ra.50))
+                        (tmp.42 r12 rbp tmp-ra.50)
+                        (tmp.42 r12 rbp tmp-ra.50)
+                        ((tmp.42 r12 tmp.41 rbp tmp-ra.50) (tmp.41 rbp tmp-ra.50))
+                        (tmp.43 tmp.41 rbp tmp-ra.50)
+                        (tmp.43 tmp.41 rbp tmp-ra.50)
+                        (rax rbp tmp-ra.50)
+                        (rbp rax)))
+                      (call-undead (tmp-ra.50 tmp.38 x.1 x.2))
+                      (conflicts
+                       ((tmp.38 (tmp.40 r12 tmp.39 tmp-ra.50 x.1 x.2 rbp))
+                        (tmp-ra.50
+                         (rax
+                          tmp.43
+                          tmp.41
+                          tmp.42
+                          tmp.40
+                          tmp.38
+                          tmp.39
+                          x.2
+                          x.1
+                          rdi
+                          rsi
+                          r12
+                          rbp))
+                        (tmp.42 (tmp.41 r12 rbp tmp-ra.50))
+                        (tmp.39 (tmp.38 r12 tmp-ra.50 x.1 x.2 rbp))
+                        (tmp.43 (tmp.41 rbp tmp-ra.50))
+                        (tmp.40 (x.2 x.1 tmp.38 r12 rbp tmp-ra.50))
+                        (x.2 (tmp.40 tmp.38 tmp.39 r12 tmp-ra.50 x.1 rbp))
+                        (x.1 (tmp.40 tmp.38 tmp.39 x.2 rsi r12 tmp-ra.50 rbp))
+                        (tmp.41 (tmp.43 r12 tmp.42 rbp tmp-ra.50))
+                        (rbp
+                         (rax
+                          tmp.43
+                          tmp.41
+                          tmp.42
+                          tmp.40
+                          r15
+                          r12
+                          tmp.38
+                          tmp.39
+                          x.2
+                          x.1
+                          tmp-ra.50))
+                        (r12 (tmp.41 tmp.42 tmp.40 tmp.38 rbp tmp.39 x.2 x.1 tmp-ra.50))
+                        (rsi (x.1 tmp-ra.50))
+                        (rdi (tmp-ra.50))
+                        (r15 (rbp))
+                        (rax (rbp tmp-ra.50)))))
+                     (begin
+                       (set! tmp-ra.50 r15)
+                       (set! x.1 rdi)
+                       (set! x.2 rsi)
+                       (set! tmp.39 10)
+                       (set! tmp.39 (+ tmp.39 6))
+                       (begin (set! tmp.38 r12) (set! r12 (+ r12 tmp.39)))
+                       (return-point L.rp.21 (begin (set! r15 L.rp.21) (jump L.g.1 rbp r15)))
+                       (set! tmp.40 rax)
+                       (if (true) (mset! tmp.38 tmp.40 x.1) (mset! tmp.38 tmp.40 x.2))
+                       (set! tmp.42 10)
+                       (set! tmp.42 (+ tmp.42 6))
+                       (begin (set! tmp.41 r12) (set! r12 (+ r12 tmp.42)))
+                       (set! tmp.43 8)
+                       (set! tmp.43 (bitwise-and tmp.43 8))
+                       (set! rax (mref tmp.41 tmp.43))
+                       (jump tmp-ra.50 rbp rax)))
+                   (define L.g.1
+                     ((new-frames ())
+                      (locals (tmp-ra.51))
+                      (undead-out ((rbp tmp-ra.51) (rax rbp tmp-ra.51) (rbp rax)))
+                      (call-undead ())
+                      (conflicts
+                       ((tmp-ra.51 (rax rbp)) (rbp (rax tmp-ra.51)) (rax (rbp tmp-ra.51)))))
+                     (begin (set! tmp-ra.51 r15) (set! rax 8) (jump tmp-ra.51 rbp rax)))
+                   (begin
+                     (set! tmp-ra.52 r15)
+                     (set! rdi 1)
+                     (set! rsi 2)
+                     (set! r15 tmp-ra.52)
+                     (jump L.f.1 rbp r15 rdi rsi))))
   #;
   (match (conflict-analysis (undead-analysis (uncover-locals '(module ((new-frames (())))
                                                                 (begin (set! x.6 2)

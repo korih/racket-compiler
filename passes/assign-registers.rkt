@@ -5,17 +5,17 @@
 (require
   cpsc411/compiler-lib
   cpsc411/graph-lib
-  cpsc411/langs/v7
+  cpsc411/langs/v8
   rackunit)
 
 (provide assign-registers)
 
-;; asm-lang-v7/framed -> asm-lang-v7/spilled
+;; asm-lang-v8/framed -> asm-lang-v8/spilled
 ;; perform graph-colouring register allocation, compiling p to
-;; Asm-pred-lang.v7/spilled by decorating programs with their register
+;; Asm-pred-lang.v8/spilled by decorating programs with their register
 ;; assignments
 (define/contract (assign-registers p)
-  (-> asm-pred-lang-v7/framed? asm-pred-lang-v7/spilled?)
+  (-> asm-pred-lang-v8/framed? asm-pred-lang-v8/spilled?)
 
   ;; keeps track of spilled variables
   (define spilled-variables (box '()))
@@ -2237,7 +2237,7 @@
                         (r9 (r15 fv0 rbp rdi rsi rdx rcx r8 tmp-ra.238))
                         (fv0 (r15 rbp rdi rsi rdx rcx r8 r9 tmp-ra.238))
                         (r15 (rbp rdi rsi rdx rcx r8 r9 fv0))))
-                      (assignment ((tmp-ra.238 r15))))
+                      (assignment ((tmp-ra.238 rsp))))
                    (define L.+.31
                      ((new-frames ())
                       (locals ())
@@ -2275,13 +2275,13 @@
                         (rdi (tmp-ra.232))
                         (rsi (tmp.96 tmp-ra.232))))
                       (assignment
-                       ((tmp-ra.232 r15)
-                        (tmp.96 r14)
-                        (tmp.97 r13)
-                        (tmp.185 r9)
-                        (tmp.186 r9)
-                        (tmp.184 r9)
-                        (tmp.183 r9))))
+                       ((tmp.183 rsp)
+                        (tmp.184 rsp)
+                        (tmp.186 rsp)
+                        (tmp.97 rdx)
+                        (tmp-ra.232 rcx)
+                        (tmp.96 rbx)
+                        (tmp.185 rsp))))
                      (begin
                        (set! tmp-ra.232 r15)
                        (set! tmp.96 rdi)
@@ -2498,16 +2498,16 @@
                         (r15 (rbp rdi rsi rdx rcx r8 r9 nfv.234 nfv.235))))
                       (assignment
                        ((tmp-ra.233 fv1)
-                        (g.25 r15)
-                        (f.24 r14)
-                        (e.23 r13)
-                        (d.22 rcx)
-                        (c.21 rdx)
-                        (b.20 rsi)
+                        (tmp.187 rsp)
+                        (nfv.235 rbx)
+                        (nfv.234 rsp)
                         (a.19 rdi)
-                        (nfv.234 r14)
-                        (nfv.235 r13)
-                        (tmp.187 r15))))
+                        (b.20 rsi)
+                        (c.21 rdx)
+                        (d.22 rcx)
+                        (e.23 r8)
+                        (f.24 rbx)
+                        (g.25 rsp))))
                      (begin
                        (set! tmp-ra.233 r15)
                        (set! a.19 rdi)
@@ -2890,15 +2890,15 @@
                         (fv2 (r15 rbp rdi rsi rdx rcx r8 r9 fv0 fv1 tmp-ra.236))
                         (r15 (rbp rdi rsi rdx rcx r8 r9 fv0 fv1 fv2))))
                       (assignment
-                       ((tmp-ra.236 r15)
-                        (h.33 r14)
-                        (g.32 r13)
-                        (f.31 r9)
-                        (e.30 r8)
-                        (d.29 rcx)
-                        (c.28 rdx)
+                       ((a.26 rdi)
                         (b.27 rsi)
-                        (a.26 rdi))))
+                        (c.28 rdx)
+                        (d.29 rcx)
+                        (e.30 r8)
+                        (f.31 r9)
+                        (g.32 r13)
+                        (h.33 rbx)
+                        (tmp-ra.236 rsp))))
                      (begin
                        (set! tmp-ra.236 r15)
                        (set! a.26 rdi)
@@ -3206,15 +3206,15 @@
                         (e.38 fv6)
                         (d.37 fv7)
                         (c.36 fv8)
-                        (b.35 r15)
-                        (a.34 r14)
-                        (r1.43 r15)
-                        (r2.44 r15)
-                        (r3.45 r15)
-                        (r4.46 r15)
-                        (r5.47 r15)
-                        (r6.48 r15)
-                        (r7.49 r15))))
+                        (r1.43 rsp)
+                        (r2.44 rsp)
+                        (r3.45 rsp)
+                        (r4.46 rsp)
+                        (r5.47 rsp)
+                        (r6.48 rsp)
+                        (r7.49 rsp)
+                        (a.34 rbx)
+                        (b.35 rsp))))
                      (begin
                        (set! tmp-ra.237 r15)
                        (set! a.34 rdi)
@@ -3292,7 +3292,7 @@
                      (jump L.F.6 rbp r15 rdi rsi rdx rcx r8 r9 fv0))))
 
   (parameterize ([current-assignable-registers '()])
-    (check-equal? (interp-asm-pred-lang-v7/spilled (assign-registers
+    (check-equal? (interp-asm-pred-lang-v8/spilled (assign-registers
                                                     '(module
                                                          ((locals (tmp-ra.63))
                                                           (conflicts
@@ -3908,7 +3908,7 @@
                                                          (set! rdi 8)
                                                          (set! r15 tmp-ra.63)
                                                          (jump L.add-and-multiply.2 rbp r15 rdi rsi rdx rcx r8 r9 fv0 fv1 fv2)))))
-                  (interp-asm-pred-lang-v7/spilled '(module
+                  (interp-asm-pred-lang-v8/spilled '(module
                                                         ((locals (tmp-ra.63))
                                                          (conflicts
                                                           ((tmp-ra.63 (rdi rsi rdx rcx r8 r9 fv0 fv1 fv2 rbp))
@@ -5997,4 +5997,183 @@
                      (set! fv1 64)
                      (set! fv2 16)
                      (set! r15 tmp-ra.45)
-                     (jump L.add-and-multiply.11 rbp r15 rdi rsi rdx rcx r8 r9 fv0 fv1 fv2)))))
+                     (jump L.add-and-multiply.11 rbp r15 rdi rsi rdx rcx r8 r9 fv0 fv1 fv2))))
+  (check-equal? (assign-registers '(module
+                                       ((locals (tmp-ra.52))
+                                        (conflicts
+                                         ((tmp-ra.52 (rsi rdi rbp))
+                                          (rbp (r15 rsi rdi tmp-ra.52))
+                                          (rdi (r15 rsi tmp-ra.52 rbp))
+                                          (rsi (r15 tmp-ra.52 rdi rbp))
+                                          (r15 (rsi rdi rbp))))
+                                        (assignment ()))
+                                     (define L.f.1
+                                       ((locals (tmp.41 tmp.40 tmp.43 tmp.39 tmp.42))
+                                        (conflicts
+                                         ((tmp.38 (tmp.40 r12 tmp.39 tmp-ra.50 x.1 x.2 rbp))
+                                          (tmp-ra.50
+                                           (rax
+                                            tmp.43
+                                            tmp.41
+                                            tmp.42
+                                            tmp.40
+                                            tmp.38
+                                            tmp.39
+                                            x.2
+                                            x.1
+                                            rdi
+                                            rsi
+                                            r12
+                                            rbp))
+                                          (tmp.42 (tmp.41 r12 rbp tmp-ra.50))
+                                          (tmp.39 (tmp.38 r12 tmp-ra.50 x.1 x.2 rbp))
+                                          (tmp.43 (tmp.41 rbp tmp-ra.50))
+                                          (tmp.40 (x.2 x.1 tmp.38 r12 rbp tmp-ra.50))
+                                          (x.2 (tmp.40 tmp.38 tmp.39 r12 tmp-ra.50 x.1 rbp))
+                                          (x.1 (tmp.40 tmp.38 tmp.39 x.2 rsi r12 tmp-ra.50 rbp))
+                                          (tmp.41 (tmp.43 r12 tmp.42 rbp tmp-ra.50))
+                                          (rbp
+                                           (rax
+                                            tmp.43
+                                            tmp.41
+                                            tmp.42
+                                            tmp.40
+                                            r15
+                                            r12
+                                            tmp.38
+                                            tmp.39
+                                            x.2
+                                            x.1
+                                            tmp-ra.50))
+                                          (r12 (tmp.41 tmp.42 tmp.40 tmp.38 rbp tmp.39 x.2 x.1 tmp-ra.50))
+                                          (rsi (x.1 tmp-ra.50))
+                                          (rdi (tmp-ra.50))
+                                          (r15 (rbp))
+                                          (rax (rbp tmp-ra.50))))
+                                        (assignment ((tmp-ra.50 fv3) (tmp.38 fv2) (x.1 fv1) (x.2 fv0))))
+                                       (begin
+                                         (set! tmp-ra.50 r15)
+                                         (set! x.1 rdi)
+                                         (set! x.2 rsi)
+                                         (set! tmp.39 10)
+                                         (set! tmp.39 (+ tmp.39 6))
+                                         (begin (set! tmp.38 r12) (set! r12 (+ r12 tmp.39)))
+                                         (begin
+                                           (set! rbp (- rbp 32))
+                                           (return-point L.rp.21 (begin (set! r15 L.rp.21) (jump L.g.1 rbp r15)))
+                                           (set! rbp (+ rbp 32)))
+                                         (set! tmp.40 rax)
+                                         (if (true) (mset! tmp.38 tmp.40 x.1) (mset! tmp.38 tmp.40 x.2))
+                                         (set! tmp.42 10)
+                                         (set! tmp.42 (+ tmp.42 6))
+                                         (begin (set! tmp.41 r12) (set! r12 (+ r12 tmp.42)))
+                                         (set! tmp.43 8)
+                                         (set! tmp.43 (bitwise-and tmp.43 8))
+                                         (set! rax (mref tmp.41 tmp.43))
+                                         (jump tmp-ra.50 rbp rax)))
+                                     (define L.g.1
+                                       ((locals (tmp-ra.51))
+                                        (conflicts
+                                         ((tmp-ra.51 (rax rbp)) (rbp (rax tmp-ra.51)) (rax (rbp tmp-ra.51))))
+                                        (assignment ()))
+                                       (begin (set! tmp-ra.51 r15) (set! rax 8) (jump tmp-ra.51 rbp rax)))
+                                     (begin
+                                       (set! tmp-ra.52 r15)
+                                       (set! rdi 1)
+                                       (set! rsi 2)
+                                       (set! r15 tmp-ra.52)
+                                       (jump L.f.1 rbp r15 rdi rsi))))
+                '(module
+                     ((locals ())
+                      (conflicts
+                       ((tmp-ra.52 (rsi rdi rbp))
+                        (rbp (r15 rsi rdi tmp-ra.52))
+                        (rdi (r15 rsi tmp-ra.52 rbp))
+                        (rsi (r15 tmp-ra.52 rdi rbp))
+                        (r15 (rsi rdi rbp))))
+                      (assignment ((tmp-ra.52 rsp))))
+                   (define L.f.1
+                     ((locals ())
+                      (conflicts
+                       ((tmp.38 (tmp.40 r12 tmp.39 tmp-ra.50 x.1 x.2 rbp))
+                        (tmp-ra.50
+                         (rax
+                          tmp.43
+                          tmp.41
+                          tmp.42
+                          tmp.40
+                          tmp.38
+                          tmp.39
+                          x.2
+                          x.1
+                          rdi
+                          rsi
+                          r12
+                          rbp))
+                        (tmp.42 (tmp.41 r12 rbp tmp-ra.50))
+                        (tmp.39 (tmp.38 r12 tmp-ra.50 x.1 x.2 rbp))
+                        (tmp.43 (tmp.41 rbp tmp-ra.50))
+                        (tmp.40 (x.2 x.1 tmp.38 r12 rbp tmp-ra.50))
+                        (x.2 (tmp.40 tmp.38 tmp.39 r12 tmp-ra.50 x.1 rbp))
+                        (x.1 (tmp.40 tmp.38 tmp.39 x.2 rsi r12 tmp-ra.50 rbp))
+                        (tmp.41 (tmp.43 r12 tmp.42 rbp tmp-ra.50))
+                        (rbp
+                         (rax
+                          tmp.43
+                          tmp.41
+                          tmp.42
+                          tmp.40
+                          r15
+                          r12
+                          tmp.38
+                          tmp.39
+                          x.2
+                          x.1
+                          tmp-ra.50))
+                        (r12 (tmp.41 tmp.42 tmp.40 tmp.38 rbp tmp.39 x.2 x.1 tmp-ra.50))
+                        (rsi (x.1 tmp-ra.50))
+                        (rdi (tmp-ra.50))
+                        (r15 (rbp))
+                        (rax (rbp tmp-ra.50))))
+                      (assignment
+                       ((tmp-ra.50 fv3)
+                        (tmp.38 fv2)
+                        (x.1 fv1)
+                        (x.2 fv0)
+                        (tmp.39 rsp)
+                        (tmp.43 rbx)
+                        (tmp.40 rsp)
+                        (tmp.42 rbx)
+                        (tmp.41 rsp))))
+                     (begin
+                       (set! tmp-ra.50 r15)
+                       (set! x.1 rdi)
+                       (set! x.2 rsi)
+                       (set! tmp.39 10)
+                       (set! tmp.39 (+ tmp.39 6))
+                       (begin (set! tmp.38 r12) (set! r12 (+ r12 tmp.39)))
+                       (begin
+                         (set! rbp (- rbp 32))
+                         (return-point L.rp.21 (begin (set! r15 L.rp.21) (jump L.g.1 rbp r15)))
+                         (set! rbp (+ rbp 32)))
+                       (set! tmp.40 rax)
+                       (if (true) (mset! tmp.38 tmp.40 x.1) (mset! tmp.38 tmp.40 x.2))
+                       (set! tmp.42 10)
+                       (set! tmp.42 (+ tmp.42 6))
+                       (begin (set! tmp.41 r12) (set! r12 (+ r12 tmp.42)))
+                       (set! tmp.43 8)
+                       (set! tmp.43 (bitwise-and tmp.43 8))
+                       (set! rax (mref tmp.41 tmp.43))
+                       (jump tmp-ra.50 rbp rax)))
+                   (define L.g.1
+                     ((locals ())
+                      (conflicts
+                       ((tmp-ra.51 (rax rbp)) (rbp (rax tmp-ra.51)) (rax (rbp tmp-ra.51))))
+                      (assignment ((tmp-ra.51 rsp))))
+                     (begin (set! tmp-ra.51 r15) (set! rax 8) (jump tmp-ra.51 rbp rax)))
+                   (begin
+                     (set! tmp-ra.52 r15)
+                     (set! rdi 1)
+                     (set! rsi 2)
+                     (set! r15 tmp-ra.52)
+                     (jump L.f.1 rbp r15 rdi rsi)))))

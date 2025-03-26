@@ -3,16 +3,16 @@
 (require
   cpsc411/compiler-lib
   cpsc411/graph-lib
-  cpsc411/langs/v7
+  cpsc411/langs/v8
   rackunit)
 
 (provide assign-frame-variables)
 
-;; asm-pred-lang-v7/spilled -> asm-pred-lang-v7/assignments
-;; compiles p to Asm-pred-lang-v7/assignments by allocating all abstract
+;; asm-pred-lang-v8/spilled -> asm-pred-lang-v8/assignments
+;; compiles p to Asm-pred-lang-v8/assignments by allocating all abstract
 ;; locations in the locals set to free frame variables
 (define/contract (assign-frame-variables p)
-  (-> asm-pred-lang-v7/spilled? asm-pred-lang-v7/assignments?)
+  (-> asm-pred-lang-v8/spilled? asm-pred-lang-v8/assignments?)
 
   ;; func is `(define ,label ,info ,tail)
   ;; interp. a function definition
@@ -38,7 +38,7 @@
                         (cons (list x fvar-assignment) assignments))]))
 
 
-  ;; asm-pred-lang-v7/spilled.info -> asm-pred-lang-v7/assignments.info
+  ;; asm-pred-lang-v8/spilled.info -> asm-pred-lang-v8/assignments.info
   (define (assign-call-variables-info info)
     (define conflicts-graph (info-ref info 'conflicts))
     (define locals (info-ref info 'locals))
@@ -2255,4 +2255,192 @@
                      (set! r9 48)
                      (set! fv0 56)
                      (set! r15 tmp-ra.238)
-                     (jump L.F.6 rbp r15 rdi rsi rdx rcx r8 r9 fv0)))))
+                     (jump L.F.6 rbp r15 rdi rsi rdx rcx r8 r9 fv0))))
+  (check-equal? (assign-frame-variables '(module
+                                             ((locals ())
+                                              (conflicts
+                                               ((tmp-ra.52 (rsi rdi rbp))
+                                                (rbp (r15 rsi rdi tmp-ra.52))
+                                                (rdi (r15 rsi tmp-ra.52 rbp))
+                                                (rsi (r15 tmp-ra.52 rdi rbp))
+                                                (r15 (rsi rdi rbp))))
+                                              (assignment ((tmp-ra.52 rsp))))
+                                           (define L.f.1
+                                             ((locals ())
+                                              (conflicts
+                                               ((tmp.38 (tmp.40 r12 tmp.39 tmp-ra.50 x.1 x.2 rbp))
+                                                (tmp-ra.50
+                                                 (rax
+                                                  tmp.43
+                                                  tmp.41
+                                                  tmp.42
+                                                  tmp.40
+                                                  tmp.38
+                                                  tmp.39
+                                                  x.2
+                                                  x.1
+                                                  rdi
+                                                  rsi
+                                                  r12
+                                                  rbp))
+                                                (tmp.42 (tmp.41 r12 rbp tmp-ra.50))
+                                                (tmp.39 (tmp.38 r12 tmp-ra.50 x.1 x.2 rbp))
+                                                (tmp.43 (tmp.41 rbp tmp-ra.50))
+                                                (tmp.40 (x.2 x.1 tmp.38 r12 rbp tmp-ra.50))
+                                                (x.2 (tmp.40 tmp.38 tmp.39 r12 tmp-ra.50 x.1 rbp))
+                                                (x.1 (tmp.40 tmp.38 tmp.39 x.2 rsi r12 tmp-ra.50 rbp))
+                                                (tmp.41 (tmp.43 r12 tmp.42 rbp tmp-ra.50))
+                                                (rbp
+                                                 (rax
+                                                  tmp.43
+                                                  tmp.41
+                                                  tmp.42
+                                                  tmp.40
+                                                  r15
+                                                  r12
+                                                  tmp.38
+                                                  tmp.39
+                                                  x.2
+                                                  x.1
+                                                  tmp-ra.50))
+                                                (r12 (tmp.41 tmp.42 tmp.40 tmp.38 rbp tmp.39 x.2 x.1 tmp-ra.50))
+                                                (rsi (x.1 tmp-ra.50))
+                                                (rdi (tmp-ra.50))
+                                                (r15 (rbp))
+                                                (rax (rbp tmp-ra.50))))
+                                              (assignment
+                                               ((tmp-ra.50 fv3)
+                                                (tmp.38 fv2)
+                                                (x.1 fv1)
+                                                (x.2 fv0)
+                                                (tmp.39 rsp)
+                                                (tmp.43 rbx)
+                                                (tmp.40 rsp)
+                                                (tmp.42 rbx)
+                                                (tmp.41 rsp))))
+                                             (begin
+                                               (set! tmp-ra.50 r15)
+                                               (set! x.1 rdi)
+                                               (set! x.2 rsi)
+                                               (set! tmp.39 10)
+                                               (set! tmp.39 (+ tmp.39 6))
+                                               (begin (set! tmp.38 r12) (set! r12 (+ r12 tmp.39)))
+                                               (begin
+                                                 (set! rbp (- rbp 32))
+                                                 (return-point L.rp.21 (begin (set! r15 L.rp.21) (jump L.g.1 rbp r15)))
+                                                 (set! rbp (+ rbp 32)))
+                                               (set! tmp.40 rax)
+                                               (if (true) (mset! tmp.38 tmp.40 x.1) (mset! tmp.38 tmp.40 x.2))
+                                               (set! tmp.42 10)
+                                               (set! tmp.42 (+ tmp.42 6))
+                                               (begin (set! tmp.41 r12) (set! r12 (+ r12 tmp.42)))
+                                               (set! tmp.43 8)
+                                               (set! tmp.43 (bitwise-and tmp.43 8))
+                                               (set! rax (mref tmp.41 tmp.43))
+                                               (jump tmp-ra.50 rbp rax)))
+                                           (define L.g.1
+                                             ((locals ())
+                                              (conflicts
+                                               ((tmp-ra.51 (rax rbp)) (rbp (rax tmp-ra.51)) (rax (rbp tmp-ra.51))))
+                                              (assignment ((tmp-ra.51 rsp))))
+                                             (begin (set! tmp-ra.51 r15) (set! rax 8) (jump tmp-ra.51 rbp rax)))
+                                           (begin
+                                             (set! tmp-ra.52 r15)
+                                             (set! rdi 1)
+                                             (set! rsi 2)
+                                             (set! r15 tmp-ra.52)
+                                             (jump L.f.1 rbp r15 rdi rsi))))
+                '(module
+                     ((locals ())
+                      (conflicts
+                       ((tmp-ra.52 (rsi rdi rbp))
+                        (rbp (r15 rsi rdi tmp-ra.52))
+                        (rdi (r15 rsi tmp-ra.52 rbp))
+                        (rsi (r15 tmp-ra.52 rdi rbp))
+                        (r15 (rsi rdi rbp))))
+                      (assignment ((tmp-ra.52 rsp))))
+                   (define L.f.1
+                     ((locals ())
+                      (conflicts
+                       ((tmp.38 (tmp.40 r12 tmp.39 tmp-ra.50 x.1 x.2 rbp))
+                        (tmp-ra.50
+                         (rax
+                          tmp.43
+                          tmp.41
+                          tmp.42
+                          tmp.40
+                          tmp.38
+                          tmp.39
+                          x.2
+                          x.1
+                          rdi
+                          rsi
+                          r12
+                          rbp))
+                        (tmp.42 (tmp.41 r12 rbp tmp-ra.50))
+                        (tmp.39 (tmp.38 r12 tmp-ra.50 x.1 x.2 rbp))
+                        (tmp.43 (tmp.41 rbp tmp-ra.50))
+                        (tmp.40 (x.2 x.1 tmp.38 r12 rbp tmp-ra.50))
+                        (x.2 (tmp.40 tmp.38 tmp.39 r12 tmp-ra.50 x.1 rbp))
+                        (x.1 (tmp.40 tmp.38 tmp.39 x.2 rsi r12 tmp-ra.50 rbp))
+                        (tmp.41 (tmp.43 r12 tmp.42 rbp tmp-ra.50))
+                        (rbp
+                         (rax
+                          tmp.43
+                          tmp.41
+                          tmp.42
+                          tmp.40
+                          r15
+                          r12
+                          tmp.38
+                          tmp.39
+                          x.2
+                          x.1
+                          tmp-ra.50))
+                        (r12 (tmp.41 tmp.42 tmp.40 tmp.38 rbp tmp.39 x.2 x.1 tmp-ra.50))
+                        (rsi (x.1 tmp-ra.50))
+                        (rdi (tmp-ra.50))
+                        (r15 (rbp))
+                        (rax (rbp tmp-ra.50))))
+                      (assignment
+                       ((tmp-ra.50 fv3)
+                        (tmp.38 fv2)
+                        (x.1 fv1)
+                        (x.2 fv0)
+                        (tmp.39 rsp)
+                        (tmp.43 rbx)
+                        (tmp.40 rsp)
+                        (tmp.42 rbx)
+                        (tmp.41 rsp))))
+                     (begin
+                       (set! tmp-ra.50 r15)
+                       (set! x.1 rdi)
+                       (set! x.2 rsi)
+                       (set! tmp.39 10)
+                       (set! tmp.39 (+ tmp.39 6))
+                       (begin (set! tmp.38 r12) (set! r12 (+ r12 tmp.39)))
+                       (begin
+                         (set! rbp (- rbp 32))
+                         (return-point L.rp.21 (begin (set! r15 L.rp.21) (jump L.g.1 rbp r15)))
+                         (set! rbp (+ rbp 32)))
+                       (set! tmp.40 rax)
+                       (if (true) (mset! tmp.38 tmp.40 x.1) (mset! tmp.38 tmp.40 x.2))
+                       (set! tmp.42 10)
+                       (set! tmp.42 (+ tmp.42 6))
+                       (begin (set! tmp.41 r12) (set! r12 (+ r12 tmp.42)))
+                       (set! tmp.43 8)
+                       (set! tmp.43 (bitwise-and tmp.43 8))
+                       (set! rax (mref tmp.41 tmp.43))
+                       (jump tmp-ra.50 rbp rax)))
+                   (define L.g.1
+                     ((locals ())
+                      (conflicts
+                       ((tmp-ra.51 (rax rbp)) (rbp (rax tmp-ra.51)) (rax (rbp tmp-ra.51))))
+                      (assignment ((tmp-ra.51 rsp))))
+                     (begin (set! tmp-ra.51 r15) (set! rax 8) (jump tmp-ra.51 rbp rax)))
+                   (begin
+                     (set! tmp-ra.52 r15)
+                     (set! rdi 1)
+                     (set! rsi 2)
+                     (set! r15 tmp-ra.52)
+                     (jump L.f.1 rbp r15 rdi rsi)))))
