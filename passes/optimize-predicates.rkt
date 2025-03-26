@@ -12,7 +12,7 @@
 ;; nested-asm-lang-v7 -> nested-asm-lang-v7
 ;; optimizes p by analyzing and simplifying predicates
 (define/contract (optimize-predicates p)
-  (-> nested-asm-lang-fvars-v7? any #; nested-asm-lang-fvars-v7?)
+  (-> nested-asm-lang-fvars-v7? nested-asm-lang-fvars-v7?)
 
   ;; func is `(define ,label ,tail)
   ;; interp. a function definition
@@ -127,7 +127,11 @@
     (match binop
       ['* (x64-mul a b)]
       ['+ (x64-add a b)]
-      ['- (x64-sub a b)]))
+      ['- (x64-sub a b)]
+      ['bitwise-and (bitwise-and a b)]
+      ['bitwise-ior (bitwise-ior a b)]
+      ['bitwise-xor (bitwise-xor a b)]
+      ['arithmetic-shift-right (arithmetic-shift a b)]))
 
   ;; nested-asm-lang-v7.triv -> RangeValue
   ;; interp. the known value or range of the triv
@@ -194,9 +198,6 @@
      (define optimized-funcs (for/list ([f funcs])
                                (define optimized-f (optimize-predicates/func f))
                                optimized-f))
-     ;; NOTE: returning p passes all public and private tests.
-     p
-     #;
      `(module ,@optimized-funcs ,(optimize-predicates/tail tail empty-env))]))
 
 (module+ test
