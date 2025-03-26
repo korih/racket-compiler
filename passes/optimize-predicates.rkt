@@ -470,7 +470,6 @@
                                (begin (set! rax r13) (set! rax (+ rax r14)) (jump r15))
                                (begin (set! rax 574) (jump r15)))
                            (begin (set! rax 574) (jump r15))))))
-  #;
   (check-equal? (optimize-predicates '(module
                                           (define L.+.31
                                             (begin
