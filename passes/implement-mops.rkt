@@ -60,5 +60,4 @@
                    (set! rdi (+ rdi rsi))
                    (jump L.tmp.1)
                    (with-label L.tmp.2 (set! rdi 0))
-                   (set! rax (rdi + 0))))
-  )
+                   (set! rax (rdi + 0)))))
