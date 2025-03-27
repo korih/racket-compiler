@@ -4,38 +4,39 @@
 
 (require
   cpsc411/compiler-lib
-  cpsc411/langs/v7
+  cpsc411/langs/v8
   rackunit)
 
 (provide generate-x64)
 
-;; paren-x64-v7 -> string
+;; paren-x64-v8 -> string
 ;; compiles p into a valid sequence of x64 instructions, represented as a string
 (define/contract (generate-x64 p)
-  (-> paren-x64-v7? string?)
+  (-> paren-x64-v8? string?)
 
-  ;; paren-x64-v7 -> string
+  ;; paren-x64-v8 -> string
   (define (program->x64 p)
     (match p
       [`(begin ,s ...)
        (string-join (map statement->x64 s) "\n")]))
 
-  ;; paren-x64-v7.s -> string
+  ;; paren-x64-v8.s -> string
   (define (statement->x64 s)
     (match s
-      [`(set! (,fbp - ,offset) ,int32)
-       #:when (int32? int32)
-       (format "mov QWORD [~a - ~a], ~a" fbp offset int32)]
-      [`(set! (,fbp - ,offset) ,trg)
-       (format "mov QWORD [~a - ~a], ~a" fbp offset (trg->x64 trg))]
+      [`(set! ,addr ,int32)
+       #:when (and (addr-mop? addr) (int32? int32))
+       (format "mov ~a, ~a" (addr->x64 addr) int32)]
+      [`(set! ,addr ,trg)
+       #:when (addr-mop? addr)
+       (format "mov ~a, ~a" (addr->x64 addr) (trg->x64 trg))]
       [`(set! ,reg (,binop ,reg ,int32))
        #:when (int32? int32)
        (format "~a ~a, ~a" (binop->ins binop) reg int32)]
       [`(set! ,reg (,binop ,reg ,loc))
-       #:when (or (register? loc) (addr? loc))
+       #:when (or (register? loc) (addr-mop? loc))
        (format "~a ~a, ~a" (binop->ins binop) reg (loc->x64 loc))]
       [`(set! ,reg ,loc)
-       #:when (or (register? loc) (addr? loc))
+       #:when (or (register? loc) (addr-mop? loc))
        (format "mov ~a, ~a" reg (loc->x64 loc))]
       [`(set! ,reg ,triv)
        (cond
@@ -50,31 +51,44 @@
       [`(jump-if ,relop ,label)
        (format "~a ~a" (relop->ins relop) (sanitize-label label))]))
 
-  ;; paren-x64-v7.trg -> string
+  ;; paren-x64-v8.trg -> string
   (define (trg->x64 trg)
     (match trg
       [label #:when (label? label) (sanitize-label label)]
       [reg #:when (register? reg) reg]))
 
-  ;; paren-x64-v7.triv -> string
+  ;; paren-x64-v8.triv -> string
   (define (triv->x64 triv)
     (match triv
       [int64 #:when (int64? int64) int64]
       [trg (trg->x64 trg)]))
 
-  ;; paren-x64-v7.opand -> string
+  ;; paren-x64-v8.opand -> string
   (define (opand->x64 op)
     (match op
       [int64 #:when (int64? int64) int64]
       [reg #:when (register? reg) reg]))
 
-  ;; paren-x64-v7.loc -> string
+  ;; paren-x64-v8.loc -> string
   (define (loc->x64 loc)
     (match loc
       [reg #:when (register? reg) reg]
-      [`(,fbp - ,offset) (format "QWORD [~a - ~a]" fbp offset)]))
+      [addr (addr->x64 addr)]))
 
-  ;; paren-x64-v7.binop -> string
+  ;; paren-x64-v8.addr -> string
+  (define (addr->x64 addr)
+    (match addr
+      [`(,fbp - ,dispoffset)
+       #:when (and (frame-base-pointer-register? fbp) (dispoffset? dispoffset))
+       (format "QWORD [~a - ~a]" fbp dispoffset)]
+      [`(,reg + ,int32)
+       #:when (and (register? reg) (int32? int32))
+       (format "QWORD [~a + ~a]" reg int32)]
+      [`(,reg1 + ,reg2)
+       #:when (and (register? reg1) (register? reg2))
+       (format "QWORD [~a + ~a]" reg1 reg2)]))
+
+  ;; paren-x64-v8.binop -> string
   (define (binop->ins b)
     (match b
       ['+ "add"]
@@ -85,7 +99,7 @@
       ['bitwise-xor "xor"]
       ['arithmetic-shift-right "sar"]))
 
-  ;; paren-x64-v7.relop -> string
+  ;; paren-x64-v8.relop -> string
   (define (relop->ins relop)
     (match relop
       [`< "jl"]
@@ -359,4 +373,90 @@
                   "mov rax, rbx"
                   "imul rax, rsp"
                   "jmp rdx")
+                 "\n"))
+  (check-equal? (generate-x64 '(begin
+                                 (with-label L.tmp.105 (set! rsp r15))
+                                 (set! rdi 1)
+                                 (set! rsi 2)
+                                 (set! r15 rsp)
+                                 (jump L.f.1)
+                                 (with-label L.g.1 (set! rsp r15))
+                                 (set! rax 8)
+                                 (jump rsp)
+                                 (with-label L.f.1 (set! (rbp - 24) r15))
+                                 (set! (rbp - 8) rdi)
+                                 (set! (rbp - 0) rsi)
+                                 (set! rsp 10)
+                                 (set! rsp (+ rsp 6))
+                                 (set! (rbp - 16) r12)
+                                 (set! r12 (+ r12 rsp))
+                                 (set! rbp (- rbp 32))
+                                 (set! r15 L.rp.21)
+                                 (jump L.g.1)
+                                 (with-label L.rp.21 (set! rbp (+ rbp 32)))
+                                 (set! rsp rax)
+                                 (jump L.tmp.103)
+                                 (with-label L.tmp.102 (set! rbx 10))
+                                 (set! rbx (+ rbx 6))
+                                 (set! rsp r12)
+                                 (set! r12 (+ r12 rbx))
+                                 (set! rbx 8)
+                                 (set! rbx (bitwise-and rbx 8))
+                                 (set! rax (rsp + rbx))
+                                 (set! r10 (rbp - 24))
+                                 (jump r10)
+                                 (with-label L.tmp.104 (set! r10 (rbp - 0)))
+                                 (set! r11 (rbp - 16))
+                                 (set! (r11 + rsp) r10)
+                                 (jump L.tmp.102)
+                                 (with-label L.tmp.103 (set! r10 (rbp - 8)))
+                                 (set! r11 (rbp - 16))
+                                 (set! (r11 + rsp) r10)
+                                 (jump L.tmp.102)))
+                (string-join
+                 (list "L.tmp.105:"
+                       "mov rsp, r15"
+                       "mov rdi, 1"
+                       "mov rsi, 2"
+                       "mov r15, rsp"
+                       "jmp L.f.1"
+                       "L.g.1:"
+                       "mov rsp, r15"
+                       "mov rax, 8"
+                       "jmp rsp"
+                       "L.f.1:"
+                       "mov QWORD [rbp - 24], r15"
+                       "mov QWORD [rbp - 8], rdi"
+                       "mov QWORD [rbp - 0], rsi"
+                       "mov rsp, 10"
+                       "add rsp, 6"
+                       "mov QWORD [rbp - 16], r12"
+                       "add r12, rsp"
+                       "sub rbp, 32"
+                       "lea r15, [rel L.rp.21]"
+                       "jmp L.g.1"
+                       "L.rp.21:"
+                       "add rbp, 32"
+                       "mov rsp, rax"
+                       "jmp L.tmp.103"
+                       "L.tmp.102:"
+                       "mov rbx, 10"
+                       "add rbx, 6"
+                       "mov rsp, r12"
+                       "add r12, rbx"
+                       "mov rbx, 8"
+                       "and rbx, 8"
+                       "mov rax, QWORD [rsp + rbx]"
+                       "mov r10, QWORD [rbp - 24]"
+                       "jmp r10"
+                       "L.tmp.104:"
+                       "mov r10, QWORD [rbp - 0]"
+                       "mov r11, QWORD [rbp - 16]"
+                       "mov QWORD [r11 + rsp], r10"
+                       "jmp L.tmp.102"
+                       "L.tmp.103:"
+                       "mov r10, QWORD [rbp - 8]"
+                       "mov r11, QWORD [rbp - 16]"
+                       "mov QWORD [r11 + rsp], r10"
+                       "jmp L.tmp.102")
                  "\n")))

@@ -16,6 +16,7 @@
          unop?
          relop?
          addr?
+         addr-mop?
          rloc?)
 
 ;; ================================================
@@ -98,6 +99,24 @@
      (and (frame-base-pointer-register? fbp)
           (dispoffset? dispoffset))]
     [_ #f]))
+
+;; any -> boolean
+;; produces true if x is a valid address for both stack and heap
+(define (addr-mop? x)
+  (match x
+    [`(,fbp - ,dispoffset)
+     #:when (and (frame-base-pointer-register? fbp)
+                 (dispoffset? dispoffset))
+     #t]
+    [`(,reg + ,int32)
+     #:when (and (register? reg)
+                 (int32? int32))
+     #t]
+    [`(,reg1 + ,reg2)
+     #:when (and (register? reg1)
+                 (register? reg2))
+     #t]
+    [else #f]))
 
 ;; any -> boolean
 ;; produces true if rloc is a valid rloc, which is either a register or fvar
