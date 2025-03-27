@@ -19,7 +19,7 @@
       [`(mset! ,reg_1 ,index ,int32) `(set! (,reg_1 + ,index) ,int32)]
       [`(mset! ,reg_1 ,index ,trg) `(set! (,reg_1 + ,index) ,trg)]
 
-      ;; Wildcard, rest of s is not a mops that would require a transformation
+      ;; Wildcard, rest of s are not mops that would require a transformation
       [_ s]))
 
   (match p
