@@ -71,16 +71,21 @@
   ;; exprs-lang-v8.triv (Env-of exprs-unique-lang-v8.triv) -> exprs-unique-lang-v8.triv
   (define (uniquify-triv triv env)
     (match triv
-      ['empty triv] ; italics means something else?
-      [x #:when (or (name? x) (prim-f? x))
-         (cond
-           [(and (prim-f? x) (not (assoc x env))) x]
-           [else (lookup-env env x)])]
-      ;; Wildcard collapse case used because all terminal triv values do not
-      ;; require any further processing or transformation, allowing them to be
-      ;; returned as-is
-      ;; primf case
-      [_ triv]))
+      [#t #t]
+      [#f #f]
+      ['empty 'empty]
+      ['(void) '(void)]
+      [`(error ,n) `(error ,n)]
+      [asci #:when (ascii-char-literal? asci) asci]
+      [fixnum #:when (fixnum? fixnum) fixnum]
+      [x (uniquify-x x env)]))
+
+  (define (uniquify-x x env)
+    (match x
+      [prim-f #:when (prim-f? prim-f) (if (assoc prim-f env)
+                                          (lookup-env env prim-f)
+                                          prim-f)]
+      [name #:when (name? name) (lookup-env env name)]))
 
   (match p
     [`(module ,funcs ... ,value)
@@ -203,7 +208,10 @@
                      (define L.f.8 (lambda (x.55 y.56) (call + x.55 y.56)))
                    (define L.x.9 (lambda (z.57) (let ((x.58 1)) (call + x.58 z.57))))
                    (let ((a.59 (call L.f.8 1 2))) (let ((y.60 (call L.x.9 a.59))) y.60))))
-  (check-equal? (uniquify '(module (define add (lambda (a b c d e f g h) (call + a (call + b (call + c (call + d (call + e (call + f (call + g h)))))))))
+  (check-equal? (uniquify '(module
+                               (define add
+                                 (lambda (a b c d e f g h)
+                                   (call + a (call + b (call + c (call + d (call + e (call + f (call + g h)))))))))
                              (define add-and-multiply (lambda (a b c d e f g h i)
                                                         (let ([sum (call add a b c d e f g h)])
                                                           (call * sum i))))
