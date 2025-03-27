@@ -228,19 +228,31 @@
                        (set! r15 r15)
                        (set! r13 rdi)
                        (set! r14 rsi)
-                       (if (begin
-                             (if (begin (set! r9 r14) (set! r9 (bitwise-and r9 7)) (= r9 0))
-                                 (set! r9 14)
-                                 (set! r9 6))
-                             (!= r9 6))
-                           (if (begin
-                                 (if (begin (set! r9 r13) (set! r9 (bitwise-and r9 7)) (= r9 0))
+                       (begin
+                         (begin
+                           (set! r9 r14)
+                           (set! r9 (bitwise-and r9 7))
+                           (if (= r9 0)
+                               (set! r9 14)
+                               (set! r9 6)))
+                         (if (!= r9 6)
+                             (begin
+                               (begin
+                                 (set! r9 r13)
+                                 (set! r9 (bitwise-and r9 7))
+                                 (if (= r9 0)
                                      (set! r9 14)
-                                     (set! r9 6))
-                                 (!= r9 6))
-                               (begin (set! rax r13) (set! rax (+ rax r14)) (jump r15))
-                               (begin (set! rax 574) (jump r15)))
-                           (begin (set! rax 574) (jump r15))))))
+                                     (set! r9 6)))
+                               (if (!= r9 6)
+                                   (begin
+                                     (set! rax r13)
+                                     (set! rax (+ rax r14))
+                                     (jump r15))
+                                   (begin
+                                     (set! rax 574)
+                                     (jump r15))))
+                             (begin (set! rax 574)
+                                    (jump r15)))))))
   (check-equal? (optimize-predicates '(module
                                           (begin
                                             (set! fv2 0)
@@ -464,19 +476,29 @@
                        (set! r15 r15)
                        (set! r13 rdi)
                        (set! r14 rsi)
-                       (if (begin
-                             (if (begin (set! r9 r14) (set! r9 (bitwise-and r9 7)) (= r9 0))
-                                 (set! r9 14)
-                                 (set! r9 6))
-                             (!= r9 6))
-                           (if (begin
-                                 (if (begin (set! r9 r13) (set! r9 (bitwise-and r9 7)) (= r9 0))
+                       (begin
+                         (begin
+                           (set! r9 r14)
+                           (set! r9 (bitwise-and r9 7))
+                           (if (= r9 0)
+                               (set! r9 14)
+                               (set! r9 6)))
+                         (if (!= r9 6)
+                             (begin
+                               (begin
+                                 (set! r9 r13)
+                                 (set! r9 (bitwise-and r9 7))
+                                 (if (= r9 0)
                                      (set! r9 14)
-                                     (set! r9 6))
-                                 (!= r9 6))
-                               (begin (set! rax r13) (set! rax (+ rax r14)) (jump r15))
-                               (begin (set! rax 574) (jump r15)))
-                           (begin (set! rax 574) (jump r15))))))
+                                     (set! r9 6)))
+                               (if (!= r9 6)
+                                   (begin (set! rax r13)
+                                          (set! rax (+ rax r14))
+                                          (jump r15))
+                                   (begin (set! rax 574)
+                                          (jump r15))))
+                             (begin (set! rax 574)
+                                    (jump r15)))))))
   (check-equal? (optimize-predicates '(module
                                           (define L.f.1
                                             (begin
