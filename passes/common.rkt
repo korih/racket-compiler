@@ -11,8 +11,10 @@
          binop?
          pair-op?
          vector-op?
+         prim-f?
          unsafe-binop?
          safe-binop?
+         unsafe-primop?
          unop?
          relop?
          addr?
@@ -57,7 +59,7 @@
 ;; prim-f -> boolean
 ;; produces true if the expression is a primitive function
 (define (prim-f? op)
-  (or (safe-binop? op) (unop? op) (prim-op? op)))
+  (or (safe-binop? op) (unop? op)))
 
 ;; any -> boolean
 ;; produces true if op is a valid pair operation
@@ -90,14 +92,14 @@
   (and (member op '(fixnum? boolean? empty? void? ascii-char? error? not)) #t))
 
 ;; any -> boolean
+;; produces true if op is a valid unsafe primop
+(define (unsafe-primop? op)
+  (and (member op '(unsafe-fx* unsafe-fx+ unsafe-fx- eq? unsafe-fx< unsafe-fx<= unsafe-fx> unsafe-fx>= fixnum? boolean? empty? void? ascii-char? error? not pair? vector? cons unsafe-car unsafe-cdr unsafe-make-vector unsafe-vector-length unsafe-vector-set! unsafe-vector-ref)) #t))
+
+;; any -> boolean
 ;; produces true if op is a valid relop
 (define (relop? op)
   (and (member op '(< <= = >= > !=)) #t))
-
-;; any -> boolean
-;; produce true if op is a primitive procedure
-(define (prim-op? op)
-  (and (member op '(make-vector vector-length vector-set! vector-ref car cdr)) #t))
 
 ;; any -> boolean
 ;; produces true if x is a valid address of the form (fbp - dispoffset)
