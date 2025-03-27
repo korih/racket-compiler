@@ -517,4 +517,55 @@
                       L.vector-set!.30
                       (call L.make-vector.27 2)
                       (call L.vector-length.32 b.1)
-                      9)))))
+                      9))))
+
+  (check-equal? (implement-safe-primops '(module (let ([a.1 (call cons 1 2)]
+                                                       [b.1 (call make-vector 1)])
+                                                   (call vector-set!
+                                                         (call make-vector 2)
+                                                         (call vector-length b.1)
+                                                         (call car a.1) ))))
+
+                '(module
+                     (define L.car.40
+                       (lambda (tmp.74) (if (pair? tmp.74) (unsafe-car tmp.74) (error 12))))
+                   (define L.vector-length.39
+                     (lambda (tmp.73)
+                       (if (vector? tmp.73) (unsafe-vector-length tmp.73) (error 9))))
+                   (define L.unsafe-vector-set!.38
+                     (lambda (tmp.70 tmp.71 tmp.72)
+                       (if (unsafe-fx>= tmp.71 (unsafe-vector-length tmp.70))
+                           (if (unsafe-fx>= tmp.71 0)
+                               (begin (unsafe-vector-set! tmp.70 tmp.71 tmp.72) (void))
+                               (error 10))
+                           (error 10))))
+                   (define L.vector-set!.37
+                     (lambda (tmp.67 tmp.68 tmp.69)
+                       (if (fixnum? tmp.68)
+                           (if (vector? tmp.67)
+                               (call L.unsafe-vector-set!.38 tmp.67 tmp.68 tmp.69)
+                               (error 10))
+                           (error 10))))
+                   (define L.make-vector.34
+                     (lambda (tmp.61)
+                       (if (fixnum? tmp.61) (call L.make-init-vector.35 tmp.61) (error 8))))
+                   (define L.vector-init-loop.36
+                     (lambda (len.64 i.65 vec.66)
+                       (if (eq? len.64 i.65)
+                           vec.66
+                           (begin
+                             (unsafe-vector-set! vec.66 i.65 0)
+                             (call L.vector-init-loop.36 len.64 (unsafe-fx+ i.5 1) vec.66)))))
+                   (define L.make-init-vector.35
+                     (lambda (tmp.62)
+                       (if (unsafe-fx>= tmp.62 0)
+                           (let ((tmp.63 (unsafe-make-vector tmp.62)))
+                             (call L.vector-init-loop.36 tmp.62 0 tmp.63))
+                           (error 12))))
+                   (define L.cons.33 (lambda (tmp.59 tmp.60) (cons tmp.59 tmp.60)))
+                   (let ((a.1 (call L.cons.33 1 2)) (b.1 (call L.make-vector.34 1)))
+                     (call
+                      L.vector-set!.37
+                      (call L.make-vector.34 2)
+                      (call L.vector-length.39 b.1)
+                      (call L.car.40 a.1))))))
