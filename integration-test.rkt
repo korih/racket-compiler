@@ -96,4 +96,4 @@
                                      wrap-x64-boilerplate
                                      wrap-x64-run-time)])
     (for ([test tests])
-      (check-equal? (execute test) (interp-exprs-lang-v8 test)))))
+      (check-equal? (execute test) (interp-exprs-lang-v8 test) (format "input: ~a" test)))))
