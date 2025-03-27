@@ -9,7 +9,8 @@
          extend-env*
          extend-env
          binop?
-         prim-f?
+         pair-op?
+         vector-op?
          unsafe-binop?
          safe-binop?
          unop?
@@ -52,10 +53,15 @@
 ;; Helper Functions
 ;; ================================================
 
-;; prim-f -> boolean
-;; produces true if the expression is a primitive function
-(define (prim-f? op)
-  (or (safe-binop? op) (unop? op)))
+;; any -> boolean
+;; produces true if op is a valid pair operation
+(define (pair-op? op)
+  (and (member op '(pair? cons car cdr)) #t))
+
+;; any -> boolean
+;; produces true if op is a valid vector operation
+(define (vector-op? op)
+  (and (member op '(vector? vector-ref vector-set! vector-length make-vector)) #t))
 
 ;; any -> boolean
 ;; produces true if op is a valid safe binop
