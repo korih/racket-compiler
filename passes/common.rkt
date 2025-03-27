@@ -10,6 +10,7 @@
          extend-env
          binop?
          prim-f?
+         prim-op?
          unsafe-binop?
          safe-binop?
          unop?
@@ -55,7 +56,7 @@
 ;; prim-f -> boolean
 ;; produces true if the expression is a primitive function
 (define (prim-f? op)
-  (or (safe-binop? op) (unop? op)))
+  (or (safe-binop? op) (unop? op) (prim-op? op)))
 
 ;; any -> boolean
 ;; produces true if op is a valid safe binop
@@ -81,6 +82,11 @@
 ;; produces true if op is a valid relop
 (define (relop? op)
   (and (member op '(< <= = >= > !=)) #t))
+
+;; any -> boolean
+;; produce true if op is a primitive procedure
+(define (prim-op? op)
+  (and (member op '(make-vector vector-length vector-set! vector-ref car cdr)) #t))
 
 ;; any -> boolean
 ;; produces true if x is a valid address of the form (fbp - dispoffset)
