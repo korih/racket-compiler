@@ -1,6 +1,7 @@
 #lang racket
 
 (require
+  cpsc411/compiler-lib
   cpsc411/langs/v8
   rackunit)
 
@@ -38,8 +39,14 @@
        (normalize-bind-value v (lambda (simple-v)
                                  `(set! ,aloc ,simple-v)))]
       [`(mset! ,aloc ,opand ,v)
-       (normalize-bind-value v (lambda (triv)
-                                 `(mset! ,aloc ,opand ,triv)))]
+       (normalize-bind-value v
+                             (lambda (triv)
+                               (if (or (symbol? triv) (number? triv))
+                                   `(mset! ,aloc ,opand ,triv)
+                                   (let ([tmp (fresh 'tmp)])
+                                     `(begin
+                                        (set! ,tmp ,triv)
+                                        (mset! ,aloc ,opand ,tmp))))))]
       [`(if ,pred ,e1 ,e2)
        `(if ,(normalize-bind-pred pred) ,(normalize-bind-effect e1) ,(normalize-bind-effect e2))]
       [`(begin ,e ...)
@@ -429,4 +436,39 @@
                        (begin
                          (set! sum.78 (call L.add.10 a.69 b.70 c.71 d.72 e.73 f.74 g.75 h.76))
                          (call L.*.2 sum.78 i.77))))
-                   (call L.add-and-multiply.11 8 16 24 32 40 48 56 64 16))))
+                   (call L.add-and-multiply.11 8 16 24 32 40 48 56 64 16)))
+  (check-equal? (normalize-bind '(module (define L.addup.1 (lambda () (begin (set! y.1 (alloc 16)) (mset! y.1 8 (begin (set! x.2 8) (set! x.3 16) (+ x.2 x.3))) (mref y.1 8)))) (call L.addup.1)))
+                '(module
+                     (define L.addup.1
+                       (lambda ()
+                         (begin
+                           (set! y.1 (alloc 16))
+                           (begin
+                             (set! x.2 8)
+                             (set! x.3 16)
+                             (begin (set! tmp.1 (+ x.2 x.3)) (mset! y.1 8 tmp.1)))
+                           (mref y.1 8))))
+                   (call L.addup.1)))
+  (check-equal? (normalize-bind '(module (if (begin (set! x.1 (alloc 8)) (set! y.1 (alloc 16)) (set! z.1 0) (begin (mset! x.1 0 (begin (set! tmp.164 (begin (set! t.1 32) (begin (set! tmp.165 (+ t.1 8)) (+ t.1 tmp.165)))) (alloc tmp.164))) (mset! y.1 z.1 18) (begin (set! tmp.166 (+ z.1 8)) (mset! y.1 tmp.166 40)) (begin (set! tmp.167 (mref y.1 z.1)) (begin (set! tmp.168 (begin (set! tmp.169 (+ z.1 8)) (mref y.1 tmp.169))) (= tmp.167 tmp.168))))) 8 16)))
+                '(module
+                     (if (begin
+                           (set! x.1 (alloc 8))
+                           (set! y.1 (alloc 16))
+                           (set! z.1 0)
+                           (begin
+                             (begin
+                               (begin
+                                 (set! t.1 32)
+                                 (begin (set! tmp.165 (+ t.1 8)) (set! tmp.164 (+ t.1 tmp.165))))
+                               (begin (set! tmp.2 (alloc tmp.164)) (mset! x.1 0 tmp.2)))
+                             (mset! y.1 z.1 18)
+                             (begin (set! tmp.166 (+ z.1 8)) (mset! y.1 tmp.166 40))
+                             (begin
+                               (set! tmp.167 (mref y.1 z.1))
+                               (begin
+                                 (begin
+                                   (set! tmp.169 (+ z.1 8))
+                                   (set! tmp.168 (mref y.1 tmp.169)))
+                                 (= tmp.167 tmp.168)))))
+                         8
+                         16))))
