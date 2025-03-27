@@ -35,18 +35,8 @@
   "passes/implement-safe-primops.rkt"
   "passes/specify-representation.rkt"
   "passes/remove-complex-opera.rkt"
-  "passes/expose-allocation-pointer.rkt")
-
-(provide
- implement-mops)
-
-;; TODO: Fill in.
-;; You'll want to merge milestone-7 code in
-
-;; Stubs; remove or replace with your definitions.
-(define-values (implement-mops)
-  (values
-   values))
+  "passes/expose-allocation-pointer.rkt"
+  "passes/implement-mops.rkt")
 
 (module+ test
   (require

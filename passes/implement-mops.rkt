@@ -1,32 +1,35 @@
 #lang racket
 
 (require
-  cpsc411/langs/v8)
+  cpsc411/langs/v8
+  rackunit)
 
 (provide implement-mops)
 
 ;; paren-x64-mops-v8 -> paren-x64-v8
-;; Compiles mops to instructions on pointers with index-
-;; and displacement-mode operands.
+;; compiles p to Paren-x64 v8 by compiling mops to instructions on pointers with
+;; index- and displacement-mode operands
 (define/contract (implement-mops p)
   (-> paren-x64-mops-v8? paren-x64-v8?)
 
   ;; paren-x64-mops-v8.s -> paren-x64-v8.s
-  ;; Translate mops into index-mode and displacement-mode operands
-  (define (compile-s s)
+  (define (implement-mops-s s)
     (match s
-      [`(set! ,reg_1 (mref ,reg_2 ,index)) `(set! ,reg_1 (,reg_2 + ,index))]
-      [`(mset! ,reg_1 ,index ,int32) `(set! (,reg_1 + ,index) ,int32)]
-      [`(mset! ,reg_1 ,index ,trg) `(set! (,reg_1 + ,index) ,trg)]
-
-      ;; Wildcard, rest of s are not mops that would require a transformation
+      [`(set! ,reg_1 (mref ,reg_2 ,index))
+       `(set! ,reg_1 (,reg_2 + ,index))]
+      [`(mset! ,reg_1 ,index ,int32)
+       `(set! (,reg_1 + ,index) ,int32)]
+      [`(mset! ,reg_1 ,index ,trg)
+       `(set! (,reg_1 + ,index) ,trg)]
+      ;; Wildcard collapse case used because the remaining terminal cases of s
+      ;; are not mops and do not require a transformation
       [_ s]))
 
   (match p
-    [`(begin ,s ...) `(begin ,@(map compile-s s))]))
+    [`(begin ,s ...)
+     `(begin ,@(map implement-mops-s s))]))
 
 (module+ test
-  (require rackunit)
   (check-equal? (implement-mops '(begin (set! rax 0)))
                 '(begin (set! rax 0)))
   (check-equal? (implement-mops '(begin (mset! rax 0 1)))
@@ -60,4 +63,82 @@
                    (set! rdi (+ rdi rsi))
                    (jump L.tmp.1)
                    (with-label L.tmp.2 (set! rdi 0))
-                   (set! rax (rdi + 0)))))
+                   (set! rax (rdi + 0))))
+  (check-equal? (implement-mops '(begin
+                                   (with-label L.tmp.105 (set! rsp r15))
+                                   (set! rdi 1)
+                                   (set! rsi 2)
+                                   (set! r15 rsp)
+                                   (jump L.f.1)
+                                   (with-label L.g.1 (set! rsp r15))
+                                   (set! rax 8)
+                                   (jump rsp)
+                                   (with-label L.f.1 (set! (rbp - 24) r15))
+                                   (set! (rbp - 8) rdi)
+                                   (set! (rbp - 0) rsi)
+                                   (set! rsp 10)
+                                   (set! rsp (+ rsp 6))
+                                   (set! (rbp - 16) r12)
+                                   (set! r12 (+ r12 rsp))
+                                   (set! rbp (- rbp 32))
+                                   (set! r15 L.rp.21)
+                                   (jump L.g.1)
+                                   (with-label L.rp.21 (set! rbp (+ rbp 32)))
+                                   (set! rsp rax)
+                                   (jump L.tmp.103)
+                                   (with-label L.tmp.102 (set! rbx 10))
+                                   (set! rbx (+ rbx 6))
+                                   (set! rsp r12)
+                                   (set! r12 (+ r12 rbx))
+                                   (set! rbx 8)
+                                   (set! rbx (bitwise-and rbx 8))
+                                   (set! rax (mref rsp rbx))
+                                   (set! r10 (rbp - 24))
+                                   (jump r10)
+                                   (with-label L.tmp.104 (set! r10 (rbp - 0)))
+                                   (set! r11 (rbp - 16))
+                                   (mset! r11 rsp r10)
+                                   (jump L.tmp.102)
+                                   (with-label L.tmp.103 (set! r10 (rbp - 8)))
+                                   (set! r11 (rbp - 16))
+                                   (mset! r11 rsp r10)
+                                   (jump L.tmp.102)))
+                '(begin
+                   (with-label L.tmp.105 (set! rsp r15))
+                   (set! rdi 1)
+                   (set! rsi 2)
+                   (set! r15 rsp)
+                   (jump L.f.1)
+                   (with-label L.g.1 (set! rsp r15))
+                   (set! rax 8)
+                   (jump rsp)
+                   (with-label L.f.1 (set! (rbp - 24) r15))
+                   (set! (rbp - 8) rdi)
+                   (set! (rbp - 0) rsi)
+                   (set! rsp 10)
+                   (set! rsp (+ rsp 6))
+                   (set! (rbp - 16) r12)
+                   (set! r12 (+ r12 rsp))
+                   (set! rbp (- rbp 32))
+                   (set! r15 L.rp.21)
+                   (jump L.g.1)
+                   (with-label L.rp.21 (set! rbp (+ rbp 32)))
+                   (set! rsp rax)
+                   (jump L.tmp.103)
+                   (with-label L.tmp.102 (set! rbx 10))
+                   (set! rbx (+ rbx 6))
+                   (set! rsp r12)
+                   (set! r12 (+ r12 rbx))
+                   (set! rbx 8)
+                   (set! rbx (bitwise-and rbx 8))
+                   (set! rax (rsp + rbx))
+                   (set! r10 (rbp - 24))
+                   (jump r10)
+                   (with-label L.tmp.104 (set! r10 (rbp - 0)))
+                   (set! r11 (rbp - 16))
+                   (set! (r11 + rsp) r10)
+                   (jump L.tmp.102)
+                   (with-label L.tmp.103 (set! r10 (rbp - 8)))
+                   (set! r11 (rbp - 16))
+                   (set! (r11 + rsp) r10)
+                   (jump L.tmp.102))))
