@@ -84,19 +84,19 @@
       [triv (implement-safe-primops-triv triv)]))
 
   ;; exprs-unique-lang-v8.triv -> exprs-unsafe-data-lang-v8.triv
+  ;; GLOBAL VARIABLE: new-funcs maps prim-f expressions to (Listof Label Safety-Check-Funtion)
   ;; interp. produce unsafe triv from exprs-unique-lang-v8.triv
   (define (implement-safe-primops-triv triv)
     (match triv
       [prim-f #:when (hash-has-key? primop-spec-map prim-f)
-              #;
-              (implement-safe-primops-prim prim-f)
               (if (hash-has-key? new-funcs prim-f)
-                  (car (hash-ref new-funcs prim-f))
+                  (car (hash-ref new-funcs prim-f)) ; returns the label
                   (implement-safe-primops-prim prim-f))]
       ;; Wildcard collapse case used because they are terminal cases with no transformation
       [_ triv]))
 
   ;; prim-f (Listof tmp) (Listof tmp) (Listof Parameter Types) Natural kont -> prim-f
+  ;; GLOBAL VARIABLE: new-funs maps prim-f expressions to (Listof Label Safety-Check-Funtion)
   ;; interp. builds a safety check for a primitive operation
   (define (primop-safety-builder unsafe-primop args args-const p-types error-code k)
     (cond
@@ -122,6 +122,7 @@
 
   ;; label prim-f primop-spec -> label
   ;; interp. helper generates safety checks for unsafe primops and setting it in the new-funcs hash
+  ;; GLOBAL VARIABLE: new-funs maps prim-f expressions to (Listof Label Safety-Check-Funtion)
   ;; EFFECTS: mutates new-funcs to include the new safety check functions
   (define (generate-safety-checks label prim-f primop-spec)
     ;; Destructuring the primop spec
@@ -144,6 +145,7 @@
 
   ;; exprs-unique-lang-v8.prim-f -> exprs-unsafe-data-lang-v8.prim-f
   ;; produce safety checks for unsafe primops
+  ;; GLOBAL VARIABLE: new-funs maps prim-f expressions to (Listof Label Safety-Check-Funtion)
   ;; EFFECTS: mutates new-funcs to include the new safety check functions
   ;; TODO: replace this with handle-prim (also change that name)
   ;; the hash isn't ever used here
