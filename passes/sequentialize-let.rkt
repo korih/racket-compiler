@@ -85,7 +85,8 @@
        `(begin ,@sequentialize-let-values ,(sequentialize-let-effect eff))]
       [`(begin ,es ...)
        `(begin ,@(map sequentialize-let-effect es))]
-      [`(mset! ,aloc ,opand ,value) e]))
+      [`(mset! ,aloc ,opand ,value)
+       `(mset! ,aloc ,opand ,(sequentialize-let-value value))]))
 
   (match p
     [`(module ,funcs ... ,tail)
@@ -351,4 +352,30 @@
                        (begin
                          (set! sum.78 (call L.add.10 a.69 b.70 c.71 d.72 e.73 f.74 g.75 h.76))
                          (call L.*.2 sum.78 i.77))))
-                   (call L.add-and-multiply.11 8 16 24 32 40 48 56 64 16))))
+                   (call L.add-and-multiply.11 8 16 24 32 40 48 56 64 16)))
+  (check-equal? (sequentialize-let '(module (if (let ((x.1 (alloc 8)) (y.1 (alloc 16)) (z.1 0)) (begin (mset! x.1 0 (let ((tmp.164 (let ((t.1 32)) (let ((tmp.165 (+ t.1 8))) (+ t.1 tmp.165))))) (alloc tmp.164))) (mset! y.1 z.1 18) (let ((tmp.166 (+ z.1 8))) (mset! y.1 tmp.166 40)) (let ((tmp.167 (mref y.1 z.1))) (let ((tmp.168 (let ((tmp.169 (+ z.1 8))) (mref y.1 tmp.169)))) (= tmp.167 tmp.168))))) 8 16)))
+                '(module
+                     (if (begin
+                           (set! x.1 (alloc 8))
+                           (set! y.1 (alloc 16))
+                           (set! z.1 0)
+                           (begin
+                             (mset!
+                              x.1
+                              0
+                              (begin
+                                (set! tmp.164
+                                      (begin
+                                        (set! t.1 32)
+                                        (begin (set! tmp.165 (+ t.1 8)) (+ t.1 tmp.165))))
+                                (alloc tmp.164)))
+                             (mset! y.1 z.1 18)
+                             (begin (set! tmp.166 (+ z.1 8)) (mset! y.1 tmp.166 40))
+                             (begin
+                               (set! tmp.167 (mref y.1 z.1))
+                               (begin
+                                 (set! tmp.168
+                                       (begin (set! tmp.169 (+ z.1 8)) (mref y.1 tmp.169)))
+                                 (= tmp.167 tmp.168)))))
+                         8
+                         16))))
