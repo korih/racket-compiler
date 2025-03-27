@@ -40,6 +40,7 @@
       (values (cons updated-func updated-funcs) new-env)))
 
   ;; func (Env-of exprs-unique-lang-v8.triv) -> (values func (Env-of exprs-unique-lang-v8.triv))
+  ;; interp. resolves function definition to unique labels and abstract locations
   (define (uniquify-func func env)
     (match func
       [`(define ,funcName (lambda (,args ...) ,value))
@@ -50,6 +51,7 @@
                env)]))
 
   ;; exprs-lang-v8.value (Env-of exprs-unique-lang-v8.triv) -> exprs-unique-lang-v8.value
+  ;; interp. resolves value to unique identifiers within value locations
   (define (uniquify-value value env)
     (match value
       [`(let ([,xs ,vs] ...) ,v)
@@ -69,6 +71,7 @@
       [triv (uniquify-triv triv env)]))
 
   ;; exprs-lang-v8.triv (Env-of exprs-unique-lang-v8.triv) -> exprs-unique-lang-v8.triv
+  ;; interp. resolves triv as terminal case, or x
   (define (uniquify-triv triv env)
     (match triv
       [#t #t]
@@ -80,12 +83,16 @@
       [fixnum #:when (fixnum? fixnum) fixnum]
       [x (uniquify-x x env)]))
 
+  ;; exprs-unique-lang-v8.x -> boolean
+  ;; interp. determines if x is a defined primitive function or not
   (define (prim-f? prim-f)
     (or (safe-binop? prim-f)
         (unop? prim-f)
         (pair-op? prim-f)
         (vector-op? prim-f)))
 
+  ;; exprs-unique-lang-v8.x (Env-of exprs-unique-lang-v8.triv) -> exprs-unique-lang-v8.triv
+  ;; interp. resolves x primitive function or a unique variable definition
   (define (uniquify-x x env)
     (match x
       [prim-f #:when (prim-f? prim-f) (if (assoc prim-f env)
