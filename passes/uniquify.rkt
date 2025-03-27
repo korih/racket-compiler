@@ -39,8 +39,8 @@
       (define-values (updated-func new-env) (uniquify-func func updated-env))
       (values (cons updated-func updated-funcs) new-env)))
 
-  ;; func (Env-of exprs-unique-lang-v8.triv) -> (values func (Env-of exprs-unique-lang-v8.triv))
-  ;; for a given function definition, go through its args and body and produce uniquified version
+  ;; func (Env-of exprs-unique-lang-v8.triv) -> func (Env-of exprs-unique-lang-v8.triv)
+  ;; interp. for a given function definition, go through its args and body and produce uniquified version
   (define (uniquify-func func env)
     (match func
       [`(define ,funcName (lambda (,args ...) ,value))
@@ -51,7 +51,7 @@
                env)]))
 
   ;; exprs-lang-v8.value (Env-of exprs-unique-lang-v8.triv) -> exprs-unique-lang-v8.value
-  ;; From a given value and environment, produce the uniquified version of it
+  ;; interp. rom a given value and environment, produce the uniquified version of it
   (define (uniquify-value value env)
     (match value
       [`(let ([,xs ,vs] ...) ,v)
@@ -82,14 +82,6 @@
       [asci #:when (ascii-char-literal? asci) asci]
       [fixnum #:when (fixnum? fixnum) fixnum]
       [x (uniquify-x x env)]))
-
-  ;; exprs-unique-lang-v8.x -> boolean
-  ;; interp. determines if x is a defined primitive function or not
-  (define (prim-f? prim-f)
-    (or (safe-binop? prim-f)
-        (unop? prim-f)
-        (pair-op? prim-f)
-        (vector-op? prim-f)))
 
   ;; exprs-unique-lang-v8.x (Env-of exprs-unique-lang-v8.triv) -> exprs-unique-lang-v8.triv
   ;; interp. resolves x primitive function or a unique variable definition
@@ -266,4 +258,6 @@
   (check-equal? (uniquify '(module (call car (call cons 1 2))))
                 '(module (call car (call cons 1 2))))
   (check-equal? (uniquify '(module (call make-vector 1)))
-                '(module (call make-vector 1))))
+                '(module (call make-vector 1)))
+  (check-equal? (uniquify '(module (call make-vector 2)))
+                '(module (call make-vector 2))))

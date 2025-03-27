@@ -9,13 +9,13 @@
          extend-env*
          extend-env
          binop?
-         pair-op?
-         vector-op?
          prim-f?
          unsafe-binop?
          safe-binop?
          unsafe-primop?
          unop?
+         pair-op?
+         vector-op?
          relop?
          addr?
          addr-mop?
@@ -59,7 +59,10 @@
 ;; prim-f -> boolean
 ;; produces true if the expression is a primitive function
 (define (prim-f? op)
-  (or (safe-binop? op) (unop? op)))
+  (or (safe-binop? op)
+      (unop? op)
+      (pair-op? op)
+      (vector-op? op)))
 
 ;; any -> boolean
 ;; produces true if op is a valid pair operation

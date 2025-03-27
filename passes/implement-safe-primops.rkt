@@ -17,11 +17,11 @@
   ;; func is `(define ,label (lambda (,alocs ...) ,value))
   ;; interp. a function definition
 
-  ;; Listof primitive operations safety specifications
   ;; Symbol Symbol (Listof Parameter-types) Natural
-  ;; interp. Represents the safety specifications for primitive operations, the first symbol is the safe label
-  ;; the second symbol is the unsafe label, the list of parameter types are the types that the operation, and
-  ;; the natural is the error code for that operation
+  ;; interp. represents the safety specifications for primitive operations, the
+  ;; first symbol is the safe label, the second symbol is the unsafe label, the
+  ;; list of parameter types are the types that the operation, and the natural
+  ;; is the error code for that operation
   (define primop-spec-table
     `((* unsafe-fx*   (fixnum? fixnum?) 1)
       (+ unsafe-fx+   (fixnum? fixnum?) 2)
@@ -176,7 +176,7 @@
                                                                                       ,arg6
                                                                                       (begin
                                                                                         (unsafe-vector-set! ,arg6 ,arg5 0)
-                                                                                        (call ,loop-label ,arg4 (unsafe-fx+ i.5 1) ,arg6))))))
+                                                                                        (call ,loop-label ,arg4 (unsafe-fx+ ,arg5 1) ,arg6))))))
 
                     (hash-set! new-funcs fun2 (list loop-label fun3))
                     (hash-set! new-funcs fun1 (list init-label fun2))
@@ -438,7 +438,7 @@
                              vec.38
                              (begin
                                (unsafe-vector-set! vec.38 i.37 0)
-                               (call L.vector-init-loop.22 len.36 (unsafe-fx+ i.5 1) vec.38)))))
+                               (call L.vector-init-loop.22 len.36 (unsafe-fx+ i.37 1) vec.38)))))
                    (define L.make-vector.20
                      (lambda (tmp.33)
                        (if (fixnum? tmp.33) (call L.make-init-vector.21 tmp.33) (error 8))))
@@ -470,10 +470,9 @@
                            vec.44
                            (begin
                              (unsafe-vector-set! vec.44 i.43 0)
-                             (call L.vector-init-loop.25 len.42 (unsafe-fx+ i.5 1) vec.44)))))
+                             (call L.vector-init-loop.25 len.42 (unsafe-fx+ i.43 1) vec.44)))))
                    (let ((a.1 (call L.make-vector.23 1)) (b.1 (call L.make-vector.23 2)))
                      (call L.vector-length.26 (call L.make-vector.23 2)))))
-
   (check-equal? (implement-safe-primops '(module
                                              (let ([a.1 (call make-vector 1)] [b.1 (call make-vector 2)])
                                                (call vector-set!
@@ -506,7 +505,7 @@
                            vec.51
                            (begin
                              (unsafe-vector-set! vec.51 i.50 0)
-                             (call L.vector-init-loop.29 len.49 (unsafe-fx+ i.5 1) vec.51)))))
+                             (call L.vector-init-loop.29 len.49 (unsafe-fx+ i.50 1) vec.51)))))
                    (define L.unsafe-vector-set!.31
                      (lambda (tmp.55 tmp.56 tmp.57)
                        (if (unsafe-fx>= tmp.56 (unsafe-vector-length tmp.55))
@@ -520,7 +519,6 @@
                       (call L.make-vector.27 2)
                       (call L.vector-length.32 b.1)
                       9))))
-
   (check-equal? (implement-safe-primops '(module (let ([a.1 (call cons 1 2)]
                                                        [b.1 (call make-vector 1)])
                                                    (call vector-set!
@@ -557,7 +555,7 @@
                            vec.66
                            (begin
                              (unsafe-vector-set! vec.66 i.65 0)
-                             (call L.vector-init-loop.36 len.64 (unsafe-fx+ i.5 1) vec.66)))))
+                             (call L.vector-init-loop.36 len.64 (unsafe-fx+ i.65 1) vec.66)))))
                    (define L.make-init-vector.35
                      (lambda (tmp.62)
                        (if (unsafe-fx>= tmp.62 0)
@@ -570,4 +568,56 @@
                       L.vector-set!.37
                       (call L.make-vector.34 2)
                       (call L.vector-length.39 b.1)
-                      (call L.car.40 a.1))))))
+                      (call L.car.40 a.1)))))
+  (check-equal? (implement-safe-primops '(module (call make-vector 2)))
+                '(module
+                     (define L.make-init-vector.42
+                       (lambda (tmp.76)
+                         (if (unsafe-fx>= tmp.76 0)
+                             (let ((tmp.77 (unsafe-make-vector tmp.76)))
+                               (call L.vector-init-loop.43 tmp.76 0 tmp.77))
+                             (error 12))))
+                   (define L.vector-init-loop.43
+                     (lambda (len.78 i.79 vec.80)
+                       (if (eq? len.78 i.79)
+                           vec.80
+                           (begin
+                             (unsafe-vector-set! vec.80 i.79 0)
+                             (call L.vector-init-loop.43 len.78 (unsafe-fx+ i.79 1) vec.80)))))
+                   (define L.make-vector.41
+                     (lambda (tmp.75)
+                       (if (fixnum? tmp.75) (call L.make-init-vector.42 tmp.75) (error 8))))
+                   (call L.make-vector.41 2)))
+  (check-equal? (implement-safe-primops '(module (call vector-ref (call make-vector 2) 0)))
+                '(module
+                     (define L.vector-init-loop.48
+                       (lambda (len.88 i.89 vec.90)
+                         (if (eq? len.88 i.89)
+                             vec.90
+                             (begin
+                               (unsafe-vector-set! vec.90 i.89 0)
+                               (call L.vector-init-loop.48 len.88 (unsafe-fx+ i.89 1) vec.90)))))
+                   (define L.vector-ref.44
+                     (lambda (tmp.81 tmp.82)
+                       (if (fixnum? tmp.81)
+                           (if (vector? tmp.82)
+                               (call L.unsafe-vector-ref.45 tmp.81 tmp.82)
+                               (error 11))
+                           (error 11))))
+                   (define L.make-vector.46
+                     (lambda (tmp.85)
+                       (if (fixnum? tmp.85) (call L.make-init-vector.47 tmp.85) (error 8))))
+                   (define L.make-init-vector.47
+                     (lambda (tmp.86)
+                       (if (unsafe-fx>= tmp.86 0)
+                           (let ((tmp.87 (unsafe-make-vector tmp.86)))
+                             (call L.vector-init-loop.48 tmp.86 0 tmp.87))
+                           (error 12))))
+                   (define L.unsafe-vector-ref.45
+                     (lambda (tmp.83 tmp.84)
+                       (if (unsafe-fx< tmp.84 (unsafe-vector-length tmp.83))
+                           (if (unsafe-fx>= tmp.84 0)
+                               (unsafe-vector-ref tmp.83 tmp.84)
+                               (error 11))
+                           (error 11))))
+                   (call L.vector-ref.44 (call L.make-vector.46 2) 0))))
