@@ -547,8 +547,8 @@
                          (jump fv3)))
                    (define L.g.1 (begin (set! rsp r15) (set! rax 8) (jump rsp)))
                    (begin (set! rsp r15) (set! rdi 1) (set! rsi 2) (set! r15 rsp) (jump L.f.1))))
-  #;
-  (check-equal? (optimize-predicates '(module
+
+  (check-equal? (interp-nested-asm-lang-fvars-v8 (optimize-predicates '(module
                                           (define L.+.31
                                             (begin
                                               (set! r15 r15)
@@ -715,8 +715,8 @@
                                           (set! r9 48)
                                           (set! fv0 56)
                                           (set! r15 r15)
-                                          (jump L.F.6))))
-                '(module
+                                          (jump L.F.6)))))
+                (interp-nested-asm-lang-fvars-v8 '(module
                      (define L.+.31
                        (begin
                          (set! r15 r15)
@@ -883,7 +883,7 @@
                      (set! r9 48)
                      (set! fv0 56)
                      (set! r15 r15)
-                     (jump L.F.6))))
+                     (jump L.F.6)))))
 
   (check-equal? (interp-nested-asm-lang-fvars-v8 (optimize-predicates
                                                   '(module
