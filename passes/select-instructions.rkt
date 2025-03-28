@@ -12,8 +12,8 @@
 ;; imp-cmf-lang-v8 -> asm-pred-lang-v8
 ;; compiles p to Asm-pred-lang v8 by selecting appropriate sequences of abstract
 ;; assembly instructions to implement the operations of the source language
-(define/contract (select-instructions p)
-  (-> imp-cmf-lang-v8? asm-pred-lang-v8?)
+(define (select-instructions p)
+  #;(-> imp-cmf-lang-v8? asm-pred-lang-v8?)
 
   ;; func-info is `(define ,label ,info ,tail)
   ;; interp. a function definition that has metadata
