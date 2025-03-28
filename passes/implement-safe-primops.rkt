@@ -17,21 +17,20 @@
   ;; func is `(define ,label (lambda (,alocs ...) ,value))
   ;; interp. a function definition
 
-  ;; Symbol Symbol (Listof Parameter-types) Natural
+  ;; primop-spec is `(Symbol Symbol (Listof Parameter-types) Natural)
   ;; interp. represents the safety specifications for primitive operations, the
   ;; first symbol is the safe label, the second symbol is the unsafe label, the
   ;; list of parameter types are the types that the operation, and the natural
   ;; is the error code for that operation
   (define primop-spec-table
-    `((* unsafe-fx*   (fixnum? fixnum?) 1)
-      (+ unsafe-fx+   (fixnum? fixnum?) 2)
-      (- unsafe-fx-   (fixnum? fixnum?) 3)
-      (< unsafe-fx<   (fixnum? fixnum?) 4)
+    `((*  unsafe-fx*  (fixnum? fixnum?) 1)
+      (+  unsafe-fx+  (fixnum? fixnum?) 2)
+      (-  unsafe-fx-  (fixnum? fixnum?) 3)
+      (<  unsafe-fx<  (fixnum? fixnum?) 4)
       (<= unsafe-fx<= (fixnum? fixnum?) 5)
-      (> unsafe-fx>   (fixnum? fixnum?) 6)
+      (>  unsafe-fx>  (fixnum? fixnum?) 6)
       (>= unsafe-fx>= (fixnum? fixnum?) 7)
 
-      ;; TODO: use these for the vector prim-ops
       (make-vector   make-init-vector-label   (fixnum?)               8)
       (vector-length unsafe-vector-length     (vector?)               9)
       (vector-set!   unsafe-vector-set!-label (vector? fixnum? any?) 10)
@@ -40,10 +39,12 @@
       (car unsafe-car (pair?) 12)
       (cdr unsafe-cdr (pair?) 13)
 
+      ;; No error code if the value isn't as expected, just produce false
       ,@(map (lambda (x) `(,x ,x (any?) 0))
              '(fixnum? boolean? empty? void? ascii-char? error? pair?
                        vector? not))
 
+      ;; No error code if the value isn't as expected, just produce false
       ,@(map (lambda (x) `(,x ,x (any? any?) 0))
              '(cons eq?))))
 
@@ -147,8 +148,6 @@
   ;; produce safety checks for unsafe primops
   ;; GLOBAL VARIABLE: new-funs maps prim-f expressions to (Listof Label Safety-Check-Funtion)
   ;; EFFECTS: mutates new-funcs to include the new safety check functions
-  ;; TODO: replace this with handle-prim (also change that name)
-  ;; the hash isn't ever used here
   (define (implement-safe-primops-prim prim-f)
     (match prim-f
       ['make-vector (define make-label (fresh-label 'make-vector))
@@ -157,26 +156,29 @@
 
                     ;; Generate safty check for if argument is fixnum?
                     (define arg1 (fresh))
-                    (define fun1 `(define ,make-label (lambda (,arg1) (if (fixnum? ,arg1) (call ,init-label ,arg1) (error 8)))))
+                    (define fun1 `(define ,make-label
+                                    (lambda (,arg1) (if (fixnum? ,arg1) (call ,init-label ,arg1) (error 8)))))
 
 
                     ;; Generate safety check for if argument is >= 0
                     (define arg2 (fresh))
                     (define arg3 (fresh))
-                    (define fun2 `(define ,init-label (lambda (,arg2) (if (unsafe-fx>= ,arg2 0)
-                                                                          (let ((,arg3 (unsafe-make-vector ,arg2)))
-                                                                            (call ,loop-label ,arg2 0 ,arg3))
-                                                                          (error 12)))))
+                    (define fun2 `(define ,init-label
+                                    (lambda (,arg2) (if (unsafe-fx>= ,arg2 0)
+                                                        (let ((,arg3 (unsafe-make-vector ,arg2)))
+                                                          (call ,loop-label ,arg2 0 ,arg3))
+                                                        (error 12)))))
 
                     ;; Generate loop for initializing vector to 0
                     (define arg4 (fresh 'len))
                     (define arg5 (fresh 'i))
                     (define arg6 (fresh 'vec))
-                    (define fun3 `(define ,loop-label (lambda (,arg4 ,arg5 ,arg6) (if (eq? ,arg4 ,arg5)
-                                                                                      ,arg6
-                                                                                      (begin
-                                                                                        (unsafe-vector-set! ,arg6 ,arg5 0)
-                                                                                        (call ,loop-label ,arg4 (unsafe-fx+ ,arg5 1) ,arg6))))))
+                    (define fun3 `(define ,loop-label
+                                    (lambda (,arg4 ,arg5 ,arg6) (if (eq? ,arg4 ,arg5)
+                                                                    ,arg6
+                                                                    (begin
+                                                                      (unsafe-vector-set! ,arg6 ,arg5 0)
+                                                                      (call ,loop-label ,arg4 (unsafe-fx+ ,arg5 1) ,arg6))))))
 
                     (hash-set! new-funcs fun2 (list loop-label fun3))
                     (hash-set! new-funcs fun1 (list init-label fun2))
@@ -188,22 +190,24 @@
                    ;; Generate safety check for if arguments are vector? and fixnum?
                    (define arg1 (fresh))
                    (define arg2 (fresh))
-                   (define fun1 `(define ,safe-label (lambda (,arg1 ,arg2)
-                                                       (if (fixnum? ,arg2)
-                                                           (if (vector? ,arg1)
-                                                               (call ,unsafe-label ,arg1 ,arg2)
-                                                               (error 11))
-                                                           (error 11)))))
+                   (define fun1 `(define ,safe-label
+                                   (lambda (,arg1 ,arg2)
+                                     (if (fixnum? ,arg2)
+                                         (if (vector? ,arg1)
+                                             (call ,unsafe-label ,arg1 ,arg2)
+                                             (error 11))
+                                         (error 11)))))
 
                    ;; Generate safety check for if fixnum is within bounds of vector
                    (define arg3 (fresh))
                    (define arg4 (fresh))
-                   (define fun2 `(define ,unsafe-label (lambda (,arg3 ,arg4)
-                                                         (if (unsafe-fx< ,arg4 (unsafe-vector-length ,arg3))
-                                                             (if (unsafe-fx>= ,arg4 0)
-                                                                 (unsafe-vector-ref ,arg3 ,arg4)
-                                                                 (error 11))
-                                                             (error 11)))))
+                   (define fun2 `(define ,unsafe-label
+                                   (lambda (,arg3 ,arg4)
+                                     (if (unsafe-fx< ,arg4 (unsafe-vector-length ,arg3))
+                                         (if (unsafe-fx>= ,arg4 0)
+                                             (unsafe-vector-ref ,arg3 ,arg4)
+                                             (error 11))
+                                         (error 11)))))
 
                    (hash-set! new-funcs prim-f (list safe-label fun1))
                    (hash-set! new-funcs fun1 (list unsafe-label fun2))
@@ -215,23 +219,25 @@
                     (define arg1 (fresh))
                     (define arg2 (fresh))
                     (define arg3 (fresh))
-                    (define fun1 `(define ,safe-label (lambda (,arg1 ,arg2 ,arg3)
-                                                        (if (fixnum? ,arg2)
-                                                            (if (vector? ,arg1)
-                                                                (call ,unsafe-label ,arg1 ,arg2 ,arg3)
-                                                                (error 10))
-                                                            (error 10)))))
+                    (define fun1 `(define ,safe-label
+                                    (lambda (,arg1 ,arg2 ,arg3)
+                                      (if (fixnum? ,arg2)
+                                          (if (vector? ,arg1)
+                                              (call ,unsafe-label ,arg1 ,arg2 ,arg3)
+                                              (error 10))
+                                          (error 10)))))
 
                     ;; Generate safety check for if fixnum is within bounds of vector
                     (define arg4 (fresh))
                     (define arg5 (fresh))
                     (define arg6 (fresh))
-                    (define fun2 `(define ,unsafe-label (lambda (,arg4 ,arg5 ,arg6)
-                                                          (if (unsafe-fx>= ,arg5 (unsafe-vector-length ,arg4))
-                                                              (if (unsafe-fx>= ,arg5 0)
-                                                                  (begin (unsafe-vector-set! ,arg4 ,arg5 ,arg6) (void))
-                                                                  (error 10))
-                                                              (error 10)))))
+                    (define fun2 `(define ,unsafe-label
+                                    (lambda (,arg4 ,arg5 ,arg6)
+                                      (if (unsafe-fx>= ,arg5 (unsafe-vector-length ,arg4))
+                                          (if (unsafe-fx>= ,arg5 0)
+                                              (begin (unsafe-vector-set! ,arg4 ,arg5 ,arg6) (void))
+                                              (error 10))
+                                          (error 10)))))
 
                     (hash-set! new-funcs prim-f (list safe-label fun1))
                     (hash-set! new-funcs fun1 (list unsafe-label fun2))
