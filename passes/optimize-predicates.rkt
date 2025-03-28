@@ -179,7 +179,9 @@
   (define (interp-relop-optimize-false? relop op1 op2)
     (match (cons op1 op2)
       [(cons a b) #:when (and (int64? a) (int64? b))
-                  (not (eval (list relop a b) ns))]
+                  (if (eq? relop '!=)
+                      (eval `(not (= ,a ,b)) ns)
+                      (eval `(,relop ,a ,b) ns))]
       ; In all other cases, we don't know the range of the result
       [_ #f]))
 
