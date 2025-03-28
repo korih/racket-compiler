@@ -1683,6 +1683,7 @@
                      (set! fv0 56)
                      (set! r15 r15)
                      (jump L.F.6))))
+  ;; test suite, make sure
   (check-equal? (replace-locations '(module
                                         ((locals ())
                                          (conflicts

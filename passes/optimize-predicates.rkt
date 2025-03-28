@@ -154,15 +154,6 @@
       [(interp-relop-optimize-false? relop op1 op2) k-f]
       [else `(if (,relop ,loc ,triv) ,k-t ,k-f)]))
 
-  (define (match-relop-to-racket relop)
-    (match relop
-      ['< '<]
-      ['<= '<=]
-      ['> '>]
-      ['>= '>=]
-      ['= '=]
-      ['!= 'not-equal]))
-
   ;; nested-asm-lang-v8.relop RangeValue RangeValue -> boolean
   ;; interp. true if the relop can be optimized to true
   (define (interp-relop-optimize-true? relop op1 op2)
@@ -184,28 +175,6 @@
                       (eval `(,relop ,a ,b) ns))]
       ; In all other cases, we don't know the range of the result
       [_ #f]))
-
-  ;; nested-asm-lang-v8.triv -> nested-asm-lang-v8.triv
-  ;; interp. optimize the triv if possible
-  (define (try-optimize-triv/triv triv env)
-    (match triv
-      [label #:when (label? label) label]
-      [opand (try-optimize-triv/opand opand env)]))
-
-  ;; nested-asm-lang-v8.opand -> nested-asm-lang-v8.triv
-  ;; interp. optimize the opand if possible
-  (define (try-optimize-triv/opand opand env)
-    (match opand
-      [x #:when (int64? x) x]
-      [loc (try-optimize-triv/loc loc env)]))
-
-  ;; nested-asm-lang-v8.loc -> nested-asm-lang-v8.triv
-  ;; interp. optimize the loc if possible
-  (define (try-optimize-triv/loc loc env)
-    (with-handlers ([exn:fail? (lambda (_) loc)])
-      (match (lookup-env env loc)
-        ['unknown loc]
-        [x #:when (int64? x) x])))
 
   (match p
     [`(module ,funcs ... ,tail)
