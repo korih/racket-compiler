@@ -1600,565 +1600,565 @@
                      (set! r15 tmp-ra.52)
                      (jump L.f.1 rbp r15 rdi rsi))))
 
-  (check-equal? (interp-asm-pred-lang-v8 (select-instructions
-                                          '(module
+  (check-equal? (interp-asm-alloc-lang-v8 (select-instructions
+                                           '(module
+                                                ((new-frames (() () () ())))
+                                              (define L.+.12
+                                                ((new-frames ()))
+                                                (begin
+                                                  (set! tmp-ra.95 r15)
+                                                  (begin
+                                                    (set! tmp.19 rdi)
+                                                    (set! tmp.20 rsi)
+                                                    (if (begin
+                                                          (if (begin (set! tmp.55 (bitwise-and tmp.20 7)) (= tmp.55 0))
+                                                              (set! tmp.54 14)
+                                                              (set! tmp.54 6))
+                                                          (!= tmp.54 6))
+                                                        (if (begin
+                                                              (if (begin (set! tmp.57 (bitwise-and tmp.19 7)) (= tmp.57 0))
+                                                                  (set! tmp.56 14)
+                                                                  (set! tmp.56 6))
+                                                              (!= tmp.56 6))
+                                                            (begin (set! rax (+ tmp.19 tmp.20)) (jump tmp-ra.95 rbp rax))
+                                                            (begin (set! rax 574) (jump tmp-ra.95 rbp rax)))
+                                                        (begin (set! rax 574) (jump tmp-ra.95 rbp rax))))))
+                                              (define L.void?.11
+                                                ((new-frames ()))
+                                                (begin
+                                                  (set! tmp-ra.96 r15)
+                                                  (begin
+                                                    (set! tmp.43 rdi)
+                                                    (if (begin (set! tmp.58 (bitwise-and tmp.43 255)) (= tmp.58 30))
+                                                        (begin (set! rax 14) (jump tmp-ra.96 rbp rax))
+                                                        (begin (set! rax 6) (jump tmp-ra.96 rbp rax))))))
+                                              (define L.unsafe-vector-ref.3
+                                                ((new-frames ()))
+                                                (begin
+                                                  (set! tmp-ra.97 r15)
+                                                  (begin
+                                                    (set! tmp.14 rdi)
+                                                    (set! tmp.15 rsi)
+                                                    (if (begin
+                                                          (if (begin (set! tmp.60 (mref tmp.14 -3)) (< tmp.15 tmp.60))
+                                                              (set! tmp.59 14)
+                                                              (set! tmp.59 6))
+                                                          (!= tmp.59 6))
+                                                        (if (begin
+                                                              (if (>= tmp.15 0) (set! tmp.61 14) (set! tmp.61 6))
+                                                              (!= tmp.61 6))
+                                                            (begin
+                                                              (begin
+                                                                (begin
+                                                                  (set! tmp.64 (arithmetic-shift-right tmp.15 3))
+                                                                  (set! tmp.63 (* tmp.64 8)))
+                                                                (set! tmp.62 (+ tmp.63 5)))
+                                                              (begin (set! rax (mref tmp.14 tmp.62)) (jump tmp-ra.97 rbp rax)))
+                                                            (begin (set! rax 2878) (jump tmp-ra.97 rbp rax)))
+                                                        (begin (set! rax 2878) (jump tmp-ra.97 rbp rax))))))
+                                              (define L.vector-ref.10
+                                                ((new-frames ()))
+                                                (begin
+                                                  (set! tmp-ra.98 r15)
+                                                  (begin
+                                                    (set! tmp.36 rdi)
+                                                    (set! tmp.37 rsi)
+                                                    (if (begin
+                                                          (if (begin (set! tmp.66 (bitwise-and tmp.37 7)) (= tmp.66 0))
+                                                              (set! tmp.65 14)
+                                                              (set! tmp.65 6))
+                                                          (!= tmp.65 6))
+                                                        (if (begin
+                                                              (if (begin (set! tmp.68 (bitwise-and tmp.36 7)) (= tmp.68 3))
+                                                                  (set! tmp.67 14)
+                                                                  (set! tmp.67 6))
+                                                              (!= tmp.67 6))
+                                                            (begin
+                                                              (set! rsi tmp.37)
+                                                              (set! rdi tmp.36)
+                                                              (set! r15 tmp-ra.98)
+                                                              (jump L.unsafe-vector-ref.3 rbp r15 rdi rsi))
+                                                            (begin (set! rax 2878) (jump tmp-ra.98 rbp rax)))
+                                                        (begin (set! rax 2878) (jump tmp-ra.98 rbp rax))))))
+                                              (define L.unsafe-vector-set!.2
+                                                ((new-frames ()))
+                                                (begin
+                                                  (set! tmp-ra.99 r15)
+                                                  (begin
+                                                    (set! tmp.9 rdi)
+                                                    (set! tmp.10 rsi)
+                                                    (set! tmp.11 rdx)
+                                                    (if (begin
+                                                          (if (begin (set! tmp.70 (mref tmp.9 -3)) (< tmp.10 tmp.70))
+                                                              (set! tmp.69 14)
+                                                              (set! tmp.69 6))
+                                                          (!= tmp.69 6))
+                                                        (if (begin
+                                                              (if (>= tmp.10 0) (set! tmp.71 14) (set! tmp.71 6))
+                                                              (!= tmp.71 6))
+                                                            (begin
+                                                              (begin
+                                                                (begin
+                                                                  (begin
+                                                                    (set! tmp.74 (arithmetic-shift-right tmp.10 3))
+                                                                    (set! tmp.73 (* tmp.74 8)))
+                                                                  (set! tmp.72 (+ tmp.73 5)))
+                                                                (mset! tmp.9 tmp.72 tmp.11))
+                                                              (begin (set! rax 30) (jump tmp-ra.99 rbp rax)))
+                                                            (begin (set! rax 2622) (jump tmp-ra.99 rbp rax)))
+                                                        (begin (set! rax 2622) (jump tmp-ra.99 rbp rax))))))
+                                              (define L.vector-set!.9
+                                                ((new-frames ()))
+                                                (begin
+                                                  (set! tmp-ra.100 r15)
+                                                  (begin
+                                                    (set! tmp.33 rdi)
+                                                    (set! tmp.34 rsi)
+                                                    (set! tmp.35 rdx)
+                                                    (if (begin
+                                                          (if (begin (set! tmp.76 (bitwise-and tmp.34 7)) (= tmp.76 0))
+                                                              (set! tmp.75 14)
+                                                              (set! tmp.75 6))
+                                                          (!= tmp.75 6))
+                                                        (if (begin
+                                                              (if (begin (set! tmp.78 (bitwise-and tmp.33 7)) (= tmp.78 3))
+                                                                  (set! tmp.77 14)
+                                                                  (set! tmp.77 6))
+                                                              (!= tmp.77 6))
+                                                            (begin
+                                                              (set! rdx tmp.35)
+                                                              (set! rsi tmp.34)
+                                                              (set! rdi tmp.33)
+                                                              (set! r15 tmp-ra.100)
+                                                              (jump L.unsafe-vector-set!.2 rbp r15 rdi rsi rdx))
+                                                            (begin (set! rax 2622) (jump tmp-ra.100 rbp rax)))
+                                                        (begin (set! rax 2622) (jump tmp-ra.100 rbp rax))))))
+                                              (define L.vector-init-loop.7
+                                                ((new-frames ()))
+                                                (begin
+                                                  (set! tmp-ra.101 r15)
+                                                  (begin
+                                                    (set! len.6 rdi)
+                                                    (set! i.8 rsi)
+                                                    (set! vec.7 rdx)
+                                                    (if (begin
+                                                          (if (= len.6 i.8) (set! tmp.79 14) (set! tmp.79 6))
+                                                          (!= tmp.79 6))
+                                                        (begin (set! rax vec.7) (jump tmp-ra.101 rbp rax))
+                                                        (begin
+                                                          (begin
+                                                            (begin
+                                                              (begin
+                                                                (set! tmp.82 (arithmetic-shift-right i.8 3))
+                                                                (set! tmp.81 (* tmp.82 8)))
+                                                              (set! tmp.80 (+ tmp.81 5)))
+                                                            (mset! vec.7 tmp.80 0))
+                                                          (begin
+                                                            (set! tmp.83 (+ i.8 8))
+                                                            (begin
+                                                              (set! rdx vec.7)
+                                                              (set! rsi tmp.83)
+                                                              (set! rdi len.6)
+                                                              (set! r15 tmp-ra.101)
+                                                              (jump L.vector-init-loop.7 rbp r15 rdi rsi rdx))))))))
+                                              (define L.make-init-vector.1
+                                                ((new-frames ()))
+                                                (begin
+                                                  (set! tmp-ra.102 r15)
+                                                  (begin
+                                                    (set! tmp.4 rdi)
+                                                    (if (begin
+                                                          (if (>= tmp.4 0) (set! tmp.84 14) (set! tmp.84 6))
+                                                          (!= tmp.84 6))
+                                                        (begin
+                                                          (begin
+                                                            (begin
+                                                              (begin
+                                                                (begin
+                                                                  (begin
+                                                                    (set! tmp.88 (arithmetic-shift-right tmp.4 3))
+                                                                    (set! tmp.87 (+ 1 tmp.88)))
+                                                                  (set! tmp.86 (* tmp.87 8)))
+                                                                (set! tmp.85 (alloc tmp.86)))
+                                                              (set! tmp.53 (+ tmp.85 3)))
+                                                            (begin (mset! tmp.53 -3 tmp.4) (set! tmp.5 tmp.53)))
+                                                          (begin
+                                                            (set! rdx tmp.5)
+                                                            (set! rsi 0)
+                                                            (set! rdi tmp.4)
+                                                            (set! r15 tmp-ra.102)
+                                                            (jump L.vector-init-loop.7 rbp r15 rdi rsi rdx)))
+                                                        (begin (set! rax 3134) (jump tmp-ra.102 rbp rax))))))
+                                              (define L.make-vector.8
+                                                ((new-frames ()))
+                                                (begin
+                                                  (set! tmp-ra.103 r15)
+                                                  (begin
+                                                    (set! tmp.31 rdi)
+                                                    (if (begin
+                                                          (if (begin (set! tmp.90 (bitwise-and tmp.31 7)) (= tmp.90 0))
+                                                              (set! tmp.89 14)
+                                                              (set! tmp.89 6))
+                                                          (!= tmp.89 6))
+                                                        (begin
+                                                          (set! rdi tmp.31)
+                                                          (set! r15 tmp-ra.103)
+                                                          (jump L.make-init-vector.1 rbp r15 rdi))
+                                                        (begin (set! rax 2110) (jump tmp-ra.103 rbp rax))))))
+                                              (define L.v.4
+                                                ((new-frames ()))
+                                                (begin
+                                                  (set! tmp-ra.104 r15)
+                                                  (begin
+                                                    (begin
+                                                      (set! rdi 24)
+                                                      (set! r15 tmp-ra.104)
+                                                      (jump L.make-vector.8 rbp r15 rdi)))))
+                                              (define L.set-first.5
+                                                ((new-frames ()))
+                                                (begin
+                                                  (set! tmp-ra.105 r15)
+                                                  (begin
+                                                    (set! vec.1 rdi)
+                                                    (begin
+                                                      (set! rdx 336)
+                                                      (set! rsi 0)
+                                                      (set! rdi vec.1)
+                                                      (set! r15 tmp-ra.105)
+                                                      (jump L.vector-set!.9 rbp r15 rdi rsi rdx)))))
+                                              (define L.get-first.6
+                                                ((new-frames ()))
+                                                (begin
+                                                  (set! tmp-ra.106 r15)
+                                                  (begin
+                                                    (set! vec.2 rdi)
+                                                    (begin
+                                                      (set! rsi 0)
+                                                      (set! rdi vec.2)
+                                                      (set! r15 tmp-ra.106)
+                                                      (jump L.vector-ref.10 rbp r15 rdi rsi)))))
+                                              (begin
+                                                (set! tmp-ra.107 r15)
+                                                (begin
+                                                  (begin
+                                                    (return-point L.rp.13 (begin (set! r15 L.rp.13) (jump L.v.4 rbp r15)))
+                                                    (set! vec.3 rax))
+                                                  (begin
+                                                    (if (begin
+                                                          (begin
+                                                            (begin
+                                                              (return-point L.rp.14
+                                                                            (begin
+                                                                              (set! rdi vec.3)
+                                                                              (set! r15 L.rp.14)
+                                                                              (jump L.set-first.5 rbp r15 rdi)))
+                                                              (set! tmp.93 rax))
+                                                            (begin
+                                                              (return-point L.rp.15
+                                                                            (begin
+                                                                              (set! rdi tmp.93)
+                                                                              (set! r15 L.rp.15)
+                                                                              (jump L.void?.11 rbp r15 rdi)))
+                                                              (set! tmp.92 rax)))
+                                                          (!= tmp.92 6))
+                                                        (set! tmp.91 0)
+                                                        (set! tmp.91 318))
+                                                    (begin
+                                                      (begin
+                                                        (return-point L.rp.16
+                                                                      (begin
+                                                                        (set! rdi vec.3)
+                                                                        (set! r15 L.rp.16)
+                                                                        (jump L.get-first.6 rbp r15 rdi)))
+                                                        (set! tmp.94 rax))
+                                                      (begin
+                                                        (set! rsi tmp.94)
+                                                        (set! rdi tmp.91)
+                                                        (set! r15 tmp-ra.107)
+                                                        (jump L.+.12 rbp r15 rdi rsi)))))))))
+                (interp-asm-alloc-lang-v8 '(module
                                                ((new-frames (() () () ())))
                                              (define L.+.12
                                                ((new-frames ()))
                                                (begin
                                                  (set! tmp-ra.95 r15)
-                                                 (begin
-                                                   (set! tmp.19 rdi)
-                                                   (set! tmp.20 rsi)
-                                                   (if (begin
-                                                         (if (begin (set! tmp.55 (bitwise-and tmp.20 7)) (= tmp.55 0))
-                                                             (set! tmp.54 14)
-                                                             (set! tmp.54 6))
-                                                         (!= tmp.54 6))
+                                                 (set! tmp.19 rdi)
+                                                 (set! tmp.20 rsi)
+                                                 (if (begin
                                                        (if (begin
-                                                             (if (begin (set! tmp.57 (bitwise-and tmp.19 7)) (= tmp.57 0))
-                                                                 (set! tmp.56 14)
-                                                                 (set! tmp.56 6))
-                                                             (!= tmp.56 6))
-                                                           (begin (set! rax (+ tmp.19 tmp.20)) (jump tmp-ra.95 rbp rax))
-                                                           (begin (set! rax 574) (jump tmp-ra.95 rbp rax)))
-                                                       (begin (set! rax 574) (jump tmp-ra.95 rbp rax))))))
+                                                             (begin
+                                                               (set! tmp.55 tmp.20)
+                                                               (set! tmp.55 (bitwise-and tmp.55 7)))
+                                                             (= tmp.55 0))
+                                                           (set! tmp.54 14)
+                                                           (set! tmp.54 6))
+                                                       (!= tmp.54 6))
+                                                     (if (begin
+                                                           (if (begin
+                                                                 (begin
+                                                                   (set! tmp.57 tmp.19)
+                                                                   (set! tmp.57 (bitwise-and tmp.57 7)))
+                                                                 (= tmp.57 0))
+                                                               (set! tmp.56 14)
+                                                               (set! tmp.56 6))
+                                                           (!= tmp.56 6))
+                                                         (begin
+                                                           (set! rax tmp.19)
+                                                           (set! rax (+ rax tmp.20))
+                                                           (jump tmp-ra.95 rbp rax))
+                                                         (begin (set! rax 574) (jump tmp-ra.95 rbp rax)))
+                                                     (begin (set! rax 574) (jump tmp-ra.95 rbp rax)))))
                                              (define L.void?.11
                                                ((new-frames ()))
                                                (begin
                                                  (set! tmp-ra.96 r15)
-                                                 (begin
-                                                   (set! tmp.43 rdi)
-                                                   (if (begin (set! tmp.58 (bitwise-and tmp.43 255)) (= tmp.58 30))
-                                                       (begin (set! rax 14) (jump tmp-ra.96 rbp rax))
-                                                       (begin (set! rax 6) (jump tmp-ra.96 rbp rax))))))
+                                                 (set! tmp.43 rdi)
+                                                 (if (begin
+                                                       (begin (set! tmp.58 tmp.43) (set! tmp.58 (bitwise-and tmp.58 255)))
+                                                       (= tmp.58 30))
+                                                     (begin (set! rax 14) (jump tmp-ra.96 rbp rax))
+                                                     (begin (set! rax 6) (jump tmp-ra.96 rbp rax)))))
                                              (define L.unsafe-vector-ref.3
                                                ((new-frames ()))
                                                (begin
                                                  (set! tmp-ra.97 r15)
-                                                 (begin
-                                                   (set! tmp.14 rdi)
-                                                   (set! tmp.15 rsi)
-                                                   (if (begin
-                                                         (if (begin (set! tmp.60 (mref tmp.14 -3)) (< tmp.15 tmp.60))
-                                                             (set! tmp.59 14)
-                                                             (set! tmp.59 6))
-                                                         (!= tmp.59 6))
-                                                       (if (begin
-                                                             (if (>= tmp.15 0) (set! tmp.61 14) (set! tmp.61 6))
-                                                             (!= tmp.61 6))
-                                                           (begin
-                                                             (begin
-                                                               (begin
-                                                                 (set! tmp.64 (arithmetic-shift-right tmp.15 3))
-                                                                 (set! tmp.63 (* tmp.64 8)))
-                                                               (set! tmp.62 (+ tmp.63 5)))
-                                                             (begin (set! rax (mref tmp.14 tmp.62)) (jump tmp-ra.97 rbp rax)))
-                                                           (begin (set! rax 2878) (jump tmp-ra.97 rbp rax)))
-                                                       (begin (set! rax 2878) (jump tmp-ra.97 rbp rax))))))
+                                                 (set! tmp.14 rdi)
+                                                 (set! tmp.15 rsi)
+                                                 (if (begin
+                                                       (if (begin (set! tmp.60 (mref tmp.14 -3)) (< tmp.15 tmp.60))
+                                                           (set! tmp.59 14)
+                                                           (set! tmp.59 6))
+                                                       (!= tmp.59 6))
+                                                     (if (begin
+                                                           (if (>= tmp.15 0) (set! tmp.61 14) (set! tmp.61 6))
+                                                           (!= tmp.61 6))
+                                                         (begin
+                                                           (set! tmp.64 tmp.15)
+                                                           (set! tmp.64 (arithmetic-shift-right tmp.64 3))
+                                                           (set! tmp.63 tmp.64)
+                                                           (set! tmp.63 (* tmp.63 8))
+                                                           (set! tmp.62 tmp.63)
+                                                           (set! tmp.62 (+ tmp.62 5))
+                                                           (set! rax (mref tmp.14 tmp.62))
+                                                           (jump tmp-ra.97 rbp rax))
+                                                         (begin (set! rax 2878) (jump tmp-ra.97 rbp rax)))
+                                                     (begin (set! rax 2878) (jump tmp-ra.97 rbp rax)))))
                                              (define L.vector-ref.10
                                                ((new-frames ()))
                                                (begin
                                                  (set! tmp-ra.98 r15)
-                                                 (begin
-                                                   (set! tmp.36 rdi)
-                                                   (set! tmp.37 rsi)
-                                                   (if (begin
-                                                         (if (begin (set! tmp.66 (bitwise-and tmp.37 7)) (= tmp.66 0))
-                                                             (set! tmp.65 14)
-                                                             (set! tmp.65 6))
-                                                         (!= tmp.65 6))
+                                                 (set! tmp.36 rdi)
+                                                 (set! tmp.37 rsi)
+                                                 (if (begin
                                                        (if (begin
-                                                             (if (begin (set! tmp.68 (bitwise-and tmp.36 7)) (= tmp.68 3))
-                                                                 (set! tmp.67 14)
-                                                                 (set! tmp.67 6))
-                                                             (!= tmp.67 6))
-                                                           (begin
-                                                             (set! rsi tmp.37)
-                                                             (set! rdi tmp.36)
-                                                             (set! r15 tmp-ra.98)
-                                                             (jump L.unsafe-vector-ref.3 rbp r15 rdi rsi))
-                                                           (begin (set! rax 2878) (jump tmp-ra.98 rbp rax)))
-                                                       (begin (set! rax 2878) (jump tmp-ra.98 rbp rax))))))
+                                                             (begin
+                                                               (set! tmp.66 tmp.37)
+                                                               (set! tmp.66 (bitwise-and tmp.66 7)))
+                                                             (= tmp.66 0))
+                                                           (set! tmp.65 14)
+                                                           (set! tmp.65 6))
+                                                       (!= tmp.65 6))
+                                                     (if (begin
+                                                           (if (begin
+                                                                 (begin
+                                                                   (set! tmp.68 tmp.36)
+                                                                   (set! tmp.68 (bitwise-and tmp.68 7)))
+                                                                 (= tmp.68 3))
+                                                               (set! tmp.67 14)
+                                                               (set! tmp.67 6))
+                                                           (!= tmp.67 6))
+                                                         (begin
+                                                           (set! rsi tmp.37)
+                                                           (set! rdi tmp.36)
+                                                           (set! r15 tmp-ra.98)
+                                                           (jump L.unsafe-vector-ref.3 rbp r15 rdi rsi))
+                                                         (begin (set! rax 2878) (jump tmp-ra.98 rbp rax)))
+                                                     (begin (set! rax 2878) (jump tmp-ra.98 rbp rax)))))
                                              (define L.unsafe-vector-set!.2
                                                ((new-frames ()))
                                                (begin
                                                  (set! tmp-ra.99 r15)
-                                                 (begin
-                                                   (set! tmp.9 rdi)
-                                                   (set! tmp.10 rsi)
-                                                   (set! tmp.11 rdx)
-                                                   (if (begin
-                                                         (if (begin (set! tmp.70 (mref tmp.9 -3)) (< tmp.10 tmp.70))
-                                                             (set! tmp.69 14)
-                                                             (set! tmp.69 6))
-                                                         (!= tmp.69 6))
-                                                       (if (begin
-                                                             (if (>= tmp.10 0) (set! tmp.71 14) (set! tmp.71 6))
-                                                             (!= tmp.71 6))
-                                                           (begin
-                                                             (begin
-                                                               (begin
-                                                                 (begin
-                                                                   (set! tmp.74 (arithmetic-shift-right tmp.10 3))
-                                                                   (set! tmp.73 (* tmp.74 8)))
-                                                                 (set! tmp.72 (+ tmp.73 5)))
-                                                               (mset! tmp.9 tmp.72 tmp.11))
-                                                             (begin (set! rax 30) (jump tmp-ra.99 rbp rax)))
-                                                           (begin (set! rax 2622) (jump tmp-ra.99 rbp rax)))
-                                                       (begin (set! rax 2622) (jump tmp-ra.99 rbp rax))))))
+                                                 (set! tmp.9 rdi)
+                                                 (set! tmp.10 rsi)
+                                                 (set! tmp.11 rdx)
+                                                 (if (begin
+                                                       (if (begin (set! tmp.70 (mref tmp.9 -3)) (< tmp.10 tmp.70))
+                                                           (set! tmp.69 14)
+                                                           (set! tmp.69 6))
+                                                       (!= tmp.69 6))
+                                                     (if (begin
+                                                           (if (>= tmp.10 0) (set! tmp.71 14) (set! tmp.71 6))
+                                                           (!= tmp.71 6))
+                                                         (begin
+                                                           (set! tmp.74 tmp.10)
+                                                           (set! tmp.74 (arithmetic-shift-right tmp.74 3))
+                                                           (set! tmp.73 tmp.74)
+                                                           (set! tmp.73 (* tmp.73 8))
+                                                           (set! tmp.72 tmp.73)
+                                                           (set! tmp.72 (+ tmp.72 5))
+                                                           (mset! tmp.9 tmp.72 tmp.11)
+                                                           (set! rax 30)
+                                                           (jump tmp-ra.99 rbp rax))
+                                                         (begin (set! rax 2622) (jump tmp-ra.99 rbp rax)))
+                                                     (begin (set! rax 2622) (jump tmp-ra.99 rbp rax)))))
                                              (define L.vector-set!.9
                                                ((new-frames ()))
                                                (begin
                                                  (set! tmp-ra.100 r15)
-                                                 (begin
-                                                   (set! tmp.33 rdi)
-                                                   (set! tmp.34 rsi)
-                                                   (set! tmp.35 rdx)
-                                                   (if (begin
-                                                         (if (begin (set! tmp.76 (bitwise-and tmp.34 7)) (= tmp.76 0))
-                                                             (set! tmp.75 14)
-                                                             (set! tmp.75 6))
-                                                         (!= tmp.75 6))
+                                                 (set! tmp.33 rdi)
+                                                 (set! tmp.34 rsi)
+                                                 (set! tmp.35 rdx)
+                                                 (if (begin
                                                        (if (begin
-                                                             (if (begin (set! tmp.78 (bitwise-and tmp.33 7)) (= tmp.78 3))
-                                                                 (set! tmp.77 14)
-                                                                 (set! tmp.77 6))
-                                                             (!= tmp.77 6))
-                                                           (begin
-                                                             (set! rdx tmp.35)
-                                                             (set! rsi tmp.34)
-                                                             (set! rdi tmp.33)
-                                                             (set! r15 tmp-ra.100)
-                                                             (jump L.unsafe-vector-set!.2 rbp r15 rdi rsi rdx))
-                                                           (begin (set! rax 2622) (jump tmp-ra.100 rbp rax)))
-                                                       (begin (set! rax 2622) (jump tmp-ra.100 rbp rax))))))
+                                                             (begin
+                                                               (set! tmp.76 tmp.34)
+                                                               (set! tmp.76 (bitwise-and tmp.76 7)))
+                                                             (= tmp.76 0))
+                                                           (set! tmp.75 14)
+                                                           (set! tmp.75 6))
+                                                       (!= tmp.75 6))
+                                                     (if (begin
+                                                           (if (begin
+                                                                 (begin
+                                                                   (set! tmp.78 tmp.33)
+                                                                   (set! tmp.78 (bitwise-and tmp.78 7)))
+                                                                 (= tmp.78 3))
+                                                               (set! tmp.77 14)
+                                                               (set! tmp.77 6))
+                                                           (!= tmp.77 6))
+                                                         (begin
+                                                           (set! rdx tmp.35)
+                                                           (set! rsi tmp.34)
+                                                           (set! rdi tmp.33)
+                                                           (set! r15 tmp-ra.100)
+                                                           (jump L.unsafe-vector-set!.2 rbp r15 rdi rsi rdx))
+                                                         (begin (set! rax 2622) (jump tmp-ra.100 rbp rax)))
+                                                     (begin (set! rax 2622) (jump tmp-ra.100 rbp rax)))))
                                              (define L.vector-init-loop.7
                                                ((new-frames ()))
                                                (begin
                                                  (set! tmp-ra.101 r15)
-                                                 (begin
-                                                   (set! len.6 rdi)
-                                                   (set! i.8 rsi)
-                                                   (set! vec.7 rdx)
-                                                   (if (begin
-                                                         (if (= len.6 i.8) (set! tmp.79 14) (set! tmp.79 6))
-                                                         (!= tmp.79 6))
-                                                       (begin (set! rax vec.7) (jump tmp-ra.101 rbp rax))
-                                                       (begin
-                                                         (begin
-                                                           (begin
-                                                             (begin
-                                                               (set! tmp.82 (arithmetic-shift-right i.8 3))
-                                                               (set! tmp.81 (* tmp.82 8)))
-                                                             (set! tmp.80 (+ tmp.81 5)))
-                                                           (mset! vec.7 tmp.80 0))
-                                                         (begin
-                                                           (set! tmp.83 (+ i.8 8))
-                                                           (begin
-                                                             (set! rdx vec.7)
-                                                             (set! rsi tmp.83)
-                                                             (set! rdi len.6)
-                                                             (set! r15 tmp-ra.101)
-                                                             (jump L.vector-init-loop.7 rbp r15 rdi rsi rdx))))))))
+                                                 (set! len.6 rdi)
+                                                 (set! i.8 rsi)
+                                                 (set! vec.7 rdx)
+                                                 (if (begin
+                                                       (if (= len.6 i.8) (set! tmp.79 14) (set! tmp.79 6))
+                                                       (!= tmp.79 6))
+                                                     (begin (set! rax vec.7) (jump tmp-ra.101 rbp rax))
+                                                     (begin
+                                                       (set! tmp.82 i.8)
+                                                       (set! tmp.82 (arithmetic-shift-right tmp.82 3))
+                                                       (set! tmp.81 tmp.82)
+                                                       (set! tmp.81 (* tmp.81 8))
+                                                       (set! tmp.80 tmp.81)
+                                                       (set! tmp.80 (+ tmp.80 5))
+                                                       (mset! vec.7 tmp.80 0)
+                                                       (set! tmp.83 i.8)
+                                                       (set! tmp.83 (+ tmp.83 8))
+                                                       (set! rdx vec.7)
+                                                       (set! rsi tmp.83)
+                                                       (set! rdi len.6)
+                                                       (set! r15 tmp-ra.101)
+                                                       (jump L.vector-init-loop.7 rbp r15 rdi rsi rdx)))))
                                              (define L.make-init-vector.1
                                                ((new-frames ()))
                                                (begin
                                                  (set! tmp-ra.102 r15)
-                                                 (begin
-                                                   (set! tmp.4 rdi)
-                                                   (if (begin
-                                                         (if (>= tmp.4 0) (set! tmp.84 14) (set! tmp.84 6))
-                                                         (!= tmp.84 6))
-                                                       (begin
-                                                         (begin
-                                                           (begin
-                                                             (begin
-                                                               (begin
-                                                                 (begin
-                                                                   (set! tmp.88 (arithmetic-shift-right tmp.4 3))
-                                                                   (set! tmp.87 (+ 1 tmp.88)))
-                                                                 (set! tmp.86 (* tmp.87 8)))
-                                                               (set! tmp.85 (alloc tmp.86)))
-                                                             (set! tmp.53 (+ tmp.85 3)))
-                                                           (begin (mset! tmp.53 -3 tmp.4) (set! tmp.5 tmp.53)))
-                                                         (begin
-                                                           (set! rdx tmp.5)
-                                                           (set! rsi 0)
-                                                           (set! rdi tmp.4)
-                                                           (set! r15 tmp-ra.102)
-                                                           (jump L.vector-init-loop.7 rbp r15 rdi rsi rdx)))
-                                                       (begin (set! rax 3134) (jump tmp-ra.102 rbp rax))))))
+                                                 (set! tmp.4 rdi)
+                                                 (if (begin
+                                                       (if (>= tmp.4 0) (set! tmp.84 14) (set! tmp.84 6))
+                                                       (!= tmp.84 6))
+                                                     (begin
+                                                       (set! tmp.88 tmp.4)
+                                                       (set! tmp.88 (arithmetic-shift-right tmp.88 3))
+                                                       (set! tmp.87 1)
+                                                       (set! tmp.87 (+ tmp.87 tmp.88))
+                                                       (set! tmp.86 tmp.87)
+                                                       (set! tmp.86 (* tmp.86 8))
+                                                       (set! tmp.85 (alloc tmp.86))
+                                                       (set! tmp.53 tmp.85)
+                                                       (set! tmp.53 (+ tmp.53 3))
+                                                       (mset! tmp.53 -3 tmp.4)
+                                                       (set! tmp.5 tmp.53)
+                                                       (set! rdx tmp.5)
+                                                       (set! rsi 0)
+                                                       (set! rdi tmp.4)
+                                                       (set! r15 tmp-ra.102)
+                                                       (jump L.vector-init-loop.7 rbp r15 rdi rsi rdx))
+                                                     (begin (set! rax 3134) (jump tmp-ra.102 rbp rax)))))
                                              (define L.make-vector.8
                                                ((new-frames ()))
                                                (begin
                                                  (set! tmp-ra.103 r15)
-                                                 (begin
-                                                   (set! tmp.31 rdi)
-                                                   (if (begin
-                                                         (if (begin (set! tmp.90 (bitwise-and tmp.31 7)) (= tmp.90 0))
-                                                             (set! tmp.89 14)
-                                                             (set! tmp.89 6))
-                                                         (!= tmp.89 6))
-                                                       (begin
-                                                         (set! rdi tmp.31)
-                                                         (set! r15 tmp-ra.103)
-                                                         (jump L.make-init-vector.1 rbp r15 rdi))
-                                                       (begin (set! rax 2110) (jump tmp-ra.103 rbp rax))))))
+                                                 (set! tmp.31 rdi)
+                                                 (if (begin
+                                                       (if (begin
+                                                             (begin
+                                                               (set! tmp.90 tmp.31)
+                                                               (set! tmp.90 (bitwise-and tmp.90 7)))
+                                                             (= tmp.90 0))
+                                                           (set! tmp.89 14)
+                                                           (set! tmp.89 6))
+                                                       (!= tmp.89 6))
+                                                     (begin
+                                                       (set! rdi tmp.31)
+                                                       (set! r15 tmp-ra.103)
+                                                       (jump L.make-init-vector.1 rbp r15 rdi))
+                                                     (begin (set! rax 2110) (jump tmp-ra.103 rbp rax)))))
                                              (define L.v.4
                                                ((new-frames ()))
                                                (begin
                                                  (set! tmp-ra.104 r15)
-                                                 (begin
-                                                   (begin
-                                                     (set! rdi 24)
-                                                     (set! r15 tmp-ra.104)
-                                                     (jump L.make-vector.8 rbp r15 rdi)))))
+                                                 (set! rdi 24)
+                                                 (set! r15 tmp-ra.104)
+                                                 (jump L.make-vector.8 rbp r15 rdi)))
                                              (define L.set-first.5
                                                ((new-frames ()))
                                                (begin
                                                  (set! tmp-ra.105 r15)
-                                                 (begin
-                                                   (set! vec.1 rdi)
-                                                   (begin
-                                                     (set! rdx 336)
-                                                     (set! rsi 0)
-                                                     (set! rdi vec.1)
-                                                     (set! r15 tmp-ra.105)
-                                                     (jump L.vector-set!.9 rbp r15 rdi rsi rdx)))))
+                                                 (set! vec.1 rdi)
+                                                 (set! rdx 336)
+                                                 (set! rsi 0)
+                                                 (set! rdi vec.1)
+                                                 (set! r15 tmp-ra.105)
+                                                 (jump L.vector-set!.9 rbp r15 rdi rsi rdx)))
                                              (define L.get-first.6
                                                ((new-frames ()))
                                                (begin
                                                  (set! tmp-ra.106 r15)
-                                                 (begin
-                                                   (set! vec.2 rdi)
-                                                   (begin
-                                                     (set! rsi 0)
-                                                     (set! rdi vec.2)
-                                                     (set! r15 tmp-ra.106)
-                                                     (jump L.vector-ref.10 rbp r15 rdi rsi)))))
+                                                 (set! vec.2 rdi)
+                                                 (set! rsi 0)
+                                                 (set! rdi vec.2)
+                                                 (set! r15 tmp-ra.106)
+                                                 (jump L.vector-ref.10 rbp r15 rdi rsi)))
                                              (begin
                                                (set! tmp-ra.107 r15)
-                                               (begin
-                                                 (begin
-                                                   (return-point L.rp.13 (begin (set! r15 L.rp.13) (jump L.v.4 rbp r15)))
-                                                   (set! vec.3 rax))
-                                                 (begin
-                                                   (if (begin
-                                                         (begin
-                                                           (begin
-                                                             (return-point L.rp.14
-                                                                           (begin
-                                                                             (set! rdi vec.3)
-                                                                             (set! r15 L.rp.14)
-                                                                             (jump L.set-first.5 rbp r15 rdi)))
-                                                             (set! tmp.93 rax))
-                                                           (begin
-                                                             (return-point L.rp.15
-                                                                           (begin
-                                                                             (set! rdi tmp.93)
-                                                                             (set! r15 L.rp.15)
-                                                                             (jump L.void?.11 rbp r15 rdi)))
-                                                             (set! tmp.92 rax)))
-                                                         (!= tmp.92 6))
-                                                       (set! tmp.91 0)
-                                                       (set! tmp.91 318))
-                                                   (begin
+                                               (return-point L.rp.13 (begin (set! r15 L.rp.13) (jump L.v.4 rbp r15)))
+                                               (set! vec.3 rax)
+                                               (if (begin
                                                      (begin
-                                                       (return-point L.rp.16
+                                                       (return-point L.rp.14
                                                                      (begin
                                                                        (set! rdi vec.3)
-                                                                       (set! r15 L.rp.16)
-                                                                       (jump L.get-first.6 rbp r15 rdi)))
-                                                       (set! tmp.94 rax))
-                                                     (begin
-                                                       (set! rsi tmp.94)
-                                                       (set! rdi tmp.91)
-                                                       (set! r15 tmp-ra.107)
-                                                       (jump L.+.12 rbp r15 rdi rsi)))))))))
-                (interp-asm-pred-lang-v8 '(module
-                                              ((new-frames (() () () ())))
-                                            (define L.+.12
-                                              ((new-frames ()))
-                                              (begin
-                                                (set! tmp-ra.95 r15)
-                                                (set! tmp.19 rdi)
-                                                (set! tmp.20 rsi)
-                                                (if (begin
-                                                      (if (begin
-                                                            (begin
-                                                              (set! tmp.55 tmp.20)
-                                                              (set! tmp.55 (bitwise-and tmp.55 7)))
-                                                            (= tmp.55 0))
-                                                          (set! tmp.54 14)
-                                                          (set! tmp.54 6))
-                                                      (!= tmp.54 6))
-                                                    (if (begin
-                                                          (if (begin
-                                                                (begin
-                                                                  (set! tmp.57 tmp.19)
-                                                                  (set! tmp.57 (bitwise-and tmp.57 7)))
-                                                                (= tmp.57 0))
-                                                              (set! tmp.56 14)
-                                                              (set! tmp.56 6))
-                                                          (!= tmp.56 6))
-                                                        (begin
-                                                          (set! rax tmp.19)
-                                                          (set! rax (+ rax tmp.20))
-                                                          (jump tmp-ra.95 rbp rax))
-                                                        (begin (set! rax 574) (jump tmp-ra.95 rbp rax)))
-                                                    (begin (set! rax 574) (jump tmp-ra.95 rbp rax)))))
-                                            (define L.void?.11
-                                              ((new-frames ()))
-                                              (begin
-                                                (set! tmp-ra.96 r15)
-                                                (set! tmp.43 rdi)
-                                                (if (begin
-                                                      (begin (set! tmp.58 tmp.43) (set! tmp.58 (bitwise-and tmp.58 255)))
-                                                      (= tmp.58 30))
-                                                    (begin (set! rax 14) (jump tmp-ra.96 rbp rax))
-                                                    (begin (set! rax 6) (jump tmp-ra.96 rbp rax)))))
-                                            (define L.unsafe-vector-ref.3
-                                              ((new-frames ()))
-                                              (begin
-                                                (set! tmp-ra.97 r15)
-                                                (set! tmp.14 rdi)
-                                                (set! tmp.15 rsi)
-                                                (if (begin
-                                                      (if (begin (set! tmp.60 (mref tmp.14 -3)) (< tmp.15 tmp.60))
-                                                          (set! tmp.59 14)
-                                                          (set! tmp.59 6))
-                                                      (!= tmp.59 6))
-                                                    (if (begin
-                                                          (if (>= tmp.15 0) (set! tmp.61 14) (set! tmp.61 6))
-                                                          (!= tmp.61 6))
-                                                        (begin
-                                                          (set! tmp.64 tmp.15)
-                                                          (set! tmp.64 (arithmetic-shift-right tmp.64 3))
-                                                          (set! tmp.63 tmp.64)
-                                                          (set! tmp.63 (* tmp.63 8))
-                                                          (set! tmp.62 tmp.63)
-                                                          (set! tmp.62 (+ tmp.62 5))
-                                                          (set! rax (mref tmp.14 tmp.62))
-                                                          (jump tmp-ra.97 rbp rax))
-                                                        (begin (set! rax 2878) (jump tmp-ra.97 rbp rax)))
-                                                    (begin (set! rax 2878) (jump tmp-ra.97 rbp rax)))))
-                                            (define L.vector-ref.10
-                                              ((new-frames ()))
-                                              (begin
-                                                (set! tmp-ra.98 r15)
-                                                (set! tmp.36 rdi)
-                                                (set! tmp.37 rsi)
-                                                (if (begin
-                                                      (if (begin
-                                                            (begin
-                                                              (set! tmp.66 tmp.37)
-                                                              (set! tmp.66 (bitwise-and tmp.66 7)))
-                                                            (= tmp.66 0))
-                                                          (set! tmp.65 14)
-                                                          (set! tmp.65 6))
-                                                      (!= tmp.65 6))
-                                                    (if (begin
-                                                          (if (begin
-                                                                (begin
-                                                                  (set! tmp.68 tmp.36)
-                                                                  (set! tmp.68 (bitwise-and tmp.68 7)))
-                                                                (= tmp.68 3))
-                                                              (set! tmp.67 14)
-                                                              (set! tmp.67 6))
-                                                          (!= tmp.67 6))
-                                                        (begin
-                                                          (set! rsi tmp.37)
-                                                          (set! rdi tmp.36)
-                                                          (set! r15 tmp-ra.98)
-                                                          (jump L.unsafe-vector-ref.3 rbp r15 rdi rsi))
-                                                        (begin (set! rax 2878) (jump tmp-ra.98 rbp rax)))
-                                                    (begin (set! rax 2878) (jump tmp-ra.98 rbp rax)))))
-                                            (define L.unsafe-vector-set!.2
-                                              ((new-frames ()))
-                                              (begin
-                                                (set! tmp-ra.99 r15)
-                                                (set! tmp.9 rdi)
-                                                (set! tmp.10 rsi)
-                                                (set! tmp.11 rdx)
-                                                (if (begin
-                                                      (if (begin (set! tmp.70 (mref tmp.9 -3)) (< tmp.10 tmp.70))
-                                                          (set! tmp.69 14)
-                                                          (set! tmp.69 6))
-                                                      (!= tmp.69 6))
-                                                    (if (begin
-                                                          (if (>= tmp.10 0) (set! tmp.71 14) (set! tmp.71 6))
-                                                          (!= tmp.71 6))
-                                                        (begin
-                                                          (set! tmp.74 tmp.10)
-                                                          (set! tmp.74 (arithmetic-shift-right tmp.74 3))
-                                                          (set! tmp.73 tmp.74)
-                                                          (set! tmp.73 (* tmp.73 8))
-                                                          (set! tmp.72 tmp.73)
-                                                          (set! tmp.72 (+ tmp.72 5))
-                                                          (mset! tmp.9 tmp.72 tmp.11)
-                                                          (set! rax 30)
-                                                          (jump tmp-ra.99 rbp rax))
-                                                        (begin (set! rax 2622) (jump tmp-ra.99 rbp rax)))
-                                                    (begin (set! rax 2622) (jump tmp-ra.99 rbp rax)))))
-                                            (define L.vector-set!.9
-                                              ((new-frames ()))
-                                              (begin
-                                                (set! tmp-ra.100 r15)
-                                                (set! tmp.33 rdi)
-                                                (set! tmp.34 rsi)
-                                                (set! tmp.35 rdx)
-                                                (if (begin
-                                                      (if (begin
-                                                            (begin
-                                                              (set! tmp.76 tmp.34)
-                                                              (set! tmp.76 (bitwise-and tmp.76 7)))
-                                                            (= tmp.76 0))
-                                                          (set! tmp.75 14)
-                                                          (set! tmp.75 6))
-                                                      (!= tmp.75 6))
-                                                    (if (begin
-                                                          (if (begin
-                                                                (begin
-                                                                  (set! tmp.78 tmp.33)
-                                                                  (set! tmp.78 (bitwise-and tmp.78 7)))
-                                                                (= tmp.78 3))
-                                                              (set! tmp.77 14)
-                                                              (set! tmp.77 6))
-                                                          (!= tmp.77 6))
-                                                        (begin
-                                                          (set! rdx tmp.35)
-                                                          (set! rsi tmp.34)
-                                                          (set! rdi tmp.33)
-                                                          (set! r15 tmp-ra.100)
-                                                          (jump L.unsafe-vector-set!.2 rbp r15 rdi rsi rdx))
-                                                        (begin (set! rax 2622) (jump tmp-ra.100 rbp rax)))
-                                                    (begin (set! rax 2622) (jump tmp-ra.100 rbp rax)))))
-                                            (define L.vector-init-loop.7
-                                              ((new-frames ()))
-                                              (begin
-                                                (set! tmp-ra.101 r15)
-                                                (set! len.6 rdi)
-                                                (set! i.8 rsi)
-                                                (set! vec.7 rdx)
-                                                (if (begin
-                                                      (if (= len.6 i.8) (set! tmp.79 14) (set! tmp.79 6))
-                                                      (!= tmp.79 6))
-                                                    (begin (set! rax vec.7) (jump tmp-ra.101 rbp rax))
-                                                    (begin
-                                                      (set! tmp.82 i.8)
-                                                      (set! tmp.82 (arithmetic-shift-right tmp.82 3))
-                                                      (set! tmp.81 tmp.82)
-                                                      (set! tmp.81 (* tmp.81 8))
-                                                      (set! tmp.80 tmp.81)
-                                                      (set! tmp.80 (+ tmp.80 5))
-                                                      (mset! vec.7 tmp.80 0)
-                                                      (set! tmp.83 i.8)
-                                                      (set! tmp.83 (+ tmp.83 8))
-                                                      (set! rdx vec.7)
-                                                      (set! rsi tmp.83)
-                                                      (set! rdi len.6)
-                                                      (set! r15 tmp-ra.101)
-                                                      (jump L.vector-init-loop.7 rbp r15 rdi rsi rdx)))))
-                                            (define L.make-init-vector.1
-                                              ((new-frames ()))
-                                              (begin
-                                                (set! tmp-ra.102 r15)
-                                                (set! tmp.4 rdi)
-                                                (if (begin
-                                                      (if (>= tmp.4 0) (set! tmp.84 14) (set! tmp.84 6))
-                                                      (!= tmp.84 6))
-                                                    (begin
-                                                      (set! tmp.88 tmp.4)
-                                                      (set! tmp.88 (arithmetic-shift-right tmp.88 3))
-                                                      (set! tmp.87 1)
-                                                      (set! tmp.87 (+ tmp.87 tmp.88))
-                                                      (set! tmp.86 tmp.87)
-                                                      (set! tmp.86 (* tmp.86 8))
-                                                      (set! tmp.85 (alloc tmp.86))
-                                                      (set! tmp.53 tmp.85)
-                                                      (set! tmp.53 (+ tmp.53 3))
-                                                      (mset! tmp.53 -3 tmp.4)
-                                                      (set! tmp.5 tmp.53)
-                                                      (set! rdx tmp.5)
-                                                      (set! rsi 0)
-                                                      (set! rdi tmp.4)
-                                                      (set! r15 tmp-ra.102)
-                                                      (jump L.vector-init-loop.7 rbp r15 rdi rsi rdx))
-                                                    (begin (set! rax 3134) (jump tmp-ra.102 rbp rax)))))
-                                            (define L.make-vector.8
-                                              ((new-frames ()))
-                                              (begin
-                                                (set! tmp-ra.103 r15)
-                                                (set! tmp.31 rdi)
-                                                (if (begin
-                                                      (if (begin
-                                                            (begin
-                                                              (set! tmp.90 tmp.31)
-                                                              (set! tmp.90 (bitwise-and tmp.90 7)))
-                                                            (= tmp.90 0))
-                                                          (set! tmp.89 14)
-                                                          (set! tmp.89 6))
-                                                      (!= tmp.89 6))
-                                                    (begin
-                                                      (set! rdi tmp.31)
-                                                      (set! r15 tmp-ra.103)
-                                                      (jump L.make-init-vector.1 rbp r15 rdi))
-                                                    (begin (set! rax 2110) (jump tmp-ra.103 rbp rax)))))
-                                            (define L.v.4
-                                              ((new-frames ()))
-                                              (begin
-                                                (set! tmp-ra.104 r15)
-                                                (set! rdi 24)
-                                                (set! r15 tmp-ra.104)
-                                                (jump L.make-vector.8 rbp r15 rdi)))
-                                            (define L.set-first.5
-                                              ((new-frames ()))
-                                              (begin
-                                                (set! tmp-ra.105 r15)
-                                                (set! vec.1 rdi)
-                                                (set! rdx 336)
-                                                (set! rsi 0)
-                                                (set! rdi vec.1)
-                                                (set! r15 tmp-ra.105)
-                                                (jump L.vector-set!.9 rbp r15 rdi rsi rdx)))
-                                            (define L.get-first.6
-                                              ((new-frames ()))
-                                              (begin
-                                                (set! tmp-ra.106 r15)
-                                                (set! vec.2 rdi)
-                                                (set! rsi 0)
-                                                (set! rdi vec.2)
-                                                (set! r15 tmp-ra.106)
-                                                (jump L.vector-ref.10 rbp r15 rdi rsi)))
-                                            (begin
-                                              (set! tmp-ra.107 r15)
-                                              (return-point L.rp.13 (begin (set! r15 L.rp.13) (jump L.v.4 rbp r15)))
-                                              (set! vec.3 rax)
-                                              (if (begin
-                                                    (begin
-                                                      (return-point L.rp.14
-                                                                    (begin
-                                                                      (set! rdi vec.3)
-                                                                      (set! r15 L.rp.14)
-                                                                      (jump L.set-first.5 rbp r15 rdi)))
-                                                      (set! tmp.93 rax)
-                                                      (return-point L.rp.15
-                                                                    (begin
-                                                                      (set! rdi tmp.93)
-                                                                      (set! r15 L.rp.15)
-                                                                      (jump L.void?.11 rbp r15 rdi)))
-                                                      (set! tmp.92 rax))
-                                                    (!= tmp.92 6))
-                                                  (set! tmp.91 0)
-                                                  (set! tmp.91 318))
-                                              (return-point L.rp.16
-                                                            (begin
-                                                              (set! rdi vec.3)
-                                                              (set! r15 L.rp.16)
-                                                              (jump L.get-first.6 rbp r15 rdi)))
-                                              (set! tmp.94 rax)
-                                              (set! rsi tmp.94)
-                                              (set! rdi tmp.91)
-                                              (set! r15 tmp-ra.107)
-                                              (jump L.+.12 rbp r15 rdi rsi))))))
+                                                                       (set! r15 L.rp.14)
+                                                                       (jump L.set-first.5 rbp r15 rdi)))
+                                                       (set! tmp.93 rax)
+                                                       (return-point L.rp.15
+                                                                     (begin
+                                                                       (set! rdi tmp.93)
+                                                                       (set! r15 L.rp.15)
+                                                                       (jump L.void?.11 rbp r15 rdi)))
+                                                       (set! tmp.92 rax))
+                                                     (!= tmp.92 6))
+                                                   (set! tmp.91 0)
+                                                   (set! tmp.91 318))
+                                               (return-point L.rp.16
+                                                             (begin
+                                                               (set! rdi vec.3)
+                                                               (set! r15 L.rp.16)
+                                                               (jump L.get-first.6 rbp r15 rdi)))
+                                               (set! tmp.94 rax)
+                                               (set! rsi tmp.94)
+                                               (set! rdi tmp.91)
+                                               (set! r15 tmp-ra.107)
+                                               (jump L.+.12 rbp r15 rdi rsi))))))
