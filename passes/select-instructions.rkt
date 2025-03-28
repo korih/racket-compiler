@@ -9,11 +9,11 @@
 
 (provide select-instructions)
 
-;; imp-cmf-lang-v8 -> asm-pred-lang-v8
-;; compiles p to Asm-pred-lang v8 by selecting appropriate sequences of abstract
+;; imp-cmf-lang-v8 -> asm-alloc-lang-v8
+;; compiles p to Asm-alloc-lang v8 by selecting appropriate sequences of abstract
 ;; assembly instructions to implement the operations of the source language
 (define (select-instructions p)
-  #;(-> imp-cmf-lang-v8? asm-pred-lang-v8?)
+  (-> imp-cmf-lang-v8? asm-alloc-lang-v8?)
 
   ;; func-info is `(define ,label ,info ,tail)
   ;; interp. a function definition that has metadata
@@ -24,7 +24,7 @@
       [`(define ,label ,info ,tail)
        `(define ,label ,info ,(select-tail tail))]))
 
-  ;; imp-cmf-lang-v8.tail -> asm-pred-lang-v8.tail
+  ;; imp-cmf-lang-v8.tail -> asm-alloc-lang-v8.tail
   (define (select-tail t)
     (match t
       [`(jump ,trg ,locs ...) `(jump ,trg ,@locs)]
@@ -44,7 +44,7 @@
                   `(begin ,@compiled-fx ,@inner-effects^ ,inner-tail^)]
                  [_ `(begin ,@compiled-fx ,tail-compiled)])])]))
 
-  ;; imp-cmf-lang-v8.value loc -> (List-of asm-pred-lang-v8.effect)
+  ;; imp-cmf-lang-v8.value loc -> (List-of asm-alloc-lang-v8.effect)
   (define (select-value value loc)
     (match value
       [`(mref ,l ,op)
@@ -58,7 +58,7 @@
       [triv
        `((set! ,loc ,triv))]))
 
-  ;; imp-cmf-lang-v8.effect -> (List-of asm-pred-lang-v8.effect)
+  ;; imp-cmf-lang-v8.effect -> (List-of asm-alloc-lang-v8.effect)
   (define (select-effect e)
     (match e
       [`(set! ,loc ,value)
@@ -83,7 +83,7 @@
       [`(return-point ,label ,tail)
        (list `(return-point ,label ,(select-tail tail)))]))
 
-  ;; imp-cmf-lang-v8.pred -> asm-pred-lang-v8.pred
+  ;; imp-cmf-lang-v8.pred -> asm-alloc-lang-v8.pred
   (define (select-pred p)
     (match p
       ['(true) p]
@@ -103,7 +103,7 @@
            `(,relop ,loc ,triv2)
            `(begin ,@stmts (,relop ,loc ,triv2)))]))
 
-  ;; imp-cmf-lang-v8.triv -> (List-of asm-pred-lang-v8.effect) asm-pred-lang-v8.triv
+  ;; imp-cmf-lang-v8.triv -> (List-of asm-alloc-lang-v8.effect) asm-alloc-lang-v8.triv
   (define (select-triv t)
     (match t
       [label #:when (label? label) (values empty label)]
@@ -112,7 +112,7 @@
              (values (list `(set! ,tmp ,int64)) tmp)]
       [loc (values empty loc)]))
 
-  ;; imp-cmf-lang-v8.opand loc -> (List-of asm-pred-lang-v8.effect) asm-pred-lang-v8.opand
+  ;; imp-cmf-lang-v8.opand loc -> (List-of asm-alloc-lang-v8.effect) asm-alloc-lang-v8.opand
   (define (select-opand op loc)
     (match op
       [int64 #:when (int64? int64)
@@ -614,18 +614,16 @@
                        (set! tmp.61 rsi)
                        (if (begin
                              (if (begin
-                                   (begin
-                                     (set! tmp.92 tmp.60)
-                                     (set! tmp.92 (bitwise-and tmp.92 7)))
+                                   (set! tmp.92 tmp.60)
+                                   (set! tmp.92 (bitwise-and tmp.92 7))
                                    (= tmp.92 0))
                                  (set! tmp.91 14)
                                  (set! tmp.91 6))
                              (!= tmp.91 6))
                            (if (begin
                                  (if (begin
-                                       (begin
-                                         (set! tmp.94 tmp.61)
-                                         (set! tmp.94 (bitwise-and tmp.94 7)))
+                                       (set! tmp.94 tmp.61)
+                                       (set! tmp.94 (bitwise-and tmp.94 7))
                                        (= tmp.94 0))
                                      (set! tmp.93 14)
                                      (set! tmp.93 6))
@@ -663,14 +661,13 @@
                    (begin
                      (set! tmp-ra.233 r15)
                      (if (begin
-                           (begin
-                             (return-point L.rp.53
-                                           (begin
-                                             (set! rdi 56)
-                                             (set! rsi 64)
-                                             (set! r15 L.rp.53)
-                                             (jump L.eq?.26 rbp r15 rdi rsi)))
-                             (set! tmp.98 rax))
+                           (return-point L.rp.53
+                                         (begin
+                                           (set! rdi 56)
+                                           (set! rsi 64)
+                                           (set! r15 L.rp.53)
+                                           (jump L.eq?.26 rbp r15 rdi rsi)))
+                           (set! tmp.98 rax)
                            (!= tmp.98 6))
                          (begin
                            (return-point L.rp.54
@@ -728,9 +725,8 @@
                        (set! tmp.42 rdi)
                        (if (begin
                              (if (begin
-                                   (begin
-                                     (set! tmp.191 tmp.42)
-                                     (set! tmp.191 (bitwise-and tmp.191 7)))
+                                   (set! tmp.191 tmp.42)
+                                   (set! tmp.191 (bitwise-and tmp.191 7))
                                    (= tmp.191 0))
                                  (set! tmp.190 14)
                                  (set! tmp.190 6))
@@ -781,9 +777,8 @@
                        (set! tmp.62 rdi)
                        (if (begin
                              (if (begin
-                                   (begin
-                                     (set! tmp.135 tmp.62)
-                                     (set! tmp.135 (bitwise-and tmp.135 7)))
+                                   (set! tmp.135 tmp.62)
+                                   (set! tmp.135 (bitwise-and tmp.135 7))
                                    (= tmp.135 0))
                                  (set! tmp.134 14)
                                  (set! tmp.134 6))
@@ -860,9 +855,8 @@
                        (set! tmp.80 rdi)
                        (if (begin
                              (if (begin
-                                   (begin
-                                     (set! tmp.151 tmp.80)
-                                     (set! tmp.151 (bitwise-and tmp.151 7)))
+                                   (set! tmp.151 tmp.80)
+                                   (set! tmp.151 (bitwise-and tmp.151 7))
                                    (= tmp.151 1))
                                  (set! tmp.150 14)
                                  (set! tmp.150 6))
@@ -904,26 +898,23 @@
                            (set! y.1 (alloc 16))
                            (set! z.1 0)
                            (begin
-                             (begin
-                               (set! t.1 32)
-                               (set! tmp.165 t.1)
-                               (set! tmp.165 (+ tmp.165 8))
-                               (set! tmp.164 t.1)
-                               (set! tmp.164 (+ tmp.164 tmp.165))
-                               (set! tmp.215 (alloc tmp.164))
-                               (mset! x.1 0 tmp.215))
+                             (set! t.1 32)
+                             (set! tmp.165 t.1)
+                             (set! tmp.165 (+ tmp.165 8))
+                             (set! tmp.164 t.1)
+                             (set! tmp.164 (+ tmp.164 tmp.165))
+                             (set! tmp.215 (alloc tmp.164))
+                             (mset! x.1 0 tmp.215)
                              (mset! y.1 z.1 18)
-                             (begin
-                               (set! tmp.166 z.1)
-                               (set! tmp.166 (+ tmp.166 8))
-                               (mset! y.1 tmp.166 40))
+                             (set! tmp.166 z.1)
+                             (set! tmp.166 (+ tmp.166 8))
+                             (mset! y.1 tmp.166 40)
                              (begin
                                (set! tmp.167 (mref y.1 z.1))
                                (begin
-                                 (begin
-                                   (set! tmp.169 z.1)
-                                   (set! tmp.169 (+ tmp.169 8))
-                                   (set! tmp.168 (mref y.1 tmp.169)))
+                                 (set! tmp.169 z.1)
+                                 (set! tmp.169 (+ tmp.169 8))
+                                 (set! tmp.168 (mref y.1 tmp.169))
                                  (= tmp.167 tmp.168)))))
                          (begin (set! rax 8) (jump tmp-ra.277 rbp rax))
                          (begin (set! rax 16) (jump tmp-ra.277 rbp rax))))))
@@ -938,18 +929,16 @@
                        (set! tmp.71 rsi)
                        (if (begin
                              (if (begin
-                                   (begin
-                                     (set! tmp.100 tmp.71)
-                                     (set! tmp.100 (bitwise-and tmp.100 7)))
+                                   (set! tmp.100 tmp.71)
+                                   (set! tmp.100 (bitwise-and tmp.100 7))
                                    (= tmp.100 0))
                                  (set! tmp.99 14)
                                  (set! tmp.99 6))
                              (!= tmp.99 6))
                            (if (begin
                                  (if (begin
-                                       (begin
-                                         (set! tmp.102 tmp.70)
-                                         (set! tmp.102 (bitwise-and tmp.102 7)))
+                                       (set! tmp.102 tmp.70)
+                                       (set! tmp.102 (bitwise-and tmp.102 7))
                                        (= tmp.102 3))
                                      (set! tmp.101 14)
                                      (set! tmp.101 6))
@@ -968,9 +957,8 @@
                        (set! tmp.74 rdi)
                        (if (begin
                              (if (begin
-                                   (begin
-                                     (set! tmp.104 tmp.74)
-                                     (set! tmp.104 (bitwise-and tmp.104 7)))
+                                   (set! tmp.104 tmp.74)
+                                   (set! tmp.104 (bitwise-and tmp.104 7))
                                    (= tmp.104 0))
                                  (set! tmp.103 14)
                                  (set! tmp.103 6))
@@ -1095,9 +1083,8 @@
                        (set! tmp.25 rdi)
                        (if (begin
                              (if (begin
-                                   (begin
-                                     (set! tmp.147 tmp.25)
-                                     (set! tmp.147 (bitwise-and tmp.147 7)))
+                                   (set! tmp.147 tmp.25)
+                                   (set! tmp.147 (bitwise-and tmp.147 7))
                                    (= tmp.147 1))
                                  (set! tmp.146 14)
                                  (set! tmp.146 6))
@@ -1154,18 +1141,16 @@
                        (set! tmp.55 rsi)
                        (if (begin
                              (if (begin
-                                   (begin
-                                     (set! tmp.198 tmp.54)
-                                     (set! tmp.198 (bitwise-and tmp.198 7)))
+                                   (set! tmp.198 tmp.54)
+                                   (set! tmp.198 (bitwise-and tmp.198 7))
                                    (= tmp.198 0))
                                  (set! tmp.197 14)
                                  (set! tmp.197 6))
                              (!= tmp.197 6))
                            (if (begin
                                  (if (begin
-                                       (begin
-                                         (set! tmp.200 tmp.55)
-                                         (set! tmp.200 (bitwise-and tmp.200 7)))
+                                       (set! tmp.200 tmp.55)
+                                       (set! tmp.200 (bitwise-and tmp.200 7))
                                        (= tmp.200 0))
                                      (set! tmp.199 14)
                                      (set! tmp.199 6))
