@@ -154,6 +154,15 @@
       [(interp-relop-optimize-false? relop op1 op2) k-f]
       [else `(if (,relop ,loc ,triv) ,k-t ,k-f)]))
 
+  (define (match-relop-to-racket relop)
+    (match relop
+      ['< '<]
+      ['<= '<=]
+      ['> '>]
+      ['>= '>=]
+      ['= '=]
+      ['!= 'not-equal]))
+
   ;; nested-asm-lang-v8.relop RangeValue RangeValue -> boolean
   ;; interp. true if the relop can be optimized to true
   (define (interp-relop-optimize-true? relop op1 op2)
@@ -176,6 +185,28 @@
       ; In all other cases, we don't know the range of the result
       [_ #f]))
 
+  ;; nested-asm-lang-v8.triv -> nested-asm-lang-v8.triv
+  ;; interp. optimize the triv if possible
+  (define (try-optimize-triv/triv triv env)
+    (match triv
+      [label #:when (label? label) label]
+      [opand (try-optimize-triv/opand opand env)]))
+
+  ;; nested-asm-lang-v8.opand -> nested-asm-lang-v8.triv
+  ;; interp. optimize the opand if possible
+  (define (try-optimize-triv/opand opand env)
+    (match opand
+      [x #:when (int64? x) x]
+      [loc (try-optimize-triv/loc loc env)]))
+
+  ;; nested-asm-lang-v8.loc -> nested-asm-lang-v8.triv
+  ;; interp. optimize the loc if possible
+  (define (try-optimize-triv/loc loc env)
+    (with-handlers ([exn:fail? (lambda (_) loc)])
+      (match (lookup-env env loc)
+        ['unknown loc]
+        [x #:when (int64? x) x])))
+
   (match p
     [`(module ,funcs ... ,tail)
      (define optimized-funcs (for/list ([f funcs])
@@ -184,54 +215,54 @@
      `(module ,@optimized-funcs ,(optimize-predicates/tail tail empty-env))]))
 
 (module+ test
-  (check-equal? (interp-nested-asm-lang-fvars-v8 (optimize-predicates '(module
-                                                                           (begin
-                                                                             (set! r15 r15)
-                                                                             (set! r13 rdi)
-                                                                             (set! r14 10)
-                                                                             (if (begin
-                                                                                   (if (begin (set! r9 r14) (set! r9 (bitwise-and r9 7)) (= r9 0))
-                                                                                       (set! r9 14)
-                                                                                       (set! r9 6))
-                                                                                   (!= r9 6))
-                                                                                 (if (begin
-                                                                                       (if (begin (set! r9 r13) (set! r9 (bitwise-and r9 7)) (= r9 0))
-                                                                                           (set! r9 14)
-                                                                                           (set! r9 6))
-                                                                                       (!= r9 6))
-                                                                                     (begin (set! rax r13) (set! rax (+ rax r14)) (jump r15))
-                                                                                     (begin (set! rax 574) (jump r15)))
-                                                                                 (begin (set! rax 574) (jump r15)))))))
-                (interp-nested-asm-lang-fvars-v8 '(module
-                                                      (begin
-                                                        (set! r15 r15)
-                                                        (set! r13 rdi)
-                                                        (set! r14 10)
-                                                        (begin
-                                                          (begin
-                                                            (set! r9 r14)
-                                                            (set! r9 (bitwise-and r9 7))
-                                                            (if (= r9 0)
-                                                                (set! r9 14)
-                                                                (set! r9 6)))
-                                                          (if (!= r9 6)
-                                                              (begin
-                                                                (begin
-                                                                  (set! r9 r13)
-                                                                  (set! r9 (bitwise-and r9 7))
-                                                                  (if (= r9 0)
-                                                                      (set! r9 14)
-                                                                      (set! r9 6)))
-                                                                (if (!= r9 6)
-                                                                    (begin
-                                                                      (set! rax r13)
-                                                                      (set! rax (+ rax r14))
-                                                                      (jump r15))
-                                                                    (begin
-                                                                      (set! rax 574)
-                                                                      (jump r15))))
-                                                              (begin (set! rax 574)
-                                                                     (jump r15))))))))
+  (check-equal? (optimize-predicates '(module
+                                          (begin
+                                            (set! r15 r15)
+                                            (set! r13 rdi)
+                                            (set! r14 rsi)
+                                            (if (begin
+                                                  (if (begin (set! r9 r14) (set! r9 (bitwise-and r9 7)) (= r9 0))
+                                                      (set! r9 14)
+                                                      (set! r9 6))
+                                                  (!= r9 6))
+                                                (if (begin
+                                                      (if (begin (set! r9 r13) (set! r9 (bitwise-and r9 7)) (= r9 0))
+                                                          (set! r9 14)
+                                                          (set! r9 6))
+                                                      (!= r9 6))
+                                                    (begin (set! rax r13) (set! rax (+ rax r14)) (jump r15))
+                                                    (begin (set! rax 574) (jump r15)))
+                                                (begin (set! rax 574) (jump r15))))))
+                '(module
+                     (begin
+                       (set! r15 r15)
+                       (set! r13 rdi)
+                       (set! r14 rsi)
+                       (begin
+                         (begin
+                           (set! r9 r14)
+                           (set! r9 (bitwise-and r9 7))
+                           (if (= r9 0)
+                               (set! r9 14)
+                               (set! r9 6)))
+                         (if (!= r9 6)
+                             (begin
+                               (begin
+                                 (set! r9 r13)
+                                 (set! r9 (bitwise-and r9 7))
+                                 (if (= r9 0)
+                                     (set! r9 14)
+                                     (set! r9 6)))
+                               (if (!= r9 6)
+                                   (begin
+                                     (set! rax r13)
+                                     (set! rax (+ rax r14))
+                                     (jump r15))
+                                   (begin
+                                     (set! rax 574)
+                                     (jump r15))))
+                             (begin (set! rax 574)
+                                    (jump r15)))))))
   (check-equal? (interp-nested-asm-lang-fvars-v8 (optimize-predicates '(module
                                                                            (begin
                                                                              (set! fv2 0)
@@ -336,42 +367,37 @@
                 '(module (begin (set! rax 1) (jump done))))
   (check-equal? (optimize-predicates '(module (begin (set! rbx 1) (if (< rbx 1) (jump done) (jump done)))))
                 '(module (begin (set! rbx 1) (jump done))))
-  (check-equal? (interp-nested-asm-lang-fvars-v8 (optimize-predicates
-                                                  `(module (begin (set! rbx 10) (if (<= rbx ,(max-int 64)) (jump done) (jump done))))))
-                (interp-nested-asm-lang-fvars-v8 '(module
-                                                      (begin
-                                                        (set! rbx 10)
-                                                        (if (<= rbx 9223372036854775807) (jump done) (jump done))))))
-  (check-equal? (interp-nested-asm-lang-fvars-v8 (optimize-predicates '(module (begin (set! rbx 90)
-                                                                                      (set! rax 80)
-                                                                                      (if (= rbx rax)
-                                                                                          (begin (set! rax rcx) (jump done))
-                                                                                          (jump done))))))
-                (interp-nested-asm-lang-fvars-v8 '(module
-                                                      (begin
-                                                        (set! rbx 90)
-                                                        (set! rax 80)
-                                                        (if (= rbx rax) (begin (set! rax rcx) (jump done)) (jump done))))))
+  (check-equal? (optimize-predicates `(module (begin (set! rbx rax) (if (<= rbx ,(max-int 64)) (jump done) (jump done)))))
+                '(module
+                     (begin
+                       (set! rbx rax)
+                       (if (<= rbx 9223372036854775807) (jump done) (jump done)))))
+  (check-equal? (optimize-predicates '(module (begin (set! rbx rax)
+                                                     (if (= rbx rax)
+                                                         (begin (set! rax rcx) (jump done))
+                                                         (jump done)))))
+                '(module
+                     (begin
+                       (set! rbx rax)
+                       (if (= rbx rax) (begin (set! rax rcx) (jump done)) (jump done)))))
   (check-equal? (optimize-predicates '(module (begin (set! rbx 33) (if (= rbx 44) (jump done) (jump done)))))
                 '(module (begin (set! rbx 33) (jump done))))
-  (check-equal? (interp-nested-asm-lang-fvars-v8 (optimize-predicates '(module (begin (set! rbx 1) (if (= rbx 5) (jump done) (jump done))))))
-                (interp-nested-asm-lang-fvars-v8 '(module (begin (set! rbx 1) (if (= rbx 5) (jump done) (jump done))))))
+  (check-equal? (optimize-predicates '(module (begin (set! rbx rcx) (if (= rbx 5) (jump done) (jump done)))))
+                '(module (begin (set! rbx rcx) (if (= rbx 5) (jump done) (jump done)))))
   (check-equal? (optimize-predicates '(module (begin (set! rbx 33) (if (= rbx 44) (jump done) (jump done)))))
                 '(module (begin (set! rbx 33) (jump done))))
-  (check-equal? (interp-nested-asm-lang-fvars-v8 (optimize-predicates `(module (begin (set! rbx 10)
-                                                                                      (set! rcx rbx)
-                                                                                      (if (begin (set! rcx (+ rcx 10))
-                                                                                                 (< rcx ,(+ (min-int 64) 10)))
-                                                                                          (jump done)
-                                                                                          (jump done))))))
-                (interp-nested-asm-lang-fvars-v8 '(module
-                                                      (begin
-                                                        (set! rbx 10)
-                                                        (set! rcx rbx)
-                                                        (begin (set! rcx (+ rcx 10))
-                                                               (if (< rcx -9223372036854775798)
-                                                                   (jump done)
-                                                                   (jump done)))))))
+  (check-equal? (optimize-predicates `(module (begin (set! rcx rbx)
+                                                     (if (begin (set! rcx (+ rcx 10))
+                                                                (< rcx ,(+ (min-int 64) 10)))
+                                                         (jump done)
+                                                         (jump done)))))
+                '(module
+                     (begin
+                       (set! rcx rbx)
+                       (begin (set! rcx (+ rcx 10))
+                              (if (< rcx -9223372036854775798)
+                                  (jump done)
+                                  (jump done))))))
   (check-equal? (interp-nested-asm-lang-fvars-v8 (optimize-predicates '(module
                                                                            (define L.f.1 (begin (set! rbx 3) (set! rax rbx) (jump L.f.2)))
                                                                          (define L.f.2 (jump done))
@@ -384,26 +410,26 @@
                                                       (define L.f.1 (begin (set! rbx 3) (set! rax rbx) (jump L.f.2)))
                                                     (define L.f.2 (jump done))
                                                     (begin (set! rbx 5) (set! rcx 4) (set! rax rcx) (jump L.f.2)))))
-  (check-equal? (interp-nested-asm-lang-fvars-v8 (optimize-predicates '(module (define L.func.1 (begin (set! rax 1) (jump L.func.2)))
-                                                                         (define L.func.2 (begin (if (> rax 0) (jump done) (jump done))))
-                                                                         (begin
-                                                                           (set! rax -1)
-                                                                           (jump L.func.2)))))
-                (interp-nested-asm-lang-fvars-v8 '(module
-                                                      (define L.func.1 (begin (set! rax 1) (jump L.func.2)))
-                                                    (define L.func.2 (begin (if (> rax 0) (jump done) (jump done))))
-                                                    (begin (set! rax -1) (jump L.func.2)))))
-  (check-equal? (interp-nested-asm-lang-fvars-v8 (optimize-predicates
-                                                  '(module (begin (set! rbx 10)
-                                                                  (set! rbx (+ rbx 10))
-                                                                  (if (> rbx 0)
-                                                                      (jump done)
-                                                                      (jump done))))))
-                (interp-nested-asm-lang-fvars-v8 '(module
-                                                      (begin
-                                                        (set! rbx 10)
-                                                        (set! rbx (+ rbx 10))
-                                                        (if (> rbx 0) (jump done) (jump done))))))
+  (check-equal? (optimize-predicates '(module (define L.func.1 (begin (set! rax 1) (jump L.func.2)))
+                                        (define L.func.2 (begin (if (> rax 0) (jump done) (jump done))))
+                                        (begin
+                                          (set! rax -1)
+                                          (jump L.func.2))))
+                '(module
+                     (define L.func.1 (begin (set! rax 1) (jump L.func.2)))
+                   (define L.func.2 (begin (if (> rax 0) (jump done) (jump done))))
+                   (begin (set! rax -1) (jump L.func.2))))
+  (check-equal? (optimize-predicates
+                 '(module (begin (set! rbx rax)
+                                 (set! rbx (+ rbx 10))
+                                 (if (> rbx 0)
+                                     (jump done)
+                                     (jump done)))))
+                '(module
+                     (begin
+                       (set! rbx rax)
+                       (set! rbx (+ rbx 10))
+                       (if (> rbx 0) (jump done) (jump done)))))
   (check-equal? (optimize-predicates
                  '(module (begin (set! rax 1)
                                  (if (> rax 0)
@@ -438,52 +464,52 @@
                                                             (begin (set! rbx 15)))
                                                         (set! rax rbx)
                                                         (jump rsp)))))
-  (check-equal? (interp-nested-asm-lang-fvars-v8 (optimize-predicates '(module
-                                                                           (begin
-                                                                             (set! r15 r15)
-                                                                             (set! r13 rdi)
-                                                                             (set! r14 10)
-                                                                             (if (begin
-                                                                                   (if (begin (set! r9 r14) (set! r9 (bitwise-and r9 7)) (= r9 0))
-                                                                                       (set! r9 14)
-                                                                                       (set! r9 6))
-                                                                                   (!= r9 6))
-                                                                                 (if (begin
-                                                                                       (if (begin (set! r9 r13) (set! r9 (bitwise-and r9 7)) (= r9 0))
-                                                                                           (set! r9 14)
-                                                                                           (set! r9 6))
-                                                                                       (!= r9 6))
-                                                                                     (begin (set! rax r13) (set! rax (+ rax r14)) (jump r15))
-                                                                                     (begin (set! rax 574) (jump r15)))
-                                                                                 (begin (set! rax 574) (jump r15)))))))
-                (interp-nested-asm-lang-fvars-v8 '(module
-                                                      (begin
-                                                        (set! r15 r15)
-                                                        (set! r13 rdi)
-                                                        (set! r14 10)
-                                                        (begin
-                                                          (begin
-                                                            (set! r9 r14)
-                                                            (set! r9 (bitwise-and r9 7))
-                                                            (if (= r9 0)
-                                                                (set! r9 14)
-                                                                (set! r9 6)))
-                                                          (if (!= r9 6)
-                                                              (begin
-                                                                (begin
-                                                                  (set! r9 r13)
-                                                                  (set! r9 (bitwise-and r9 7))
-                                                                  (if (= r9 0)
-                                                                      (set! r9 14)
-                                                                      (set! r9 6)))
-                                                                (if (!= r9 6)
-                                                                    (begin (set! rax r13)
-                                                                           (set! rax (+ rax r14))
-                                                                           (jump r15))
-                                                                    (begin (set! rax 574)
-                                                                           (jump r15))))
-                                                              (begin (set! rax 574)
-                                                                     (jump r15))))))))
+  (check-equal? (optimize-predicates '(module
+                                          (begin
+                                            (set! r15 r15)
+                                            (set! r13 rdi)
+                                            (set! r14 rsi)
+                                            (if (begin
+                                                  (if (begin (set! r9 r14) (set! r9 (bitwise-and r9 7)) (= r9 0))
+                                                      (set! r9 14)
+                                                      (set! r9 6))
+                                                  (!= r9 6))
+                                                (if (begin
+                                                      (if (begin (set! r9 r13) (set! r9 (bitwise-and r9 7)) (= r9 0))
+                                                          (set! r9 14)
+                                                          (set! r9 6))
+                                                      (!= r9 6))
+                                                    (begin (set! rax r13) (set! rax (+ rax r14)) (jump r15))
+                                                    (begin (set! rax 574) (jump r15)))
+                                                (begin (set! rax 574) (jump r15))))))
+                '(module
+                     (begin
+                       (set! r15 r15)
+                       (set! r13 rdi)
+                       (set! r14 rsi)
+                       (begin
+                         (begin
+                           (set! r9 r14)
+                           (set! r9 (bitwise-and r9 7))
+                           (if (= r9 0)
+                               (set! r9 14)
+                               (set! r9 6)))
+                         (if (!= r9 6)
+                             (begin
+                               (begin
+                                 (set! r9 r13)
+                                 (set! r9 (bitwise-and r9 7))
+                                 (if (= r9 0)
+                                     (set! r9 14)
+                                     (set! r9 6)))
+                               (if (!= r9 6)
+                                   (begin (set! rax r13)
+                                          (set! rax (+ rax r14))
+                                          (jump r15))
+                                   (begin (set! rax 574)
+                                          (jump r15))))
+                             (begin (set! rax 574)
+                                    (jump r15)))))))
   (check-equal? (optimize-predicates '(module
                                           (define L.f.1
                                             (begin
