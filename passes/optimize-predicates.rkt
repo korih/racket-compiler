@@ -151,12 +151,23 @@
     (define op2 (interp-triv triv env))
     (cond
       [(interp-relop-optimize-true? relop op1 op2) k-t]
-      [(not (interp-relop-optimize-true? relop op1 op2)) k-f]
+      [(interp-relop-optimize-false? relop op1 op2) k-f]
       [else `(if (,relop ,loc ,triv) ,k-t ,k-f)]))
 
   ;; nested-asm-lang-v8.relop RangeValue RangeValue -> boolean
   ;; interp. true if the relop can be optimized to true
   (define (interp-relop-optimize-true? relop op1 op2)
+    (match (cons op1 op2)
+      [(cons a b) #:when (and (int64? a) (int64? b))
+                  (if (eq? relop '!=)
+                      (eval `(not (= ,a ,b)) ns)
+                      (eval `(,relop ,a ,b) ns))]
+      ; In all other cases, we don't know the range of the result
+      [_ #f]))
+
+  ;; nested-asm-lang-v8.relop nested-asm-lang-v8.triv nested-asm-lang-v8.triv -> boolean
+  ;; interp. true if the relop can be optimized to false (the relop is guaranteed to be false)
+  (define (interp-relop-optimize-false? relop op1 op2)
     (match (cons op1 op2)
       [(cons a b) #:when (and (int64? a) (int64? b))
                   (if (eq? relop '!=)
