@@ -135,7 +135,7 @@
       ['bitwise-and (bitwise-and a b)]
       ['bitwise-ior (bitwise-ior a b)]
       ['bitwise-xor (bitwise-xor a b)]
-      ['arithmetic-shift-right (arithmetic-shift a b)]))
+      ['arithmetic-shift-right (arithmetic-shift a (- b))]))
 
   ;; nested-asm-lang-v8.triv -> RangeValue
   ;; interp. the known value or range of the triv
