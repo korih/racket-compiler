@@ -626,7 +626,6 @@
                                (error 11))
                            (error 11))))
                    (call L.vector-ref.44 (call L.make-vector.46 2) 0)))
-  #;
   (check-equal? (interp-exprs-unsafe-data-lang-v8 (implement-safe-primops
                                                    '(module
                                                         (define L.v.4 (lambda () (call make-vector 3)))
