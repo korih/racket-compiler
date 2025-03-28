@@ -33,7 +33,9 @@
       ['+ (set! base-pointer-offset (+ base-pointer-offset offset))]
       ['* (set! base-pointer-offset (* base-pointer-offset offset))]
       ['- (set! base-pointer-offset (- base-pointer-offset offset))]
-      [else (set! base-pointer-offset offset)]))
+
+      ;; Wildcard TODO: should not be able to put some binops here
+      [_ (set! base-pointer-offset offset)]))
 
   ;; nested-asm-lang-fvars-v8.tail -> nested-asm-lang-v8.tail
   (define (implement-fvars-tail tail)
@@ -314,4 +316,377 @@
                          (set! rax (mref rsp rbx))
                          (jump (rbp - 24))))
                    (define L.g.1 (begin (set! rsp r15) (set! rax 8) (jump rsp)))
-                   (begin (set! rsp r15) (set! rdi 1) (set! rsi 2) (set! r15 rsp) (jump L.f.1)))))
+                   (begin (set! rsp r15) (set! rdi 1) (set! rsi 2) (set! r15 rsp) (jump L.f.1))))
+
+  (check-equal? (interp-nested-asm-lang-v8 (implement-fvars '(module (begin
+                                                                       (set! r15 r15)
+                                                                       (set! r13 rdi)
+                                                                       (set! r14 rsi)
+                                                                       (if (begin
+                                                                             (if (begin (set! r9 10) (set! r9 (bitwise-and r9 7)) (= r9 0))
+                                                                                 (set! r9 14)
+                                                                                 (set! r9 6))
+                                                                             (!= r9 6))
+                                                                           (if (begin
+                                                                                 (if (begin (set! r9 r13) (set! r9 (bitwise-and r9 7)) (= r9 0))
+                                                                                     (set! r9 14)
+                                                                                     (set! r9 6))
+                                                                                 (!= r9 6))
+                                                                               (begin (set! rax r13) (set! rax (+ rax r14)) (jump r15))
+                                                                               (begin (set! rax 574) (jump r15)))
+                                                                           (begin (set! rax 574) (jump r15)))))))
+                (interp-nested-asm-lang-v8 '(module
+                                                (begin
+                                                  (set! r15 r15)
+                                                  (set! r13 rdi)
+                                                  (set! r14 rsi)
+                                                  (if (begin
+                                                        (if (begin (set! r9 10) (set! r9 (bitwise-and r9 7)) (= r9 0))
+                                                            (set! r9 14)
+                                                            (set! r9 6))
+                                                        (!= r9 6))
+                                                      (if (begin
+                                                            (if (begin (set! r9 r13) (set! r9 (bitwise-and r9 7)) (= r9 0))
+                                                                (set! r9 14)
+                                                                (set! r9 6))
+                                                            (!= r9 6))
+                                                          (begin (set! rax r13) (set! rax (+ rax r14)) (jump r15))
+                                                          (begin (set! rax 574) (jump r15)))
+                                                      (begin (set! rax 574) (jump r15)))))))
+
+  (check-equal? (interp-nested-asm-lang-v8 (implement-fvars '(module
+                                                                 (define L.+.31
+                                                                   (begin
+                                                                     (set! r15 r15)
+                                                                     (set! r13 rdi)
+                                                                     (set! r14 10)
+                                                                     (if (begin
+                                                                           (if (begin (set! r9 r14) (set! r9 (bitwise-and r9 7)) (= r9 0))
+                                                                               (set! r9 14)
+                                                                               (set! r9 6))
+                                                                           (!= r9 6))
+                                                                         (if (begin
+                                                                               (if (begin (set! r9 r13) (set! r9 (bitwise-and r9 7)) (= r9 0))
+                                                                                   (set! r9 14)
+                                                                                   (set! r9 6))
+                                                                               (!= r9 6))
+                                                                             (begin (set! rax r13) (set! rax (+ rax r14)) (jump r15))
+                                                                             (begin (set! rax 574) (jump r15)))
+                                                                         (begin (set! rax 574) (jump r15)))))
+                                                               (define L.F.6
+                                                                 (begin
+                                                                   (set! fv1 r15)
+                                                                   (set! r15 rdi)
+                                                                   (set! r14 rsi)
+                                                                   (set! r13 rdx)
+                                                                   (set! rcx rcx)
+                                                                   (set! r8 r8)
+                                                                   (set! r9 r9)
+                                                                   (set! rbx fv0)
+                                                                   (begin
+                                                                     (set! rbp (- rbp 16))
+                                                                     (return-point L.rp.47
+                                                                                   (begin
+                                                                                     (set! rdi r15)
+                                                                                     (set! rsi r14)
+                                                                                     (set! rdx r13)
+                                                                                     (set! rcx rcx)
+                                                                                     (set! r8 r8)
+                                                                                     (set! r9 r9)
+                                                                                     (set! r13 rbx)
+                                                                                     (set! r14 64)
+                                                                                     (set! r15 L.rp.47)
+                                                                                     (jump L.G.7)))
+                                                                     (set! rbp (+ rbp 16)))
+                                                                   (set! r15 rax)
+                                                                   (set! rdi 80)
+                                                                   (set! rsi r15)
+                                                                   (set! r15 fv1)
+                                                                   (jump L.+.31)))
+                                                               (define L.G.7
+                                                                 (begin
+                                                                   (set! r15 r15)
+                                                                   (set! r14 rdi)
+                                                                   (set! r13 rsi)
+                                                                   (set! rdx rdx)
+                                                                   (set! rcx rcx)
+                                                                   (set! r8 r8)
+                                                                   (set! r9 r9)
+                                                                   (set! rbx fv0)
+                                                                   (set! rsp fv1)
+                                                                   (set! rdi r14)
+                                                                   (set! rsi r13)
+                                                                   (set! rdx rdx)
+                                                                   (set! rcx rcx)
+                                                                   (set! r8 r8)
+                                                                   (set! r9 r9)
+                                                                   (set! fv0 rbx)
+                                                                   (set! fv1 rsp)
+                                                                   (set! fv2 72)
+                                                                   (set! r15 r15)
+                                                                   (jump L.H.8)))
+                                                               (define L.H.8
+                                                                 (begin
+                                                                   (set! fv3 r15)
+                                                                   (set! r15 rdi)
+                                                                   (set! r14 rsi)
+                                                                   (set! fv8 rdx)
+                                                                   (set! fv7 rcx)
+                                                                   (set! fv6 r8)
+                                                                   (set! fv5 r9)
+                                                                   (set! fv4 fv0)
+                                                                   (set! fv1 fv1)
+                                                                   (set! fv0 fv2)
+                                                                   (begin
+                                                                     (set! rbp (- rbp 72))
+                                                                     (return-point L.rp.48
+                                                                                   (begin
+                                                                                     (set! rdi r15)
+                                                                                     (set! rsi r14)
+                                                                                     (set! r15 L.rp.48)
+                                                                                     (jump L.+.31)))
+                                                                     (set! rbp (+ rbp 72)))
+                                                                   (set! r15 rax)
+                                                                   (begin
+                                                                     (set! rbp (- rbp 72))
+                                                                     (return-point L.rp.49
+                                                                                   (begin
+                                                                                     (set! rdi r15)
+                                                                                     (set! rsi fv8)
+                                                                                     (set! r15 L.rp.49)
+                                                                                     (jump L.+.31)))
+                                                                     (set! rbp (+ rbp 72)))
+                                                                   (set! r15 rax)
+                                                                   (begin
+                                                                     (set! rbp (- rbp 72))
+                                                                     (return-point L.rp.50
+                                                                                   (begin
+                                                                                     (set! rdi r15)
+                                                                                     (set! rsi fv7)
+                                                                                     (set! r15 L.rp.50)
+                                                                                     (jump L.+.31)))
+                                                                     (set! rbp (+ rbp 72)))
+                                                                   (set! r15 rax)
+                                                                   (begin
+                                                                     (set! rbp (- rbp 72))
+                                                                     (return-point L.rp.51
+                                                                                   (begin
+                                                                                     (set! rdi r15)
+                                                                                     (set! rsi fv6)
+                                                                                     (set! r15 L.rp.51)
+                                                                                     (jump L.+.31)))
+                                                                     (set! rbp (+ rbp 72)))
+                                                                   (set! r15 rax)
+                                                                   (begin
+                                                                     (set! rbp (- rbp 72))
+                                                                     (return-point L.rp.52
+                                                                                   (begin
+                                                                                     (set! rdi r15)
+                                                                                     (set! rsi fv5)
+                                                                                     (set! r15 L.rp.52)
+                                                                                     (jump L.+.31)))
+                                                                     (set! rbp (+ rbp 72)))
+                                                                   (set! r15 rax)
+                                                                   (begin
+                                                                     (set! rbp (- rbp 72))
+                                                                     (return-point L.rp.53
+                                                                                   (begin
+                                                                                     (set! rdi r15)
+                                                                                     (set! rsi fv4)
+                                                                                     (set! r15 L.rp.53)
+                                                                                     (jump L.+.31)))
+                                                                     (set! rbp (+ rbp 72)))
+                                                                   (set! r15 rax)
+                                                                   (begin
+                                                                     (set! rbp (- rbp 72))
+                                                                     (return-point L.rp.54
+                                                                                   (begin
+                                                                                     (set! rdi r15)
+                                                                                     (set! rsi fv1)
+                                                                                     (set! r15 L.rp.54)
+                                                                                     (jump L.+.31)))
+                                                                     (set! rbp (+ rbp 72)))
+                                                                   (set! r15 rax)
+                                                                   (set! rdi r15)
+                                                                   (set! rsi fv0)
+                                                                   (set! r15 fv3)
+                                                                   (jump L.+.31)))
+                                                               (begin
+                                                                 (set! r15 r15)
+                                                                 (set! rdi 8)
+                                                                 (set! rsi 16)
+                                                                 (set! rdx 24)
+                                                                 (set! rcx 32)
+                                                                 (set! r8 40)
+                                                                 (set! r9 48)
+                                                                 (set! fv0 56)
+                                                                 (set! r15 r15)
+                                                                 (jump L.F.6)))))
+                (interp-nested-asm-lang-v8 '(module
+                                                (define L.+.31
+                                                  (begin
+                                                    (set! r15 r15)
+                                                    (set! r13 rdi)
+                                                    (set! r14 10)
+                                                    (if (begin
+                                                          (if (begin (set! r9 r14) (set! r9 (bitwise-and r9 7)) (= r9 0))
+                                                              (set! r9 14)
+                                                              (set! r9 6))
+                                                          (!= r9 6))
+                                                        (if (begin
+                                                              (if (begin (set! r9 r13) (set! r9 (bitwise-and r9 7)) (= r9 0))
+                                                                  (set! r9 14)
+                                                                  (set! r9 6))
+                                                              (!= r9 6))
+                                                            (begin (set! rax r13) (set! rax (+ rax r14)) (jump r15))
+                                                            (begin (set! rax 574) (jump r15)))
+                                                        (begin (set! rax 574) (jump r15)))))
+                                              (define L.F.6
+                                                (begin
+                                                  (set! (rbp - 8) r15)
+                                                  (set! r15 rdi)
+                                                  (set! r14 rsi)
+                                                  (set! r13 rdx)
+                                                  (set! rcx rcx)
+                                                  (set! r8 r8)
+                                                  (set! r9 r9)
+                                                  (set! rbx (rbp - 0))
+                                                  (begin
+                                                    (set! rbp (- rbp 16))
+                                                    (return-point L.rp.47
+                                                                  (begin
+                                                                    (set! rdi r15)
+                                                                    (set! rsi r14)
+                                                                    (set! rdx r13)
+                                                                    (set! rcx rcx)
+                                                                    (set! r8 r8)
+                                                                    (set! r9 r9)
+                                                                    (set! r13 rbx)
+                                                                    (set! r14 64)
+                                                                    (set! r15 L.rp.47)
+                                                                    (jump L.G.7)))
+                                                    (set! rbp (+ rbp 16)))
+                                                  (set! r15 rax)
+                                                  (set! rdi 80)
+                                                  (set! rsi r15)
+                                                  (set! r15 (rbp - 8))
+                                                  (jump L.+.31)))
+                                              (define L.G.7
+                                                (begin
+                                                  (set! r15 r15)
+                                                  (set! r14 rdi)
+                                                  (set! r13 rsi)
+                                                  (set! rdx rdx)
+                                                  (set! rcx rcx)
+                                                  (set! r8 r8)
+                                                  (set! r9 r9)
+                                                  (set! rbx (rbp - 0))
+                                                  (set! rsp (rbp - 8))
+                                                  (set! rdi r14)
+                                                  (set! rsi r13)
+                                                  (set! rdx rdx)
+                                                  (set! rcx rcx)
+                                                  (set! r8 r8)
+                                                  (set! r9 r9)
+                                                  (set! (rbp - 0) rbx)
+                                                  (set! (rbp - 8) rsp)
+                                                  (set! (rbp - 16) 72)
+                                                  (set! r15 r15)
+                                                  (jump L.H.8)))
+                                              (define L.H.8
+                                                (begin
+                                                  (set! (rbp - 24) r15)
+                                                  (set! r15 rdi)
+                                                  (set! r14 rsi)
+                                                  (set! (rbp - 64) rdx)
+                                                  (set! (rbp - 56) rcx)
+                                                  (set! (rbp - 48) r8)
+                                                  (set! (rbp - 40) r9)
+                                                  (set! (rbp - 32) (rbp - 0))
+                                                  (set! (rbp - 8) (rbp - 8))
+                                                  (set! (rbp - 0) (rbp - 16))
+                                                  (begin
+                                                    (set! rbp (- rbp 72))
+                                                    (return-point L.rp.48
+                                                                  (begin
+                                                                    (set! rdi r15)
+                                                                    (set! rsi r14)
+                                                                    (set! r15 L.rp.48)
+                                                                    (jump L.+.31)))
+                                                    (set! rbp (+ rbp 72)))
+                                                  (set! r15 rax)
+                                                  (begin
+                                                    (set! rbp (- rbp 72))
+                                                    (return-point L.rp.49
+                                                                  (begin
+                                                                    (set! rdi r15)
+                                                                    (set! rsi (rbp - -8))
+                                                                    (set! r15 L.rp.49)
+                                                                    (jump L.+.31)))
+                                                    (set! rbp (+ rbp 72)))
+                                                  (set! r15 rax)
+                                                  (begin
+                                                    (set! rbp (- rbp 72))
+                                                    (return-point L.rp.50
+                                                                  (begin
+                                                                    (set! rdi r15)
+                                                                    (set! rsi (rbp - -16))
+                                                                    (set! r15 L.rp.50)
+                                                                    (jump L.+.31)))
+                                                    (set! rbp (+ rbp 72)))
+                                                  (set! r15 rax)
+                                                  (begin
+                                                    (set! rbp (- rbp 72))
+                                                    (return-point L.rp.51
+                                                                  (begin
+                                                                    (set! rdi r15)
+                                                                    (set! rsi (rbp - -24))
+                                                                    (set! r15 L.rp.51)
+                                                                    (jump L.+.31)))
+                                                    (set! rbp (+ rbp 72)))
+                                                  (set! r15 rax)
+                                                  (begin
+                                                    (set! rbp (- rbp 72))
+                                                    (return-point L.rp.52
+                                                                  (begin
+                                                                    (set! rdi r15)
+                                                                    (set! rsi (rbp - -32))
+                                                                    (set! r15 L.rp.52)
+                                                                    (jump L.+.31)))
+                                                    (set! rbp (+ rbp 72)))
+                                                  (set! r15 rax)
+                                                  (begin
+                                                    (set! rbp (- rbp 72))
+                                                    (return-point L.rp.53
+                                                                  (begin
+                                                                    (set! rdi r15)
+                                                                    (set! rsi (rbp - -40))
+                                                                    (set! r15 L.rp.53)
+                                                                    (jump L.+.31)))
+                                                    (set! rbp (+ rbp 72)))
+                                                  (set! r15 rax)
+                                                  (begin
+                                                    (set! rbp (- rbp 72))
+                                                    (return-point L.rp.54
+                                                                  (begin
+                                                                    (set! rdi r15)
+                                                                    (set! rsi (rbp - -64))
+                                                                    (set! r15 L.rp.54)
+                                                                    (jump L.+.31)))
+                                                    (set! rbp (+ rbp 72)))
+                                                  (set! r15 rax)
+                                                  (set! rdi r15)
+                                                  (set! rsi (rbp - 0))
+                                                  (set! r15 (rbp - 24))
+                                                  (jump L.+.31)))
+                                              (begin
+                                                (set! r15 r15)
+                                                (set! rdi 8)
+                                                (set! rsi 16)
+                                                (set! rdx 24)
+                                                (set! rcx 32)
+                                                (set! r8 40)
+                                                (set! r9 48)
+                                                (set! (rbp - 0) 56)
+                                                (set! r15 r15)
+                                                (jump L.F.6))))))

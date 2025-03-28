@@ -204,4 +204,53 @@
                        (set! rax (mref rsp rbx))
                        (jump (rbp - 24))))
                    (define L.tmp.104 (begin (mset! (rbp - 16) rsp (rbp - 0)) (jump L.tmp.102)))
-                   (define L.tmp.103 (begin (mset! (rbp - 16) rsp (rbp - 8)) (jump L.tmp.102))))))
+                   (define L.tmp.103 (begin (mset! (rbp - 16) rsp (rbp - 8)) (jump L.tmp.102)))))
+
+  (check-equal? (interp-block-asm-lang-v8 (resolve-predicates '(module
+                                                                   (define L.__main.14
+                                                                     (begin
+                                                                       (set! r15 r15)
+                                                                       (set! r13 rdi)
+                                                                       (set! r14 rsi)
+                                                                       (set! r9 10)
+                                                                       (set! r9 (bitwise-and r9 7))
+                                                                       (if (= r9 0) (jump L.tmp.11) (jump L.tmp.12))))
+                                                                 (define L.tmp.11 (begin (set! r9 14) (jump L.tmp.13)))
+                                                                 (define L.tmp.12 (begin (set! r9 6) (jump L.tmp.13)))
+                                                                 (define L.tmp.13 (if (!= r9 6) (jump L.__nested.4) (jump L.__nested.5)))
+                                                                 (define L.tmp.8 (begin (set! r9 14) (jump L.tmp.10)))
+                                                                 (define L.tmp.9 (begin (set! r9 6) (jump L.tmp.10)))
+                                                                 (define L.tmp.10 (if (!= r9 6) (jump L.__nested.6) (jump L.__nested.7)))
+                                                                 (define L.__nested.6
+                                                                   (begin (set! rax r13) (set! rax (+ rax r14)) (jump r15)))
+                                                                 (define L.__nested.7 (begin (set! rax 574) (jump r15)))
+                                                                 (define L.__nested.4
+                                                                   (begin
+                                                                     (set! r9 r13)
+                                                                     (set! r9 (bitwise-and r9 7))
+                                                                     (if (= r9 0) (jump L.tmp.8) (jump L.tmp.9))))
+                                                                 (define L.__nested.5 (begin (set! rax 574) (jump r15))))))
+                (interp-block-asm-lang-v8 '(module
+                                               (define L.__main.14
+                                                 (begin
+                                                   (set! r15 r15)
+                                                   (set! r13 rdi)
+                                                   (set! r14 rsi)
+                                                   (set! r9 10)
+                                                   (set! r9 (bitwise-and r9 7))
+                                                   (if (= r9 0) (jump L.tmp.11) (jump L.tmp.12))))
+                                             (define L.tmp.11 (begin (set! r9 14) (jump L.tmp.13)))
+                                             (define L.tmp.12 (begin (set! r9 6) (jump L.tmp.13)))
+                                             (define L.tmp.13 (if (!= r9 6) (jump L.__nested.4) (jump L.__nested.5)))
+                                             (define L.tmp.8 (begin (set! r9 14) (jump L.tmp.10)))
+                                             (define L.tmp.9 (begin (set! r9 6) (jump L.tmp.10)))
+                                             (define L.tmp.10 (if (!= r9 6) (jump L.__nested.6) (jump L.__nested.7)))
+                                             (define L.__nested.6
+                                               (begin (set! rax r13) (set! rax (+ rax r14)) (jump r15)))
+                                             (define L.__nested.7 (begin (set! rax 574) (jump r15)))
+                                             (define L.__nested.4
+                                               (begin
+                                                 (set! r9 r13)
+                                                 (set! r9 (bitwise-and r9 7))
+                                                 (if (= r9 0) (jump L.tmp.8) (jump L.tmp.9))))
+                                             (define L.__nested.5 (begin (set! rax 574) (jump r15)))))))

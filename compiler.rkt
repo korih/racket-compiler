@@ -1,8 +1,8 @@
 #lang racket
 
 (require
- cpsc411/compiler-lib
- cpsc411/ptr-run-time)
+  cpsc411/compiler-lib
+  cpsc411/ptr-run-time)
 
 (require
   "passes/assign-fvars.rkt"
@@ -40,10 +40,10 @@
 
 (module+ test
   (require
-   rackunit
-   rackunit/text-ui
-   cpsc411/langs/v8
-   cpsc411/test-suite/public/v8)
+    rackunit
+    rackunit/text-ui
+    cpsc411/langs/v8
+    cpsc411/test-suite/public/v8)
 
   ;; You can modify this pass list, e.g., by adding other
   ;; optimization, debugging, or validation passes.
