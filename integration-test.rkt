@@ -97,16 +97,18 @@
      (cons wrap-x64-boilerplate #f)
      (cons wrap-x64-run-time #f)))
 
-  (for/fold ([pass-list empty])
-            ([pass-pair pass-map])
-    (define pass-list^ (append pass-list (list (car pass-pair))))
-    (define interpreter (cdr pass-pair))
-    (when interpreter
-      (for ([test tests])
-        (parameterize ([current-pass-list pass-list^])
-          (let ([compiled (compile test)])
-                     (check-equal? (interpreter compiled) (interp-exprs-lang-v8 test) (format "error in ~a \n input: ~a \n output ~a" (car pass-pair) test compiled))))))
-    pass-list^)
+  (for ([test tests])
+    (for/fold ([pass-list empty]
+               [last-program test])
+              ([pass-pair pass-map])
+      (define pass-list^ (append pass-list (list (car pass-pair))))
+      (define interpreter (cdr pass-pair))
+      (define compiled test)
+      (parameterize ([current-pass-list pass-list^])
+        (set! compiled (compile test))
+        (when interpreter
+          (check-equal? (interpreter compiled) (interp-exprs-lang-v8 test) (format "error in ~a \n input: ~a \n output: ~a" (car pass-pair) last-program compiled))))
+      (values pass-list^ compiled)))
 
   (parameterize ([current-pass-list (list
                                      uniquify
