@@ -260,4 +260,21 @@
   (check-equal? (uniquify '(module (call make-vector 1)))
                 '(module (call make-vector 1)))
   (check-equal? (uniquify '(module (call make-vector 2)))
-                '(module (call make-vector 2))))
+                '(module (call make-vector 2)))
+  (check-equal? (interp-exprs-unique-lang-v8 (uniquify '(module
+                                                            (define v (lambda () (call make-vector 3)))
+                                                          (define set-first (lambda (vec) (call vector-set! vec 0 42)))
+                                                          (define get-first (lambda (vec) (call vector-ref vec 0)))
+
+                                                          (let ([vec (call v)])
+                                                            (call + (if (call void? (call set-first vec)) 0 (error 1))
+                                                                  (call get-first vec))))))
+                (interp-exprs-unique-lang-v8 '(module
+                                                  (define L.v.4 (lambda () (call make-vector 3)))
+                                                (define L.set-first.5 (lambda (vec.1) (call vector-set! vec.1 0 42)))
+                                                (define L.get-first.6 (lambda (vec.2) (call vector-ref vec.2 0)))
+                                                (let ((vec.3 (call L.v.4)))
+                                                  (call
+                                                   +
+                                                   (if (call void? (call L.set-first.5 vec.3)) 0 (error 1))
+                                                   (call L.get-first.6 vec.3)))))))
