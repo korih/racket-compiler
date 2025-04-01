@@ -1,6 +1,4 @@
-#lang racket
-
-(require rackunit)
+#lang racket/base
 
 (module+ test
   (require
@@ -8,7 +6,8 @@
 
   (check-import-list
    "compiler.rkt"
-   '(uniquify
+   '(#;check-exprs-lang
+     uniquify
      implement-safe-primops
      implement-safe-call
      define->letrec
@@ -22,7 +21,6 @@
      specify-representation
      remove-complex-opera*
      sequentialize-let
-     normalize-bind
      impose-calling-conventions
      normalize-bind
      select-instructions
