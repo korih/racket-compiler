@@ -1,16 +1,17 @@
 #lang racket
 
 (require
-  cpsc411/langs/v7
+  cpsc411/compiler-lib
+  cpsc411/langs/v8
   rackunit)
 
 (provide normalize-bind)
 
-;; imp-mf-lang-v7 -> proc-imp-cmf-lang-v7
-;; compiles p to to to Proc-imp-cmf-lang v7 by pushing set! under begin so that
+;; imp-mf-lang-v8 -> proc-imp-cmf-lang-v8
+;; compiles p to to to Proc-imp-cmf-lang v8 by pushing set! under begin so that
 ;; the right-hand-side of each set! is simple value-producing operation
 (define/contract (normalize-bind p)
-  (-> imp-mf-lang-v7? proc-imp-cmf-lang-v7?)
+  (-> imp-mf-lang-v8? proc-imp-cmf-lang-v8?)
 
   ;; func is `(define ,label (lambda (,alocs ...) ,tail))
   ;; interp. a function definition
@@ -21,7 +22,7 @@
       [`(define ,label (lambda (,alocs ...) ,tail))
        `(define ,label (lambda (,@alocs) ,(normalize-bind-tail tail)))]))
 
-  ;; imp-mf-lang-v7.tail -> proc-imp-cmf-lang-v7.tail
+  ;; imp-mf-lang-v8.tail -> proc-imp-cmf-lang-v8.tail
   (define (normalize-bind-tail tail)
     (match tail
       [`(begin ,e ... ,t)
@@ -31,18 +32,27 @@
       [`(call ,triv ,opand ...) tail]
       [v (normalize-bind-value v (lambda (v) v))]))
 
-  ;; imp-mf-lang-v7.effect -> proc-imp-cmf-lang-v7.effect
+  ;; imp-mf-lang-v8.effect -> proc-imp-cmf-lang-v8.effect
   (define (normalize-bind-effect effect)
     (match effect
       [`(set! ,aloc ,v)
        (normalize-bind-value v (lambda (simple-v)
                                  `(set! ,aloc ,simple-v)))]
+      [`(mset! ,aloc ,opand ,v)
+       (normalize-bind-value v
+                             (lambda (triv)
+                               (if (or (symbol? triv) (number? triv))
+                                   `(mset! ,aloc ,opand ,triv)
+                                   (let ([tmp (fresh 'tmp)])
+                                     `(begin
+                                        (set! ,tmp ,triv)
+                                        (mset! ,aloc ,opand ,tmp))))))]
       [`(if ,pred ,e1 ,e2)
        `(if ,(normalize-bind-pred pred) ,(normalize-bind-effect e1) ,(normalize-bind-effect e2))]
       [`(begin ,e ...)
        `(begin ,@(map normalize-bind-effect e))]))
 
-  ;; imp-mf-lang-v7.value (imp-mf-lang-v7.value -> proc-imp-cmf-lang-v7.effect) -> proc-imp-cmf-lang-v7.value
+  ;; imp-mf-lang-v8.value (imp-mf-lang-v8.value -> proc-imp-cmf-lang-v8.effect) -> proc-imp-cmf-lang-v8.value
   (define (normalize-bind-value value cont)
     (match value
       [`(begin ,e ... ,v)
@@ -51,11 +61,11 @@
        `(if ,(normalize-bind-pred p)
             ,(normalize-bind-value v1 cont)
             ,(normalize-bind-value v2 cont))]
-      [`(call ,triv ,ops ...) (cont value)]
-      [`(,binop ,op1 ,op2) (cont value)]
-      [triv (cont triv)]))
+      ;; Using wildcard collapse case because in all other cases, the
+      ;; expression is already in proc-imp-cmf-lang-v8.value form
+      [_ (cont value)]))
 
-  ;; imp-mf-lang-v7.pred -> proc-imp-cmf-lang-v7.pred
+  ;; imp-mf-lang-v8.pred -> proc-imp-cmf-lang-v8.pred
   (define (normalize-bind-pred pred)
     (match pred
       ['(true) pred]
@@ -72,6 +82,34 @@
      `(module ,@(map normalize-bind-func funcs) ,(normalize-bind-tail tail))]))
 
 (module+ test
+  (check-equal? (normalize-bind '(module
+                                     (define L.f.1
+                                       (lambda (x.1 x.2)
+                                         (begin
+                                           (begin
+                                             (set! tmp.38 (begin (set! tmp.39 (+ 10 6)) (alloc tmp.39)))
+                                             (begin
+                                               (set! tmp.40 (call L.g.1))
+                                               (mset! tmp.38 tmp.40 (if (true) x.1 x.2))))
+                                           (begin
+                                             (set! tmp.41 (begin (set! tmp.42 (+ 10 6)) (alloc tmp.42)))
+                                             (begin (set! tmp.43 (bitwise-and 8 8)) (mref tmp.41 tmp.43))))))
+                                   (define L.g.1 (lambda () 8))
+                                   (call L.f.1 1 2)))
+                '(module
+                     (define L.f.1
+                       (lambda (x.1 x.2)
+                         (begin
+                           (begin
+                             (begin (set! tmp.39 (+ 10 6)) (set! tmp.38 (alloc tmp.39)))
+                             (begin
+                               (set! tmp.40 (call L.g.1))
+                               (if (true) (mset! tmp.38 tmp.40 x.1) (mset! tmp.38 tmp.40 x.2))))
+                           (begin
+                             (begin (set! tmp.42 (+ 10 6)) (set! tmp.41 (alloc tmp.42)))
+                             (begin (set! tmp.43 (bitwise-and 8 8)) (mref tmp.41 tmp.43))))))
+                   (define L.g.1 (lambda () 8))
+                   (call L.f.1 1 2)))
   (check-equal? (normalize-bind '(module
                                      (define L.g.1 (lambda (x.1) x.1))
                                    (define L.f.1 (lambda (x.1) (begin
@@ -398,4 +436,39 @@
                        (begin
                          (set! sum.78 (call L.add.10 a.69 b.70 c.71 d.72 e.73 f.74 g.75 h.76))
                          (call L.*.2 sum.78 i.77))))
-                   (call L.add-and-multiply.11 8 16 24 32 40 48 56 64 16))))
+                   (call L.add-and-multiply.11 8 16 24 32 40 48 56 64 16)))
+  (check-equal? (normalize-bind '(module (define L.addup.1 (lambda () (begin (set! y.1 (alloc 16)) (mset! y.1 8 (begin (set! x.2 8) (set! x.3 16) (+ x.2 x.3))) (mref y.1 8)))) (call L.addup.1)))
+                '(module
+                     (define L.addup.1
+                       (lambda ()
+                         (begin
+                           (set! y.1 (alloc 16))
+                           (begin
+                             (set! x.2 8)
+                             (set! x.3 16)
+                             (begin (set! tmp.1 (+ x.2 x.3)) (mset! y.1 8 tmp.1)))
+                           (mref y.1 8))))
+                   (call L.addup.1)))
+  (check-equal? (normalize-bind '(module (if (begin (set! x.1 (alloc 8)) (set! y.1 (alloc 16)) (set! z.1 0) (begin (mset! x.1 0 (begin (set! tmp.164 (begin (set! t.1 32) (begin (set! tmp.165 (+ t.1 8)) (+ t.1 tmp.165)))) (alloc tmp.164))) (mset! y.1 z.1 18) (begin (set! tmp.166 (+ z.1 8)) (mset! y.1 tmp.166 40)) (begin (set! tmp.167 (mref y.1 z.1)) (begin (set! tmp.168 (begin (set! tmp.169 (+ z.1 8)) (mref y.1 tmp.169))) (= tmp.167 tmp.168))))) 8 16)))
+                '(module
+                     (if (begin
+                           (set! x.1 (alloc 8))
+                           (set! y.1 (alloc 16))
+                           (set! z.1 0)
+                           (begin
+                             (begin
+                               (begin
+                                 (set! t.1 32)
+                                 (begin (set! tmp.165 (+ t.1 8)) (set! tmp.164 (+ t.1 tmp.165))))
+                               (begin (set! tmp.2 (alloc tmp.164)) (mset! x.1 0 tmp.2)))
+                             (mset! y.1 z.1 18)
+                             (begin (set! tmp.166 (+ z.1 8)) (mset! y.1 tmp.166 40))
+                             (begin
+                               (set! tmp.167 (mref y.1 z.1))
+                               (begin
+                                 (begin
+                                   (set! tmp.169 (+ z.1 8))
+                                   (set! tmp.168 (mref y.1 tmp.169)))
+                                 (= tmp.167 tmp.168)))))
+                         8
+                         16))))

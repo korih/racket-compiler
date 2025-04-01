@@ -9,12 +9,17 @@
          extend-env*
          extend-env
          binop?
+         prim-f?
          unsafe-binop?
          safe-binop?
+         unsafe-primop?
          unop?
+         pair-op?
+         vector-op?
          relop?
          addr?
-         rloc?)              
+         addr-mop?
+         rloc?)
 
 ;; ================================================
 ;; Environment
@@ -51,6 +56,24 @@
 ;; Helper Functions
 ;; ================================================
 
+;; prim-f -> boolean
+;; produces true if the expression is a primitive function
+(define (prim-f? op)
+  (or (safe-binop? op)
+      (unop? op)
+      (pair-op? op)
+      (vector-op? op)))
+
+;; any -> boolean
+;; produces true if op is a valid pair operation
+(define (pair-op? op)
+  (and (member op '(pair? cons car cdr)) #t))
+
+;; any -> boolean
+;; produces true if op is a valid vector operation
+(define (vector-op? op)
+  (and (member op '(vector? vector-ref vector-set! vector-length make-vector)) #t))
+
 ;; any -> boolean
 ;; produces true if op is a valid safe binop
 (define (safe-binop? op)
@@ -72,6 +95,11 @@
   (and (member op '(fixnum? boolean? empty? void? ascii-char? error? not)) #t))
 
 ;; any -> boolean
+;; produces true if op is a valid unsafe primop
+(define (unsafe-primop? op)
+  (and (member op '(unsafe-fx* unsafe-fx+ unsafe-fx- eq? unsafe-fx< unsafe-fx<= unsafe-fx> unsafe-fx>= fixnum? boolean? empty? void? ascii-char? error? not pair? vector? cons unsafe-car unsafe-cdr unsafe-make-vector unsafe-vector-length unsafe-vector-set! unsafe-vector-ref)) #t))
+
+;; any -> boolean
 ;; produces true if op is a valid relop
 (define (relop? op)
   (and (member op '(< <= = >= > !=)) #t))
@@ -86,6 +114,24 @@
      (and (frame-base-pointer-register? fbp)
           (dispoffset? dispoffset))]
     [_ #f]))
+
+;; any -> boolean
+;; produces true if x is a valid address for both stack and heap
+(define (addr-mop? x)
+  (match x
+    [`(,fbp - ,dispoffset)
+     #:when (and (frame-base-pointer-register? fbp)
+                 (dispoffset? dispoffset))
+     #t]
+    [`(,reg + ,int32)
+     #:when (and (register? reg)
+                 (int32? int32))
+     #t]
+    [`(,reg1 + ,reg2)
+     #:when (and (register? reg1)
+                 (register? reg2))
+     #t]
+    [else #f]))
 
 ;; any -> boolean
 ;; produces true if rloc is a valid rloc, which is either a register or fvar
@@ -114,7 +160,7 @@
                                         '(a x c) '(5 6 7))
                                        'z)
                            7))
-  
+
   (test-case "safe-binop?"
              (check-true (safe-binop? '*))
              (check-true (safe-binop? '+))
@@ -190,13 +236,13 @@
              (check-false (relop? '!))
              (check-false (relop? "<="))
              (check-false (relop? #t))
-             (check-false (relop? 1)))  
+             (check-false (relop? 1)))
 
   (test-case "addr?"
              (check-true (addr? `(rbp - 8)))
              (check-true (addr? `(rbp - 0)))
              (check-false (addr? `(rbp - 2147483647)))
-             (check-false (addr? `(rax - 8))) 
+             (check-false (addr? `(rax - 8)))
              (check-false (addr? `(foo - 8)))
              (check-false (addr? `(rbp - "8")))
              (check-false (addr? `(rbp - 3.14)))

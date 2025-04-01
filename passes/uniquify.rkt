@@ -4,22 +4,22 @@
 
 (require
   cpsc411/compiler-lib
-  cpsc411/langs/v7
+  cpsc411/langs/v8
   rackunit)
 
 (provide uniquify)
 
-;; exprs-lang-v7 -> exprs-unique-lang-v7
-;; compiles p to Exprs-unique-lang v7 by resolving top-level lexical
+;; exprs-lang-v8 -> exprs-unique-lang-v8
+;; compiles p to Exprs-unique-lang v8 by resolving top-level lexical
 ;; identifiers into unique labels, and all other lexical identifiers into
 ;; unique abstract locations
 (define/contract (uniquify p)
-  (-> exprs-lang-v7? exprs-unique-lang-v7?)
+  (-> exprs-lang-v8? exprs-unique-lang-v8?)
 
   ;; func is `(define ,label (lambda (,alocs ...) ,value))
   ;; interp. a function definition
 
-  ;; (List-of func) -> (Env-of exprs-unique-lang-v7.triv)
+  ;; (List-of func) -> (Env-of exprs-unique-lang-v8.triv)
   ;; interp. creates an environment with all the unique function labels
   (define (initialize-env funcs)
     (for/fold ([env empty-env])
@@ -30,7 +30,7 @@
          (define env^ (extend-env env funcName unique-label))
          env^])))
 
-  ;; (List-of func) (Env-of exprs-unique-lang-v7.triv) -> (values (List-of func) (Env-of exprs-unique-lang-v7.triv))
+  ;; (List-of func) (Env-of exprs-unique-lang-v8.triv) -> (values (List-of func) (Env-of exprs-unique-lang-v8.triv))
   ;; interp. processes each function definition by assigning lexical identifiers with unique labels and abstract locations
   (define (process-functions funcs env)
     (for/fold ([updated-funcs '()]
@@ -39,7 +39,8 @@
       (define-values (updated-func new-env) (uniquify-func func updated-env))
       (values (cons updated-func updated-funcs) new-env)))
 
-  ;; func (Env-of exprs-unique-lang-v7.triv) -> (values func (Env-of exprs-unique-lang-v7.triv))
+  ;; func (Env-of exprs-unique-lang-v8.triv) -> func (Env-of exprs-unique-lang-v8.triv)
+  ;; interp. for a given function definition, go through its args and body and produce uniquified version
   (define (uniquify-func func env)
     (match func
       [`(define ,funcName (lambda (,args ...) ,value))
@@ -49,7 +50,8 @@
        (values `(define ,unique-label (lambda (,@unique-args) ,(uniquify-value value new-env)))
                env)]))
 
-  ;; exprs-lang-v7.value (Env-of exprs-unique-lang-v7.triv) -> exprs-unique-lang-v7.value
+  ;; exprs-lang-v8.value (Env-of exprs-unique-lang-v8.triv) -> exprs-unique-lang-v8.value
+  ;; interp. rom a given value and environment, produce the uniquified version of it
   (define (uniquify-value value env)
     (match value
       [`(let ([,xs ,vs] ...) ,v)
@@ -68,18 +70,27 @@
        `(call ,@(map (lambda (v) (uniquify-value v env)) vs))]
       [triv (uniquify-triv triv env)]))
 
-  ;; exprs-lang-v7.triv (Env-of exprs-unique-lang-v7.triv) -> exprs-unique-lang-v7.triv
+  ;; exprs-lang-v8.triv (Env-of exprs-unique-lang-v8.triv) -> exprs-unique-lang-v8.triv
+  ;; interp. resolves triv as terminal case, or x
   (define (uniquify-triv triv env)
     (match triv
-      ['empty triv]
-      [x #:when (or (name? x) (safe-binop? x) (unop? x))
-         (cond
-           [(and (or (safe-binop? x) (unop? x)) (not (assoc x env))) x]
-           [else (lookup-env env x)])]
-      ;; Wildcard collapse case used because all terminal triv values do not
-      ;; require any further processing or transformation, allowing them to be
-      ;; returned as-is
-      [_ triv]))
+      [#t #t]
+      [#f #f]
+      ['empty 'empty]
+      ['(void) '(void)]
+      [`(error ,n) `(error ,n)]
+      [asci #:when (ascii-char-literal? asci) asci]
+      [fixnum #:when (fixnum? fixnum) fixnum]
+      [x (uniquify-x x env)]))
+
+  ;; exprs-unique-lang-v8.x (Env-of exprs-unique-lang-v8.triv) -> exprs-unique-lang-v8.triv
+  ;; interp. resolves x primitive function or a unique variable definition
+  (define (uniquify-x x env)
+    (match x
+      [prim-f #:when (prim-f? prim-f) (if (assoc prim-f env)
+                                          (lookup-env env prim-f)
+                                          prim-f)]
+      [name #:when (name? name) (lookup-env env name)]))
 
   (match p
     [`(module ,funcs ... ,value)
@@ -202,7 +213,10 @@
                      (define L.f.8 (lambda (x.55 y.56) (call + x.55 y.56)))
                    (define L.x.9 (lambda (z.57) (let ((x.58 1)) (call + x.58 z.57))))
                    (let ((a.59 (call L.f.8 1 2))) (let ((y.60 (call L.x.9 a.59))) y.60))))
-  (check-equal? (uniquify '(module (define add (lambda (a b c d e f g h) (call + a (call + b (call + c (call + d (call + e (call + f (call + g h)))))))))
+  (check-equal? (uniquify '(module
+                               (define add
+                                 (lambda (a b c d e f g h)
+                                   (call + a (call + b (call + c (call + d (call + e (call + f (call + g h)))))))))
                              (define add-and-multiply (lambda (a b c d e f g h i)
                                                         (let ([sum (call add a b c d e f g h)])
                                                           (call * sum i))))
@@ -224,4 +238,26 @@
                      (lambda (a.69 b.70 c.71 d.72 e.73 f.74 g.75 h.76 i.77)
                        (let ((sum.78 (call L.add.10 a.69 b.70 c.71 d.72 e.73 f.74 g.75 h.76)))
                          (call * sum.78 i.77))))
-                   (call L.add-and-multiply.11 1 2 3 4 5 6 7 8 2))))
+                   (call L.add-and-multiply.11 1 2 3 4 5 6 7 8 2)))
+  (check-equal? (uniquify '(module (call eq? 1 1)))
+                '(module (call eq? 1 1)))
+  (check-equal? (uniquify '(module (call fixnum? 1)))
+                '(module (call fixnum? 1)))
+  (check-equal? (uniquify '(module (call boolean? 1)))
+                '(module (call boolean? 1)))
+  (check-equal? (uniquify '(module (call empty? 1)))
+                '(module (call empty? 1)))
+  (check-equal? (uniquify '(module (call void? 1)))
+                '(module (call void? 1)))
+  (check-equal? (uniquify '(module (call ascii-char? #\x)))
+                '(module (call ascii-char? #\x)))
+  (check-equal? (uniquify '(module (call error? 1)))
+                '(module (call error? 1)))
+  (check-equal? (uniquify '(module (call cons 1 2)))
+                '(module (call cons 1 2)))
+  (check-equal? (uniquify '(module (call car (call cons 1 2))))
+                '(module (call car (call cons 1 2))))
+  (check-equal? (uniquify '(module (call make-vector 1)))
+                '(module (call make-vector 1)))
+  (check-equal? (uniquify '(module (call make-vector 2)))
+                '(module (call make-vector 2))))

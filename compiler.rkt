@@ -1,8 +1,8 @@
 #lang racket
 
 (require
- cpsc411/compiler-lib
- cpsc411/ptr-run-time)
+  cpsc411/compiler-lib
+  cpsc411/ptr-run-time)
 
 (require
   "passes/assign-fvars.rkt"
@@ -34,14 +34,16 @@
   "passes/assign-frame-variables.rkt"
   "passes/implement-safe-primops.rkt"
   "passes/specify-representation.rkt"
-  "passes/remove-complex-opera.rkt")
+  "passes/remove-complex-opera.rkt"
+  "passes/expose-allocation-pointer.rkt"
+  "passes/implement-mops.rkt")
 
 (module+ test
   (require
-   rackunit
-   rackunit/text-ui
-   cpsc411/langs/v7
-   cpsc411/test-suite/public/v7)
+    rackunit
+    rackunit/text-ui
+    cpsc411/langs/v8
+    cpsc411/test-suite/public/v8)
 
   ;; You can modify this pass list, e.g., by adding other
   ;; optimization, debugging, or validation passes.
@@ -50,29 +52,31 @@
   (define pass-map
     (list
      #;(cons check-exprs-lang #f)
-     (cons uniquify interp-exprs-lang-v7)
-     (cons implement-safe-primops interp-exprs-unique-lang-v7)
-     (cons specify-representation interp-exprs-unsafe-data-lang-v7)
-     (cons remove-complex-opera* interp-exprs-bits-lang-v7)
-     (cons sequentialize-let interp-values-bits-lang-v7)
-     (cons normalize-bind interp-imp-mf-lang-v7)
-     (cons impose-calling-conventions interp-proc-imp-cmf-lang-v7)
-     (cons select-instructions interp-imp-cmf-lang-v7)
-     (cons uncover-locals interp-asm-pred-lang-v7)
-     (cons undead-analysis interp-asm-pred-lang-v7/locals)
-     (cons conflict-analysis interp-asm-pred-lang-v7/undead)
-     (cons assign-call-undead-variables interp-asm-pred-lang-v7/conflicts)
-     (cons allocate-frames interp-asm-pred-lang-v7/pre-framed)
-     (cons assign-registers interp-asm-pred-lang-v7/framed)
-     (cons assign-frame-variables interp-asm-pred-lang-v7/spilled)
-     (cons replace-locations interp-asm-pred-lang-v7/assignments)
-     (cons optimize-predicates interp-nested-asm-lang-fvars-v7)
-     (cons implement-fvars interp-nested-asm-lang-fvars-v7)
-     (cons expose-basic-blocks interp-nested-asm-lang-v7)
-     (cons resolve-predicates interp-block-pred-lang-v7)
-     (cons flatten-program interp-block-asm-lang-v7)
-     (cons patch-instructions interp-para-asm-lang-v7)
-     (cons generate-x64 interp-paren-x64-v7)
+     (cons uniquify interp-exprs-lang-v8)
+     (cons implement-safe-primops interp-exprs-unique-lang-v8)
+     (cons specify-representation interp-exprs-unsafe-data-lang-v8)
+     (cons remove-complex-opera* interp-exprs-bits-lang-v8)
+     (cons sequentialize-let interp-values-bits-lang-v8)
+     (cons normalize-bind interp-imp-mf-lang-v8)
+     (cons impose-calling-conventions interp-proc-imp-cmf-lang-v8)
+     (cons select-instructions interp-imp-cmf-lang-v8)
+     (cons expose-allocation-pointer interp-asm-alloc-lang-v8)
+     (cons uncover-locals interp-asm-pred-lang-v8)
+     (cons undead-analysis interp-asm-pred-lang-v8/locals)
+     (cons conflict-analysis interp-asm-pred-lang-v8/undead)
+     (cons assign-call-undead-variables interp-asm-pred-lang-v8/conflicts)
+     (cons allocate-frames interp-asm-pred-lang-v8/pre-framed)
+     (cons assign-registers interp-asm-pred-lang-v8/framed)
+     (cons assign-frame-variables interp-asm-pred-lang-v8/spilled)
+     (cons replace-locations interp-asm-pred-lang-v8/assignments)
+     (cons optimize-predicates interp-nested-asm-lang-fvars-v8)
+     (cons implement-fvars interp-nested-asm-lang-fvars-v8)
+     (cons expose-basic-blocks interp-nested-asm-lang-v8)
+     (cons resolve-predicates interp-block-pred-lang-v8)
+     (cons flatten-program interp-block-asm-lang-v8)
+     (cons patch-instructions interp-para-asm-lang-v8)
+     (cons implement-mops interp-paren-x64-mops-v8)
+     (cons generate-x64 interp-paren-x64-v8)
      (cons wrap-x64-boilerplate #f)
      (cons wrap-x64-run-time #f)))
 
@@ -80,6 +84,6 @@
    (map car pass-map))
 
   (run-tests
-   (v7-public-test-suite
+   (v8-public-test-suite
     (current-pass-list)
     (map cdr pass-map))))

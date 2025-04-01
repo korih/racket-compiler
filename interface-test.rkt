@@ -15,7 +15,9 @@
      sequentialize-let
      normalize-bind
      impose-calling-conventions
+     normalize-bind
      select-instructions
+     expose-allocation-pointer
      uncover-locals
      undead-analysis
      conflict-analysis
@@ -30,4 +32,5 @@
      resolve-predicates
      flatten-program
      patch-instructions
+     implement-mops
      generate-x64)))
