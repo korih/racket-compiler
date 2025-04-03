@@ -16,7 +16,7 @@
 (define/contract (uniquify p)
   (-> exprs-lang-v9? exprs-unique-lang-v9?)
 
-  ;; func is `(define ,label (lambda (,alocs ...) ,value))
+  ;; func is `(define ,label (lambda (,alocs ...) ,aalue))
   ;; interp. a function definition
 
   ;; (List-of func) -> (Env-of exprs-unique-lang-v8.triv)
@@ -81,12 +81,11 @@
       [`(error ,n) `(error ,n)]
       [asci #:when (ascii-char-literal? asci) asci]
       [fixnum #:when (fixnum? fixnum) fixnum]
-      [x (uniquify-x x env)]
-      ;; TODO: should just make them all unique like in let right
       [`(lambda (,xs ...) ,value) (define unique-names (map fresh xs))
                                   (define new-env (extend-env* env xs unique-names))
-                                  (define values^ (uniquify-value value new-env))
-                                  `(lambda ,unique-names ,@values^)]))
+                                  (define value^ (uniquify-value value new-env))
+                                  `(lambda ,unique-names ,value^)]
+      [x (uniquify-x x env)]))
 
   ;; exprs-unique-lang-v8.x (Env-of exprs-unique-lang-v8.triv) -> exprs-unique-lang-v8.triv
   ;; interp. resolves x primitive function or a unique variable definition
@@ -104,6 +103,14 @@
      `(module ,@(reverse updated-funcs) ,(uniquify-value value updated-env))]))
 
 (module+ test
+  (define (test-helper interp input expected)
+    (with-handlers ([exn:fail?
+                     (lambda (e)
+                       (printf "Test Error: ~a\nWith input: ~a\n" (exn-message e) input))])
+      (let ([actual (interp input)]
+            [expected-val (interp expected)])
+        (check-equal? actual expected-val "Test Helper"))))
+
   (check-equal? (uniquify '(module (call + 2 2)))
                 '(module (call + 2 2)))
   (check-equal? (uniquify '(module (let ([x 5]) x)))
@@ -205,18 +212,19 @@
                      (define f.53 (lambda (x.55 y.56) (call + x.55 y.56)))
                    (define x.54 (lambda (z.57) (let ((x.58 1)) (call + x.58 z.57))))
                    (let ((x.59 (call f.53 1 2))) (let ((y.60 (call x.59 x.59))) y.60))))
-  #;
-  (check-equal? (uniquify '(module
-                               (define f (lambda (x y) (call + x y)))
-                             (define x (lambda (z) (let ([x 1])
-                                                     (call + x z))))
-                             (let ([a (call f 1 2)])
-                               (let ([y (call x a)])
-                                 y))))
-                '(module
-                     (define L.f.8 (lambda (x.55 y.56) (call + x.55 y.56)))
-                   (define L.x.9 (lambda (z.57) (let ((x.58 1)) (call + x.58 z.57))))
-                   (let ((a.59 (call L.f.8 1 2))) (let ((y.60 (call L.x.9 a.59))) y.60))))
+  (test-helper
+   interp-exprs-unique-lang-v9
+   (uniquify '(module
+                  (define f (lambda (x y) (call + x y)))
+                (define x (lambda (z) (let ([x 1])
+                                        (call + x z))))
+                (let ([a (call f 1 2)])
+                  (let ([y (call x a)])
+                    y))))
+   '(module
+        (define L.f.8 (lambda (x.55 y.56) (call + x.55 y.56)))
+      (define L.x.9 (lambda (z.57) (let ((x.58 1)) (call + x.58 z.57))))
+      (let ((a.59 (call L.f.8 1 2))) (let ((y.60 (call L.x.9 a.59))) y.60))))
   (check-equal? (uniquify '(module
                                (define add
                                  (lambda (a b c d e f g h)
@@ -226,23 +234,23 @@
                                                           (call * sum i))))
                              (call add-and-multiply 1 2 3 4 5 6 7 8 2)))
                 '(module
-                     (define add.61
-                       (lambda (a.63 b.64 c.65 d.66 e.67 f.68 g.69 h.70)
+                     (define add.69
+                       (lambda (a.71 b.72 c.73 d.74 e.75 f.76 g.77 h.78)
                          (call
                           +
-                          a.63
+                          a.71
                           (call
                            +
-                           b.64
+                           b.72
                            (call
                             +
-                            c.65
-                            (call + d.66 (call + e.67 (call + f.68 (call + g.69 h.70)))))))))
-                   (define add-and-multiply.62
-                     (lambda (a.71 b.72 c.73 d.74 e.75 f.76 g.77 h.78 i.79)
-                       (let ((sum.80 (call add.61 a.71 b.72 c.73 d.74 e.75 f.76 g.77 h.78)))
-                         (call * sum.80 i.79))))
-                   (call add-and-multiply.62 1 2 3 4 5 6 7 8 2)))
+                            c.73
+                            (call + d.74 (call + e.75 (call + f.76 (call + g.77 h.78)))))))))
+                   (define add-and-multiply.70
+                     (lambda (a.79 b.80 c.81 d.82 e.83 f.84 g.85 h.86 i.87)
+                       (let ((sum.88 (call add.69 a.79 b.80 c.81 d.82 e.83 f.84 g.85 h.86)))
+                         (call * sum.88 i.87))))
+                   (call add-and-multiply.70 1 2 3 4 5 6 7 8 2)))
   (check-equal? (uniquify '(module (call eq? 1 1)))
                 '(module (call eq? 1 1)))
   (check-equal? (uniquify '(module (call fixnum? 1)))
@@ -281,4 +289,11 @@
                                                   (call
                                                    +
                                                    (if (call void? (call L.set-first.5 vec.3)) 0 (error 1))
-                                                   (call L.get-first.6 vec.3)))))))
+                                                   (call L.get-first.6 vec.3))))))
+
+  (check-equal? (uniquify '(module (lambda (x y) (call + x y))))
+                '(module (lambda (x.95 y.96) (call + x.95 y.96))))
+
+  (test-helper interp-exprs-unique-lang-v9
+               (uniquify '(module (lambda (x y) (call + x y))))
+               '(module (lambda (x.5 y.4) (call + x.5 y.4)))))
