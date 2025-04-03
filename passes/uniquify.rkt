@@ -9,17 +9,17 @@
 
 (provide uniquify)
 
-;; exprs-lang-v8 -> exprs-unique-lang-v8
-;; compiles p to Exprs-unique-lang v8 by resolving top-level lexical
+;; exprs-lang-v9 -> exprs-unique-lang-v9
+;; compiles p to Exprs-unique-lang v9 by resolving top-level lexical
 ;; identifiers into unique labels, and all other lexical identifiers into
 ;; unique abstract locations
 (define/contract (uniquify p)
   (-> exprs-lang-v9? exprs-unique-lang-v9?)
 
-  ;; func is `(define ,label (lambda (,alocs ...) ,aalue))
+  ;; func is `(define ,label (lambda (,alocs ...) ,value))
   ;; interp. a function definition
 
-  ;; (List-of func) -> (Env-of exprs-unique-lang-v8.triv)
+  ;; (List-of func) -> (Env-of exprs-unique-lang-v9.triv)
   ;; interp. creates an environment with all the unique function labels
   (define (initialize-env funcs)
     (for/fold ([env empty-env])
@@ -30,7 +30,7 @@
          (define env^ (extend-env env funcName unique-label))
          env^])))
 
-  ;; (List-of func) (Env-of exprs-unique-lang-v8.triv) -> (values (List-of func) (Env-of exprs-unique-lang-v8.triv))
+  ;; (List-of func) (Env-of exprs-unique-lang-v9.triv) -> (values (List-of func) (Env-of exprs-unique-lang-v9.triv))
   ;; interp. processes each function definition by assigning lexical identifiers with unique labels and abstract locations
   (define (identify-function-labels funcs env)
     (for/fold ([updated-funcs '()]
@@ -39,7 +39,7 @@
       (define-values (updated-func new-env) (uniquify-func func updated-env))
       (values (cons updated-func updated-funcs) new-env)))
 
-  ;; func (Env-of exprs-unique-lang-v8.triv) -> func (Env-of exprs-unique-lang-v8.triv)
+  ;; func (Env-of exprs-unique-lang-v9.triv) -> func (Env-of exprs-unique-lang-v9.triv)
   ;; interp. for a given function definition, go through its args and body and produce uniquified version
   (define (uniquify-func func env)
     (match func
@@ -50,7 +50,7 @@
        (values `(define ,unique-label (lambda (,@unique-args) ,(uniquify-value value new-env)))
                env)]))
 
-  ;; exprs-lang-v8.value (Env-of exprs-unique-lang-v8.triv) -> exprs-unique-lang-v8.value
+  ;; exprs-lang-v9.value (Env-of exprs-unique-lang-v9.triv) -> exprs-unique-lang-v9.value
   ;; interp. rom a given value and environment, produce the uniquified version of it
   (define (uniquify-value value env)
     (match value
@@ -70,7 +70,7 @@
        `(call ,@(map (lambda (v) (uniquify-value v env)) vs))]
       [triv (uniquify-triv triv env)]))
 
-  ;; exprs-lang-v8.triv (Env-of exprs-unique-lang-v8.triv) -> exprs-unique-lang-v8.triv
+  ;; exprs-lang-v9.triv (Env-of exprs-unique-lang-v9.triv) -> exprs-unique-lang-v9.triv
   ;; interp. resolves triv as terminal case, or x
   (define (uniquify-triv triv env)
     (match triv
@@ -81,19 +81,22 @@
       [`(error ,n) `(error ,n)]
       [asci #:when (ascii-char-literal? asci) asci]
       [fixnum #:when (fixnum? fixnum) fixnum]
-      [`(lambda (,xs ...) ,value) (define unique-names (map fresh xs))
-                                  (define new-env (extend-env* env xs unique-names))
-                                  (define value^ (uniquify-value value new-env))
-                                  `(lambda ,unique-names ,value^)]
+      [`(lambda (,xs ...) ,value)
+       (define unique-names (map fresh xs))
+       (define new-env (extend-env* env xs unique-names))
+       (define value^ (uniquify-value value new-env))
+       `(lambda ,unique-names ,value^)]
       [x (uniquify-x x env)]))
 
-  ;; exprs-unique-lang-v8.x (Env-of exprs-unique-lang-v8.triv) -> exprs-unique-lang-v8.triv
+  ;; exprs-unique-lang-v9.x (Env-of exprs-unique-lang-v9.triv) -> exprs-unique-lang-v9.triv
   ;; interp. resolves x primitive function or a unique variable definition
   (define (uniquify-x x env)
     (match x
-      [prim-f #:when (prim-f? prim-f) (if (assoc prim-f env)
-                                          (lookup-env env prim-f)
-                                          prim-f)]
+      [prim-f
+       #:when (prim-f? prim-f)
+       (if (assoc prim-f env)
+           (lookup-env env prim-f)
+           prim-f)]
       [name #:when (name? name) (lookup-env env name)]))
 
   (match p
