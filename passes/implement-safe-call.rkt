@@ -14,7 +14,6 @@
   ;; func is `(define ,label (lambda (,alocs ...) ,value))
   ;; interp. a function definition
 
-  ;; TODO: make some table for this
   (define bad-arrity-error `(error 42))
   (define bad-proc-error `(error 43))
 
@@ -26,7 +25,6 @@
   (define (implement-safe-primops-func func)
     (match func
       [`(define ,label (lambda (,alocs ...) ,value))
-       ;; TODO: figure out how to let the funcs call each other
        (hash-set! func-map label (length alocs))
        `(define ,label (lambda (,@alocs) ,(implement-safe-primops-value value)))]))
 
@@ -41,7 +39,6 @@
   ;; produce unsafe values from exprs-unsafe-data-lang-v9
   (define (implement-safe-primops-value value)
     (match value
-      ;; TODO:
       [`(call ,p ,args ...)
        (define args^ (map implement-safe-primops-value args))
        (define p^ (implement-safe-primops-value p))
@@ -99,18 +96,16 @@
                  bad-arrity-error)]
 
       ;; WILDCARD: collapse case because they all result in the same transformation
-      ;; TODO: how to handle the tmp variable creation
-      [_
-       (define (procedure-check tmp) `(if (procedure? ,tmp)
-                                          (if (eq? (unsafe-procedure-arity ,tmp) ,(length args))
-                                              (unsafe-procedure-call ,tmp ,@args)
-                                              ,bad-arrity-error)
-                                          ,bad-proc-error))
-       (define fresh-var (fresh 'call-tmp))
-       (if (aloc? t)
-           (procedure-check t)
-           `(let ((,fresh-var ,t))
-              ,(procedure-check fresh-var)))]))
+      [_ (define (procedure-check tmp) `(if (procedure? ,tmp)
+                                            (if (eq? (unsafe-procedure-arity ,tmp) ,(length args))
+                                                (unsafe-procedure-call ,tmp ,@args)
+                                                ,bad-arrity-error)
+                                            ,bad-proc-error))
+         (define fresh-var (fresh 'call-tmp))
+         (if (aloc? t)
+             (procedure-check t)
+             `(let ((,fresh-var ,t))
+                ,(procedure-check fresh-var)))]))
 
   (match p
     [`(module ,funcs ... ,value)
