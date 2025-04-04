@@ -7,15 +7,14 @@
 
 (provide implement-safe-primops)
 
-;; exprs-unique-lang-v8 -> exprs-unsafe-data-lang-v8
-;; compiles p to Exprs-unsafe-data-lang v8 by implementing safe primitive
+;; exprs-unique-lang-v9 -> exprs-unsafe-data-lang-v9
+;; compiles p to Exprs-unsafe-data-lang v9 by implementing safe primitive
 ;; operations by inserting procedure definitions for each primitive operation
 ;; which perform dynamic tag checking, to ensure type safety
 (define/contract (implement-safe-primops p)
   (-> exprs-unique-lang-v9? exprs-unsafe-data-lang-v9?)
 
   ;; TODO: change the values and stuff for call
-  ;; TODO: make the make-vector calls looks nicer
 
   ;; func is `(define ,label (lambda (,alocs ...) ,value))
   ;; interp. a function definition
@@ -51,26 +50,26 @@
       ,@(map (lambda (x) `(,x ,x (any? any?) 0))
              '(cons eq?))))
 
-  ;; (Immutable Map-of exprs-unique-lang-v8.prim-f) -> (Listof exprs-unsafe-data-lang-v8.prim-f unsafe-prim-f (Listof Paramter-Type) Natural)
+  ;; (Immutable Map-of exprs-unique-lang-v9.prim-f) -> (Listof exprs-unsafe-data-lang-v9.prim-f unsafe-prim-f (Listof Paramter-Type) Natural)
   ;; interp. map of data sturcture allocations to unsafe counter parts with specifications such as the types of the parameters and
   ;; the natural represents the error code
   (define primop-spec-map
     (for/fold ([h (hash)]) ([prim-table^ primop-spec-table])
       (hash-set h (first prim-table^) (rest prim-table^))))
 
-  ;; new-funcs is (Mutable Map-of exprs-unique-lang-v8.binop (list label func))
+  ;; new-funcs is (Mutable Map-of exprs-unique-lang-v9.binop (list label func))
   ;; interp. keeps track of new funcs that were created by compiling binop or unops
   (define new-funcs (make-hash))
 
-  ;; exprs.safe-data-lang-v8.func -> exprs-unsafe-data-lang-v8.func
-  ;; produce exprs-unsafe-data-lang-v8 of function definitions
+  ;; exprs.safe-data-lang-v9.func -> exprs-unsafe-data-lang-v9.func
+  ;; produce exprs-unsafe-data-lang-v9 of function definitions
   (define (implement-safe-primops-func func)
     (match func
       [`(define ,label (lambda (,alocs ...) ,value))
        `(define ,label (lambda (,@alocs) ,(implement-safe-primops-value value)))]))
 
-  ;; exprs-unique-lang-v8.value -> exprs-unsafe-data-lang-v8.value
-  ;; produce unsafe values from exprs-unique-lang-v8
+  ;; exprs-unique-lang-v9.value -> exprs-unsafe-data-lang-v9.value
+  ;; produce unsafe values from exprs-unique-lang-v9
   (define (implement-safe-primops-value value)
     (match value
       [`(call ,vs ...)
@@ -88,9 +87,9 @@
             ,(implement-safe-primops-value v3))]
       [triv (implement-safe-primops-triv triv)]))
 
-  ;; exprs-unique-lang-v8.triv -> exprs-unsafe-data-lang-v8.triv
+  ;; exprs-unique-lang-v9.triv -> exprs-unsafe-data-lang-v9.triv
   ;; GLOBAL VARIABLE: new-funcs maps prim-f expressions to (Listof Label Safety-Check-Funtion)
-  ;; interp. produce unsafe triv from exprs-unique-lang-v8.triv
+  ;; interp. produce unsafe triv from exprs-unique-lang-v9.triv
   (define (implement-safe-primops-triv triv)
     (match triv
       [prim-f #:when (hash-has-key? primop-spec-map prim-f)
@@ -150,7 +149,7 @@
                                                                         ,inner)))))
     (hash-set! new-funcs prim-f (list label safety-check-fun)))
 
-  ;; exprs-unique-lang-v8.prim-f -> exprs-unsafe-data-lang-v8.prim-f
+  ;; exprs-unique-lang-v9.prim-f -> exprs-unsafe-data-lang-v9.prim-f
   ;; produce safety checks for unsafe primops
   ;; GLOBAL VARIABLE: new-funs maps prim-f expressions to (Listof Label Safety-Check-Funtion)
   ;; EFFECTS: mutates new-funcs to include the new safety check functions
