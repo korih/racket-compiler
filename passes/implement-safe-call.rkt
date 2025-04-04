@@ -28,7 +28,7 @@
        (hash-set! func-map label (length alocs))
        `(define ,label (lambda (,@alocs) ,(implement-safe-primops-value value)))]))
 
-  ;; exprs.safe-data-lang-v9.func -> MAP
+  ;; exprs.safe-data-lang-v9.func -> Hash-map of Label -> arity
   ;; produce exprs-unsafe-data-lang-v9 of function definitions
   (define (implement-safe-primops-func-scan func)
     (match func

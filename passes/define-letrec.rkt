@@ -13,11 +13,19 @@
 (define/contract (define->letrec p)
   (-> exprs-unsafe-lang-v9? just-exprs-lang-v9?)
 
+  ;; func is `(define ,label (lambda (,alocs ...) ,value))
+  ;; interp. a function definition
+  ;;
+  ;; exprs-unsafe-lang-v9 -> just-exprs-lang-v9
+  ;; destructure the funciton definition to for letrec bindings
   (define (transform-funcs->let f)
     (match f
       [`(define ,label (lambda (,alocs ...) ,value))
        `(,label (lambda ,alocs ,value))]))
 
+  ;; exprs-unsafe-lang-v9 -> just-exprs-lang-v9
+  ;; transform the function definitions into letrec bindings in value
+  ;; if there are no funciton definitions don't do a letrec
   (define (transform-funcs->letrec funcs v)
     (cond
       [(empty? funcs) v]
