@@ -5,13 +5,9 @@
   cpsc411/ptr-run-time)
 
 (require
-  "passes/assign-fvars.rkt"
-  "passes/assign-homes-opt.rkt"
-  "passes/assign-homes.rkt"
   "passes/assign-call-undead-variables.rkt"
   "passes/assign-registers.rkt"
   "passes/conflict-analysis.rkt"
-  "passes/flatten-begins.rkt"
   "passes/implement-fvars.rkt"
   "passes/normalize-bind.rkt"
   "passes/patch-instructions.rkt"
@@ -26,8 +22,6 @@
   "passes/optimize-predicates.rkt"
   "passes/flatten-program.rkt"
   "passes/expose-basic-blocks.rkt"
-  "passes/link-paren-x64.rkt"
-  "passes/interp-paren-x64.rkt"
   "passes/impose-calling-conventions.rkt"
   "passes/assign-call-undead-variables.rkt"
   "passes/allocate-frames.rkt"
@@ -36,8 +30,16 @@
   "passes/specify-representation.rkt"
   "passes/remove-complex-opera.rkt"
   "passes/expose-allocation-pointer.rkt"
-  "passes/implement-mops.rkt")
-
+  "passes/implement-mops.rkt"
+  "passes/implement-safe-call.rkt"
+  "passes/define-letrec.rkt"
+  "passes/optimize-direct-calls.rkt"
+  "passes/dox-lambdas.rkt"
+  "passes/uncover-free.rkt"
+  "passes/convert-closures.rkt"
+  "passes/optimize-known-calls.rkt"
+  "passes/hoist-lambdas.rkt"
+  "passes/implement-closures.rkt")
 
 (module+ test
   (require
