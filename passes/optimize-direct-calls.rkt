@@ -12,6 +12,6 @@
 (define/contract (optimize-direct-calls p)
   (-> just-exprs-lang-v9? just-exprs-lang-v9?)
 
-  (void))
+  p)
 
 (module+ test)
