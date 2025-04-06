@@ -100,10 +100,10 @@
        (define new-call
          (cond
            [(assoc id env) `(call ,(lookup-env env id) ,@vs^)]
-           [else `(closure-call ,id ,vs)]))
+           [else `(closure-call ,id ,@vs^)]))
        (values new-call env)]
-      [`(closure-ref ,v1 ,v2) (define-values (v1^ env1) (optimize-known-calls-value v1 env))
-                              (define-values (v2^ env2) (optimize-known-calls-value v2 env))
+      [`(closure-ref ,v1 ,v2) (define-values (v1^ _) (optimize-known-calls-value v1 env))
+                              (define-values (v2^ __) (optimize-known-calls-value v2 env))
                               (values `(closure-ref ,v1^ ,v2^) env)]
       [`(,primops ,vs ...) (define vs^ (traverse-values vs env))
                            (values `(,primops ,@vs^) env)]
