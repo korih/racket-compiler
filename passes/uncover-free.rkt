@@ -12,7 +12,7 @@
 ;; compiles p to Lam-free-lang v9 by explicitly annotate procedures with their
 ;; free variable sets.
 (define/contract (uncover-free p)
-  (-> lam-opticon-lang-v9? any #;lam-free-lang-v9?)
+  (-> lam-opticon-lang-v9? lam-free-lang-v9?)
 
 
   ;; (Listof lam-opticon-lang-v9.value) -> (Listof lam-free-lang-v9.value) (Listof alocs)
@@ -261,7 +261,4 @@
                                   a.3))))
                       a.2))))
           a.1))
-   "Test with super nested letrec with let")
-
-
-  )
+   "Test with super nested letrec with let"))
