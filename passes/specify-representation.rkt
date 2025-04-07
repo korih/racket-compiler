@@ -5,16 +5,17 @@
 (require
   cpsc411/compiler-lib
   cpsc411/langs/v8
+  cpsc411/langs/v9
   rackunit)
 
 (provide specify-representation)
 
-;; exprs-unsafe-data-lang-v8 -> exprs-bits-lang-v8
+;; proc-exposed-lang-v9 -> exprs-bits-lang-v8
 ;; compiles p to Exprs-bit-lang v8 by compiling immediate data and primitive
 ;; operations into their implementations as ptrs and primitive bitwise
 ;; operations on ptrs
 (define/contract (specify-representation p)
-  (-> exprs-unsafe-data-lang-v8? exprs-bits-lang-v8?)
+  (-> proc-exposed-lang-v9? exprs-bits-lang-v8?)
 
   ;; func is `(define ,label (lambda (,alocs ...) ,value))
   ;; interp. a function definition
@@ -25,7 +26,7 @@
       [`(define ,label (lambda (,alocs ...) ,value))
        `(define ,label (lambda (,@alocs) ,(specify-representation-value value)))]))
 
-  ;; exprs-unsafe-data-lang-v8.value -> exprs-bits-lang-v8.value
+  ;; proc-exposed-lang-v9 -> exprs-bits-lang-v8.value
   (define (specify-representation-value value)
     (match value
       [`(let ([,alocs ,vs] ...) ,v)
@@ -47,7 +48,7 @@
        ((specify-representation-primop primop) (map specify-representation-value vs))]
       [triv (specify-representation-triv triv)]))
 
-  ;; exprs-unsafe-data-lang-v8.effect -> exprs-bits-lang-v8.effect
+  ;; proc-exposed-lang-v9 -> exprs-bits-lang-v8.effect
   (define (specify-representation-effect effect)
     (match effect
       [`(,primop ,vs ...)
@@ -56,7 +57,7 @@
       [`(begin ,es ...)
        `(begin ,@(map specify-representation-effect es))]))
 
-  ;; exprs-unsafe-data-lang-v8.triv -> exprs-bits-lang-v8.triv
+  ;; proc-exposed-lang-v9 -> exprs-bits-lang-v8.triv
   (define (specify-representation-triv triv)
     (match triv
       ['#t (current-true-ptr)]
@@ -74,9 +75,44 @@
             (bitwise-ior (arithmetic-shift (char->integer char) (current-ascii-char-shift))
                          (current-ascii-char-tag))]))
 
-  ;; exprs-unsafe-data-lang-v8.primop -> ((List-of exprs-bits-lang-v8.value) -> exprs-bits-lang-v8.value)
+  ;; proc-exposed-lang-v9 -> ((List-of exprs-bits-lang-v8.value) -> exprs-bits-lang-v8.value)
   (define (specify-representation-primop primop)
     (match primop
+      ['procedure? (lambda (values)
+                     `(if (= (bitwise-and ,(first values) ,(current-procedure-mask)) ,(current-procedure-tag))
+                          ,(current-true-ptr) ,(current-false-ptr)))]
+      ['make-procedure
+       (define tmp (fresh 'tmp))
+       (lambda (values)
+         `(let ([,tmp (+ (alloc 24) ,(current-procedure-tag))])
+            (begin
+              (mset! ,tmp ,(- (current-procedure-tag)) ,(first values))
+              (mset! ,tmp 6 ,(second values))
+              ,tmp)))]
+
+      ['unsafe-procedure-arity
+       (lambda (values)
+         `(mref ,(first values) 6))]
+
+      ['unsafe-procedure-label
+       (lambda (values)
+         `(mref ,(first values) ,(- (current-procedure-tag))))]
+
+      ['unsafe-procedure-ref
+       (lambda (values)
+         (define offset
+           (if (int64? (second values))
+               (+ (second values) 8)
+               `(+ 14 (* (arithmetic-shift-right ,(second values) ,(current-fixnum-shift)) 8))))
+         `(mref ,(first values) ,offset))]
+
+      ['unsafe-procedure-set!
+       (lambda (values)
+         (define offset
+           (if (int64? (second values))
+               (+ 14 (* (second values) 8))
+               `(+ 14 (* (arithmetic-shift-right ,(second values) ,(current-fixnum-shift)) 8))))
+         `(mset! ,(first values) ,offset ,(third values)))]
       ['unsafe-fx*
        (lambda (values)
          (if (int61? (second values))
@@ -501,79 +537,79 @@
                    (call L.make-vector.28 16)))
   (check-equal? (interp-exprs-bits-lang-v8 (specify-representation
                                             '(module (define L.vector-init-loop.9 (lambda (len.10 i.11 vec.12) (if (eq? len.10 i.11) vec.12 (begin (unsafe-vector-set! vec.12 i.11 0) (call L.vector-init-loop.9 len.10 (unsafe-fx+ i.11 1) vec.12))))) (define L.vector-set!.10 (lambda (tmp.13 tmp.14 tmp.15) (if (fixnum? tmp.14) (if (vector? tmp.13) (call L.unsafe-vector-set!.11 tmp.13 tmp.14 tmp.15) (error 10)) (error 10)))) (define L.void?.15 (lambda (tmp.25) (void? tmp.25))) (define L.make-init-vector.8 (lambda (tmp.8) (if (unsafe-fx>= tmp.8 0) (let ((tmp.9 (unsafe-make-vector tmp.8))) (call L.vector-init-loop.9 tmp.8 0 tmp.9)) (error 12)))) (define L.+.14 (lambda (tmp.23 tmp.24) (if (fixnum? tmp.23) (if (fixnum? tmp.24) (unsafe-fx+ tmp.23 tmp.24) (error 2)) (error 2)))) (define L.unsafe-vector-set!.11 (lambda (tmp.16 tmp.17 tmp.18) (if (unsafe-fx< tmp.17 (unsafe-vector-length tmp.16)) (if (unsafe-fx>= tmp.17 0) (begin (unsafe-vector-set! tmp.16 tmp.17 tmp.18) (void)) (error 10)) (error 10)))) (define L.vector-ref.12 (lambda (tmp.19 tmp.20) (if (fixnum? tmp.20) (if (vector? tmp.19) (call L.unsafe-vector-ref.13 tmp.19 tmp.20) (error 11)) (error 11)))) (define L.make-vector.7 (lambda (tmp.7) (if (fixnum? tmp.7) (call L.make-init-vector.8 tmp.7) (error 8)))) (define L.unsafe-vector-ref.13 (lambda (tmp.21 tmp.22) (if (unsafe-fx< tmp.22 (unsafe-vector-length tmp.21)) (if (unsafe-fx>= tmp.22 0) (unsafe-vector-ref tmp.21 tmp.22) (error 11)) (error 11)))) (define L.v.4 (lambda () (call L.make-vector.7 3))) (define L.set-first.5 (lambda (vec.4) (call L.vector-set!.10 vec.4 0 42))) (define L.get-first.6 (lambda (vec.5) (call L.vector-ref.12 vec.5 0))) (let ((vec.6 (call L.v.4))) (call L.+.14 (if (call L.void?.15 (call L.set-first.5 vec.6)) 0 (error 1)) (call L.get-first.6 vec.6))))))
-                (interp-exprs-bits-lang-v8 
-                                         '(module
-  (define L.vector-init-loop.9
-    (lambda (len.10 i.11 vec.12)
-      (if (!= (if (= len.10 i.11) 14 6) 6)
-        vec.12
-        (begin
-          (mset! vec.12 (+ (* (arithmetic-shift-right i.11 3) 8) 5) 0)
-          (call L.vector-init-loop.9 len.10 (+ i.11 8) vec.12)))))
-  (define L.vector-set!.10
-    (lambda (tmp.13 tmp.14 tmp.15)
-      (if (!= (if (= (bitwise-and tmp.14 7) 0) 14 6) 6)
-        (if (!= (if (= (bitwise-and tmp.13 7) 3) 14 6) 6)
-          (call L.unsafe-vector-set!.11 tmp.13 tmp.14 tmp.15)
-          2622)
-        2622)))
-  (define L.void?.15
-    (lambda (tmp.25) (if (= (bitwise-and tmp.25 255) 30) 14 6)))
-  (define L.make-init-vector.8
-    (lambda (tmp.8)
-      (if (!= (if (>= tmp.8 0) 14 6) 6)
-        (let ((tmp.9
-               (let ((tmp.1
-                      (+
-                       (alloc (* (+ 1 (arithmetic-shift-right tmp.8 3)) 8))
-                       3)))
-                 (begin (mset! tmp.1 -3 tmp.8) tmp.1))))
-          (call L.vector-init-loop.9 tmp.8 0 tmp.9))
-        3134)))
-  (define L.+.14
-    (lambda (tmp.23 tmp.24)
-      (if (!= (if (= (bitwise-and tmp.23 7) 0) 14 6) 6)
-        (if (!= (if (= (bitwise-and tmp.24 7) 0) 14 6) 6)
-          (+ tmp.23 tmp.24)
-          574)
-        574)))
-  (define L.unsafe-vector-set!.11
-    (lambda (tmp.16 tmp.17 tmp.18)
-      (if (!= (if (< tmp.17 (mref tmp.16 -3)) 14 6) 6)
-        (if (!= (if (>= tmp.17 0) 14 6) 6)
-          (begin
-            (mset! tmp.16 (+ (* (arithmetic-shift-right tmp.17 3) 8) 5) tmp.18)
-            30)
-          2622)
-        2622)))
-  (define L.vector-ref.12
-    (lambda (tmp.19 tmp.20)
-      (if (!= (if (= (bitwise-and tmp.20 7) 0) 14 6) 6)
-        (if (!= (if (= (bitwise-and tmp.19 7) 3) 14 6) 6)
-          (call L.unsafe-vector-ref.13 tmp.19 tmp.20)
-          2878)
-        2878)))
-  (define L.make-vector.7
-    (lambda (tmp.7)
-      (if (!= (if (= (bitwise-and tmp.7 7) 0) 14 6) 6)
-        (call L.make-init-vector.8 tmp.7)
-        2110)))
-  (define L.unsafe-vector-ref.13
-    (lambda (tmp.21 tmp.22)
-      (if (!= (if (< tmp.22 (mref tmp.21 -3)) 14 6) 6)
-        (if (!= (if (>= tmp.22 0) 14 6) 6)
-          (mref tmp.21 (+ (* (arithmetic-shift-right tmp.22 3) 8) 5))
-          2878)
-        2878)))
-  (define L.v.4 (lambda () (call L.make-vector.7 24)))
-  (define L.set-first.5 (lambda (vec.4) (call L.vector-set!.10 vec.4 0 336)))
-  (define L.get-first.6 (lambda (vec.5) (call L.vector-ref.12 vec.5 0)))
-  (let ((vec.6 (call L.v.4)))
-    (call
-     L.+.14
-     (if (!= (call L.void?.15 (call L.set-first.5 vec.6)) 6) 0 318)
-     (call L.get-first.6 vec.6))))))
-                                            (check-equal? (interp-exprs-bits-lang-v8 (specify-representation
+                (interp-exprs-bits-lang-v8
+                 '(module
+                      (define L.vector-init-loop.9
+                        (lambda (len.10 i.11 vec.12)
+                          (if (!= (if (= len.10 i.11) 14 6) 6)
+                              vec.12
+                              (begin
+                                (mset! vec.12 (+ (* (arithmetic-shift-right i.11 3) 8) 5) 0)
+                                (call L.vector-init-loop.9 len.10 (+ i.11 8) vec.12)))))
+                    (define L.vector-set!.10
+                      (lambda (tmp.13 tmp.14 tmp.15)
+                        (if (!= (if (= (bitwise-and tmp.14 7) 0) 14 6) 6)
+                            (if (!= (if (= (bitwise-and tmp.13 7) 3) 14 6) 6)
+                                (call L.unsafe-vector-set!.11 tmp.13 tmp.14 tmp.15)
+                                2622)
+                            2622)))
+                    (define L.void?.15
+                      (lambda (tmp.25) (if (= (bitwise-and tmp.25 255) 30) 14 6)))
+                    (define L.make-init-vector.8
+                      (lambda (tmp.8)
+                        (if (!= (if (>= tmp.8 0) 14 6) 6)
+                            (let ((tmp.9
+                                   (let ((tmp.1
+                                          (+
+                                           (alloc (* (+ 1 (arithmetic-shift-right tmp.8 3)) 8))
+                                           3)))
+                                     (begin (mset! tmp.1 -3 tmp.8) tmp.1))))
+                              (call L.vector-init-loop.9 tmp.8 0 tmp.9))
+                            3134)))
+                    (define L.+.14
+                      (lambda (tmp.23 tmp.24)
+                        (if (!= (if (= (bitwise-and tmp.23 7) 0) 14 6) 6)
+                            (if (!= (if (= (bitwise-and tmp.24 7) 0) 14 6) 6)
+                                (+ tmp.23 tmp.24)
+                                574)
+                            574)))
+                    (define L.unsafe-vector-set!.11
+                      (lambda (tmp.16 tmp.17 tmp.18)
+                        (if (!= (if (< tmp.17 (mref tmp.16 -3)) 14 6) 6)
+                            (if (!= (if (>= tmp.17 0) 14 6) 6)
+                                (begin
+                                  (mset! tmp.16 (+ (* (arithmetic-shift-right tmp.17 3) 8) 5) tmp.18)
+                                  30)
+                                2622)
+                            2622)))
+                    (define L.vector-ref.12
+                      (lambda (tmp.19 tmp.20)
+                        (if (!= (if (= (bitwise-and tmp.20 7) 0) 14 6) 6)
+                            (if (!= (if (= (bitwise-and tmp.19 7) 3) 14 6) 6)
+                                (call L.unsafe-vector-ref.13 tmp.19 tmp.20)
+                                2878)
+                            2878)))
+                    (define L.make-vector.7
+                      (lambda (tmp.7)
+                        (if (!= (if (= (bitwise-and tmp.7 7) 0) 14 6) 6)
+                            (call L.make-init-vector.8 tmp.7)
+                            2110)))
+                    (define L.unsafe-vector-ref.13
+                      (lambda (tmp.21 tmp.22)
+                        (if (!= (if (< tmp.22 (mref tmp.21 -3)) 14 6) 6)
+                            (if (!= (if (>= tmp.22 0) 14 6) 6)
+                                (mref tmp.21 (+ (* (arithmetic-shift-right tmp.22 3) 8) 5))
+                                2878)
+                            2878)))
+                    (define L.v.4 (lambda () (call L.make-vector.7 24)))
+                    (define L.set-first.5 (lambda (vec.4) (call L.vector-set!.10 vec.4 0 336)))
+                    (define L.get-first.6 (lambda (vec.5) (call L.vector-ref.12 vec.5 0)))
+                    (let ((vec.6 (call L.v.4)))
+                      (call
+                       L.+.14
+                       (if (!= (call L.void?.15 (call L.set-first.5 vec.6)) 6) 0 318)
+                       (call L.get-first.6 vec.6))))))
+  (check-equal? (interp-exprs-bits-lang-v8 (specify-representation
                                             '(module
                                                  (define L.+.12
                                                    (lambda (tmp.19 tmp.20)
@@ -704,4 +740,86 @@
                       (call
                        L.+.12
                        (if (!= (call L.void?.11 (call L.set-first.5 vec.3)) 6) 0 318)
-                       (call L.get-first.6 vec.3)))))))
+                       (call L.get-first.6 vec.3))))))
+  (check-equal?
+   (specify-representation '(module
+                                (define L.+.1
+                                  (lambda (tmp.1 tmp.2)
+                                    (if (fixnum? tmp.2)
+                                        (if (fixnum? tmp.1) (make-procedure L.tmp.1 1 1) (error 2))
+                                        (error 2))))
+                              (call L.+.1 1 2)))
+   '(module
+        (define L.+.1
+          (lambda (tmp.1 tmp.2)
+            (if (!= (if (= (bitwise-and tmp.2 7) 0) 14 6) 6)
+                (if (!= (if (= (bitwise-and tmp.1 7) 0) 14 6) 6)
+                    (let ((tmp.16 (+ (alloc 24) 2)))
+                      (begin (mset! tmp.16 -2 L.tmp.1) (mset! tmp.16 6 8) tmp.16))
+                    574)
+                574)))
+      (call L.+.1 8 16))
+   "incorrect program, just to test make-procedure")
+  (check-equal?
+   (specify-representation '(module
+                                (define L.+.1
+                                  (lambda (tmp.1 tmp.2)
+                                    (if (fixnum? tmp.2)
+                                        (if (fixnum? tmp.1) (unsafe-procedure-arity L.tmp.1) (error 2))
+                                        (error 2))))
+                              (call L.+.1 1 2)))
+   '(module
+        (define L.+.1
+          (lambda (tmp.1 tmp.2)
+            (if (!= (if (= (bitwise-and tmp.2 7) 0) 14 6) 6)
+                (if (!= (if (= (bitwise-and tmp.1 7) 0) 14 6) 6) (mref L.tmp.1 6) 574)
+                574)))
+      (call L.+.1 8 16))
+   "unsafe-procedure-arity call test basic")
+  (check-equal?
+   (specify-representation '(module
+                                (define L.+.1
+                                  (lambda (tmp.1 tmp.2)
+                                    (if (fixnum? tmp.2)
+                                        (if (fixnum? tmp.1) (unsafe-procedure-label L.tmp.1) (error 2))
+                                        (error 2))))
+                              (call L.+.1 1 2)))
+   '(module
+        (define L.+.1
+          (lambda (tmp.1 tmp.2)
+            (if (!= (if (= (bitwise-and tmp.2 7) 0) 14 6) 6)
+                (if (!= (if (= (bitwise-and tmp.1 7) 0) 14 6) 6) (mref L.tmp.1 -2) 574)
+                574)))
+      (call L.+.1 8 16))
+   "unsafe-procedure-label call test basic")
+  (check-equal?
+   (specify-representation '(module
+                                (define L.+.1
+                                  (lambda (tmp.1 tmp.2)
+                                    (if (fixnum? tmp.2)
+                                        (if (fixnum? tmp.1) (unsafe-procedure-ref L.tmp.1 2) (error 2))
+                                        (error 2))))
+                              (call L.+.1 1 2)))
+   '(module
+        (define L.+.1
+          (lambda (tmp.1 tmp.2)
+            (if (!= (if (= (bitwise-and tmp.2 7) 0) 14 6) 6)
+                (if (!= (if (= (bitwise-and tmp.1 7) 0) 14 6) 6) (mref L.tmp.1 30) 574)
+                574)))
+      (call L.+.1 8 16))
+   "unsafe-procedure-ref call test basic")
+  (check-equal?
+   (specify-representation '(module
+                                (define L.x.1.7
+                                  (lambda (c.4)
+                                    (let ((x.1 (unsafe-procedure-ref c.4 0))) (call L.x.1.7 x.1))))
+                              (let ((x.1 (make-procedure L.x.1.7 0 1)))
+                                (begin (unsafe-procedure-set! x.1 0 x.1) x.1))))
+   '(module
+        (define L.x.1.7
+          (lambda (c.4) (let ((x.1 (mref c.4 14))) (call L.x.1.7 x.1))))
+      (let ((x.1
+             (let ((tmp.17 (+ (alloc 24) 2)))
+               (begin (mset! tmp.17 -2 L.x.1.7) (mset! tmp.17 6 0) tmp.17))))
+        (begin (mset! x.1 14 x.1) x.1)))
+   "unsafe-procedure-set! call test"))
