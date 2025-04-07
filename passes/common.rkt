@@ -66,7 +66,12 @@
       (procedure-op? op)))
 
 (define (procedure-op? op)
-  (and (member op '(procedure? procedure-arity)) #t))
+  (and (member op '(procedure?
+                    procedure-arity
+                    make-procedure
+                    unsafe-procedure-label
+                    unsafe-procedure-ref
+                    unsafe-procedure-set!)) #t))
 
 ;; any -> boolean
 ;; produces true if op is a valid pair operation
