@@ -1,123 +1,58 @@
 #lang racket
 
 (require
- cpsc411/compiler-lib
- cpsc411/ptr-run-time
- cpsc411/langs/v8
- cpsc411/langs/v9
- cpsc411/langs/v11)
+  cpsc411/compiler-lib
+  cpsc411/ptr-run-time
+  cpsc411/langs/v8
+  cpsc411/langs/v9
+  cpsc411/langs/v11)
+
+(require
+  "passes/assign-call-undead-variables.rkt"
+  "passes/assign-registers.rkt"
+  "passes/conflict-analysis.rkt"
+  "passes/implement-fvars.rkt"
+  "passes/normalize-bind.rkt"
+  "passes/patch-instructions.rkt"
+  "passes/replace-locations.rkt"
+  "passes/select-instructions.rkt"
+  "passes/sequentialize-let.rkt"
+  "passes/uncover-locals.rkt"
+  "passes/undead-analysis.rkt"
+  "passes/uniquify.rkt"
+  "passes/generate-x64.rkt"
+  "passes/resolve-predicates.rkt"
+  "passes/optimize-predicates.rkt"
+  "passes/flatten-program.rkt"
+  "passes/expose-basic-blocks.rkt"
+  "passes/impose-calling-conventions.rkt"
+  "passes/assign-call-undead-variables.rkt"
+  "passes/allocate-frames.rkt"
+  "passes/assign-frame-variables.rkt"
+  "passes/implement-safe-primops.rkt"
+  "passes/specify-representation.rkt"
+  "passes/remove-complex-opera.rkt"
+  "passes/expose-allocation-pointer.rkt"
+  "passes/implement-mops.rkt"
+  "passes/implement-safe-call.rkt"
+  "passes/define-letrec.rkt"
+  "passes/optimize-direct-calls.rkt"
+  "passes/dox-lambdas.rkt"
+  "passes/uncover-free.rkt"
+  "passes/convert-closures.rkt"
+  "passes/optimize-known-calls.rkt"
+  "passes/hoist-lambdas.rkt"
+  "passes/implement-closures.rkt")
 
 (provide
- expand-macros
- uniquify
- implement-safe-primops
- implement-safe-call
- define->letrec
- optimize-direct-calls
- dox-lambdas
- uncover-free
- convert-closures
- optimize-known-calls
- hoist-lambdas
- implement-closures
- specify-representation
- remove-complex-opera*
- sequentialize-let
- normalize-bind
- impose-calling-conventions
- select-instructions
- expose-allocation-pointer
- uncover-locals
- undead-analysis
- conflict-analysis
- assign-call-undead-variables
- allocate-frames
- assign-registers
- assign-frame-variables
- replace-locations
- implement-fvars
- optimize-predicates
- expose-basic-blocks
- resolve-predicates
- flatten-program
- patch-instructions
- implement-mops
- generate-x64)
+ expand-macros)
 
 ;; TODO: Fill in.
 ;; You'll want to merge milestone-9 code in
 
 ;; Stubs; remove or replace with your definitions.
-(define-values (uniquify
-                expand-macros
-                implement-safe-primops
-                implement-safe-call
-                define->letrec
-                optimize-direct-calls
-                dox-lambdas
-                uncover-free
-                convert-closures
-                optimize-known-calls
-                hoist-lambdas
-                implement-closures
-                specify-representation
-                remove-complex-opera*
-                sequentialize-let
-                normalize-bind
-                impose-calling-conventions
-                select-instructions
-                expose-allocation-pointer
-                uncover-locals
-                undead-analysis
-                conflict-analysis
-                assign-call-undead-variables
-                allocate-frames
-                assign-registers
-                assign-frame-variables
-                replace-locations
-                implement-fvars
-                optimize-predicates
-                expose-basic-blocks
-                resolve-predicates
-                flatten-program
-                patch-instructions
-                implement-mops
-                generate-x64)
+(define-values (expand-macros)
   (values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
-   values
    values))
 
 ;; You can modify this pass list, e.g., by adding other
@@ -170,11 +105,11 @@
 
 (module+ test
   (require
-   rackunit
-   rackunit/text-ui
-   cpsc411/langs/v9
-   cpsc411/langs/v10
-   cpsc411/test-suite/public/v10)
+    rackunit
+    rackunit/text-ui
+    cpsc411/langs/v9
+    cpsc411/langs/v10
+    cpsc411/test-suite/public/v10)
 
   (run-tests
    (v10-public-test-suite
