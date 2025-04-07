@@ -154,4 +154,27 @@
         (|+.2| (make-closure L.+.2.8 2 |+.1|)))
        (call L.+.2.8 |+.2| 1 2 tmp.3)))
    "Basic test for hoisting two definitions")
-  )
+  (check-equal?
+   (hoist-lambdas
+    '(module
+         (letrec ((L.x.1.7
+                   (lambda (c.4)
+                     (let ((x.1 (closure-ref c.4 0))) (call L.x.1.7 x.1)))))
+           (cletrec ((x.1 (make-closure L.x.1.7 0 x.1))) x.1))))
+   '(module
+        (define L.x.1.7
+          (lambda (c.4) (let ((x.1 (closure-ref c.4 0))) (call L.x.1.7 x.1))))
+      (cletrec ((x.1 (make-closure L.x.1.7 0 x.1))) x.1))
+   "No call in body")
+  (check-equal?
+   (hoist-lambdas
+    '(module
+         (letrec ((L.x.1.7
+                   (lambda (c.4)
+                     (let ((x.1 (closure-ref c.4 0))) (call L.x.1.7 x.1)))))
+           (cletrec ((x.1 (make-closure L.x.1.7 0 x.1))) (call L.x.1.7 x.1 1 2)))))
+   '(module
+        (define L.x.1.7
+          (lambda (c.4) (let ((x.1 (closure-ref c.4 0))) (call L.x.1.7 x.1))))
+      (cletrec ((x.1 (make-closure L.x.1.7 0 x.1))) (call L.x.1.7 x.1 1 2)))
+   "Incorrect arg count test"))
