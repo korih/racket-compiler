@@ -62,7 +62,11 @@
   (or (safe-binop? op)
       (unop? op)
       (pair-op? op)
-      (vector-op? op)))
+      (vector-op? op)
+      (procedure-op? op)))
+
+(define (procedure-op? op)
+  (and (member op '(procedure? procedure-arity)) #t))
 
 ;; any -> boolean
 ;; produces true if op is a valid pair operation

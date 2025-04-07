@@ -296,6 +296,10 @@
 
   (check-equal? (uniquify '(module (lambda (x y) (call + x y))))
                 '(module (lambda (x.95 y.96) (call + x.95 y.96))))
+  (check-equal? (uniquify '(module (define add (lambda (x y) (call + x y)))
+                             (call + 1 2)))
+                '(module (define add.97 (lambda (x.98 y.99) (call + x.98 y.99))) (call + 1 2))
+                "Check with definition with names")
 
   (test-helper interp-exprs-unique-lang-v9
                (uniquify '(module (lambda (x y) (call + x y))))
