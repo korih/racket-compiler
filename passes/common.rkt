@@ -101,7 +101,7 @@
 ;; any -> boolean
 ;; produces true if op is a valid unsafe primop
 (define (unsafe-primop? op)
-  (and (member op '(unsafe-fx* unsafe-fx+ unsafe-fx- eq? unsafe-fx< unsafe-fx<= unsafe-fx> unsafe-fx>= fixnum? boolean? empty? void? ascii-char? error? not pair? vector? cons unsafe-car unsafe-cdr unsafe-make-vector unsafe-vector-length unsafe-vector-set! unsafe-vector-ref)) #t))
+  (and (member op '(unsafe-fx* unsafe-fx+ unsafe-fx- eq? unsafe-fx< unsafe-fx<= unsafe-fx> unsafe-fx>= fixnum? boolean? empty? void? ascii-char? error? not pair? vector? procedure? cons unsafe-car unsafe-cdr unsafe-make-vector unsafe-vector-length unsafe-vector-set! unsafe-vector-ref unsafe-procedure-arity)) #t))
 
 ;; any -> boolean
 ;; produces true if op is a valid relop

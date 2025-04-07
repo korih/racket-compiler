@@ -1,6 +1,7 @@
 #lang racket
 
 (require
+ "common.rkt"
   cpsc411/compiler-lib
   cpsc411/langs/v9
   rackunit)
@@ -12,38 +13,6 @@
 ;; abstract locations
 (define/contract (dox-lambdas p)
   (-> just-exprs-lang-v9? lam-opticon-lang-v9?)
-
-  ;; true if p is a primop, false otherwise
-  (define/contract (primop? p)
-    (-> any/c boolean?)
-    (match p
-      ['unsafe-fx* #t]
-      ['unsafe-fx+ #t]
- 	  ['unsafe-fx- #t]
- 	  ['eq? #t]
- 	  ['unsafe-fx< #t]
- 	  ['unsafe-fx<= #t]
- 	  ['unsafe-fx> #t]
- 	  ['unsafe-fx>= #t]
- 	  ['fixnum? #t]
- 	  ['boolean? #t]
- 	  ['empty? #t]
- 	  ['void? #t]
- 	  ['ascii-char? #t]
- 	  ['error? #t]
- 	  ['not #t]
- 	  ['pair? #t]
- 	  ['vector? #t]
- 	  ['procedure? #t]
- 	  ['cons #t]
- 	  ['unsafe-car #t]
- 	  ['unsafe-cdr #t]
- 	  ['unsafe-make-vector #t]
- 	  ['unsafe-vector-length #t]
- 	  ['unsafe-vector-set! #t]
- 	  ['unsafe-vector-ref #t]
- 	  ['unsafe-procedure-arity #t]
-      [_ #f]))
 
   ;; just-exprs-lang-v9.value -> lam-opticon-lang-v9.value
   ;; compiles the values expression, binding all procedures to abstract locations in value position
@@ -72,7 +41,7 @@
             ,(dox-lambdas/value aV))]
       [`(begin ,e ... v)
        `(begin ,@(map dox-lambdas/effect e) (dox-lambdas/value v))]
-      [`(,primop ,v ...) #:when (primop? primop)
+      [`(,primop ,v ...) #:when (unsafe-primop? primop)
        `(,primop ,@(map dox-lambdas/value v))]
       [triv (dox-lambdas/triv triv)]))
 
