@@ -33,6 +33,8 @@
       (>  unsafe-fx>  (fixnum? fixnum?) 6)
       (>= unsafe-fx>= (fixnum? fixnum?) 7)
 
+      (procedure-arity unsafe-procedure-arity (procedure?) 26)
+
       (make-vector   make-init-vector-label   (fixnum?)               8)
       (vector-length unsafe-vector-length     (vector?)               9)
       (vector-set!   unsafe-vector-set!-label (vector? fixnum? any?) 10)
@@ -44,7 +46,7 @@
       ;; No error code if the value isn't as expected, just produce false
       ,@(map (lambda (x) `(,x ,x (any?) 0))
              '(fixnum? boolean? empty? void? ascii-char? error? pair?
-                       vector? not))
+                       vector? not procedure?))
 
       ;; No error code if the value isn't as expected, just produce false
       ,@(map (lambda (x) `(,x ,x (any? any?) 0))
@@ -73,7 +75,6 @@
   (define (implement-safe-primops-value value)
     (match value
       [`(call ,vs ...)
-       ;; TODO: should call unsafe?
        `(call ,@(map implement-safe-primops-value vs))]
       [`(let ([,alocs ,vs] ...) ,v)
        (define bindings
@@ -772,4 +773,18 @@
             (if (fixnum? tmp.21)
                 (if (fixnum? tmp.20) (unsafe-fx+ tmp.20 tmp.21) (error 2))
                 (error 2))))
-      (lambda (x.1 y.1 z.1) (call |+.56| x.1 y.1 z.1)))))
+      (lambda (x.1 y.1 z.1) (call |+.56| x.1 y.1 z.1))))
+  (check-equal?
+   (implement-safe-primops '(module (call procedure? |+.56|)))
+   '(module
+        (define procedure?.176 (lambda (tmp.177) (procedure? tmp.177)))
+      (call procedure?.176 |+.56|)))
+
+  (check-equal?
+   (implement-safe-primops '(module (call procedure-arity |+.56|)))
+   '(module
+        (define procedure-arity.178
+          (lambda (tmp.179)
+            (if (procedure? tmp.179) (unsafe-procedure-arity tmp.179) (error 26))))
+      (call procedure-arity.178 |+.56|)))
+  )
