@@ -2,7 +2,7 @@
 
 echo "Running script"
 
-cd ./passes/ || {
+cd ./tests/ || {
   echo "Directory Not Found"
   exit 1
 }
