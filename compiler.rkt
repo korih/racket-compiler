@@ -42,18 +42,8 @@
   "passes/convert-closures.rkt"
   "passes/optimize-known-calls.rkt"
   "passes/hoist-lambdas.rkt"
-  "passes/implement-closures.rkt")
-
-(provide
- expand-macros)
-
-;; TODO: Fill in.
-;; You'll want to merge milestone-9 code in
-
-;; Stubs; remove or replace with your definitions.
-(define-values (expand-macros)
-  (values
-   values))
+  "passes/implement-closures.rkt"
+  "passes/expand-macros.rkt")
 
 ;; You can modify this pass list, e.g., by adding other
 ;; optimization, debugging, or validation passes.
