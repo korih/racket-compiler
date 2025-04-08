@@ -45,6 +45,8 @@
   "passes/implement-closures.rkt"
   "passes/expand-macros.rkt")
 
+(provide (all-defined-out))
+
 ;; You can modify this pass list, e.g., by adding other
 ;; optimization, debugging, or validation passes.
 ;; Doing this may provide additional debugging info when running the rest
