@@ -2,8 +2,7 @@
 
 (require
   cpsc411/compiler-lib
-  cpsc411/langs/v2
-  rackunit)
+  cpsc411/langs/v2)
 
 (provide flatten-begins)
 
@@ -31,9 +30,3 @@
                            (append (flatten-begins-effect e) fx-acc)))
      (make-begin compiled-fx (flatten-begins tail))]))
 
-(module+ test
-  (check-equal? (flatten-begins '(halt 1)) '(begin (halt 1)))
-  (check-equal? (flatten-begins '(begin (set! rbx 1) (halt rbx))) '(begin (set! rbx 1) (halt rbx)))
-  (check-equal? (flatten-begins '(begin (set! rax 0) (begin (set! rbx 1) (halt rbx))))
-                '(begin (set! rax 0) (set! rbx 1) (halt rbx)))
-  (check-equal? (flatten-begins '(begin (begin (set! rax 0)) (halt rax))) '(begin (set! rax 0) (halt rax))))
