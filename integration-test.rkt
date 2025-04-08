@@ -67,6 +67,49 @@
                     (call factorial 5))
                  ))
 
+  (define pass-map
+    (list
+     (cons uniquify interp-exprs-unique-lang-v8)
+     (cons implement-safe-primops interp-exprs-unsafe-data-lang-v8)
+     (cons specify-representation interp-exprs-bits-lang-v8)
+     (cons remove-complex-opera* interp-values-bits-lang-v8)
+     (cons sequentialize-let interp-imp-mf-lang-v8)
+     (cons normalize-bind interp-proc-imp-cmf-lang-v8)
+     (cons impose-calling-conventions interp-imp-mf-lang-v8)
+     (cons select-instructions interp-asm-alloc-lang-v8)
+     (cons expose-allocation-pointer interp-asm-pred-lang-v8)
+     (cons uncover-locals interp-asm-pred-lang-v8/locals)
+     (cons undead-analysis interp-asm-pred-lang-v8/undead)
+     (cons conflict-analysis interp-asm-pred-lang-v8/conflicts)
+     (cons assign-call-undead-variables interp-asm-pred-lang-v8/pre-framed)
+     (cons allocate-frames interp-asm-pred-lang-v8/framed)
+     (cons assign-registers interp-asm-pred-lang-v8/spilled)
+     (cons assign-frame-variables interp-asm-pred-lang-v8/assignments)
+     (cons replace-locations interp-nested-asm-lang-fvars-v8)
+     (cons optimize-predicates interp-nested-asm-lang-fvars-v8)
+     (cons implement-fvars interp-nested-asm-lang-v8)
+     (cons expose-basic-blocks interp-block-pred-lang-v8)
+     (cons resolve-predicates interp-block-asm-lang-v8)
+     (cons flatten-program interp-para-asm-lang-v8)
+     (cons patch-instructions interp-paren-x64-mops-v8)
+     (cons implement-mops interp-paren-x64-v8)
+     (cons generate-x64 #f)
+     (cons wrap-x64-boilerplate #f)
+     (cons wrap-x64-run-time #f)))
+
+  (for ([test tests])
+    (for/fold ([pass-list empty]
+               [last-program test])
+              ([pass-pair pass-map])
+      (define pass-list^ (append pass-list (list (car pass-pair))))
+      (define interpreter (cdr pass-pair))
+      (define compiled test)
+      (parameterize ([current-pass-list pass-list^])
+        (set! compiled (compile test))
+        (when interpreter
+          (check-equal? (interpreter compiled) (interp-exprs-lang-v8 test) (format "error in ~a \n input: ~a \n output: ~a" (car pass-pair) last-program compiled))))
+      (values pass-list^ compiled)))
+
   (parameterize ([current-pass-list (list
                                      uniquify
                                      implement-safe-primops

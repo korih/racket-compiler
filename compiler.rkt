@@ -5,13 +5,9 @@
   cpsc411/ptr-run-time)
 
 (require
-  "passes/assign-fvars.rkt"
-  "passes/assign-homes-opt.rkt"
-  "passes/assign-homes.rkt"
   "passes/assign-call-undead-variables.rkt"
   "passes/assign-registers.rkt"
   "passes/conflict-analysis.rkt"
-  "passes/flatten-begins.rkt"
   "passes/implement-fvars.rkt"
   "passes/normalize-bind.rkt"
   "passes/patch-instructions.rkt"
@@ -26,8 +22,6 @@
   "passes/optimize-predicates.rkt"
   "passes/flatten-program.rkt"
   "passes/expose-basic-blocks.rkt"
-  "passes/link-paren-x64.rkt"
-  "passes/interp-paren-x64.rkt"
   "passes/impose-calling-conventions.rkt"
   "passes/assign-call-undead-variables.rkt"
   "passes/allocate-frames.rkt"
@@ -36,14 +30,24 @@
   "passes/specify-representation.rkt"
   "passes/remove-complex-opera.rkt"
   "passes/expose-allocation-pointer.rkt"
-  "passes/implement-mops.rkt")
+  "passes/implement-mops.rkt"
+  "passes/implement-safe-call.rkt"
+  "passes/define-letrec.rkt"
+  "passes/optimize-direct-calls.rkt"
+  "passes/dox-lambdas.rkt"
+  "passes/uncover-free.rkt"
+  "passes/convert-closures.rkt"
+  "passes/optimize-known-calls.rkt"
+  "passes/hoist-lambdas.rkt"
+  "passes/implement-closures.rkt")
 
 (module+ test
   (require
     rackunit
     rackunit/text-ui
     cpsc411/langs/v8
-    cpsc411/test-suite/public/v8)
+    cpsc411/langs/v9
+    cpsc411/test-suite/public/v9)
 
   ;; You can modify this pass list, e.g., by adding other
   ;; optimization, debugging, or validation passes.
@@ -52,9 +56,18 @@
   (define pass-map
     (list
      #;(cons check-exprs-lang #f)
-     (cons uniquify interp-exprs-lang-v8)
-     (cons implement-safe-primops interp-exprs-unique-lang-v8)
-     (cons specify-representation interp-exprs-unsafe-data-lang-v8)
+     (cons uniquify interp-exprs-lang-v9)
+     (cons implement-safe-primops interp-exprs-unique-lang-v9)
+     (cons implement-safe-call interp-exprs-unsafe-data-lang-v9)
+     (cons define->letrec interp-exprs-unsafe-lang-v9)
+     (cons optimize-direct-calls interp-just-exprs-lang-v9)
+     (cons dox-lambdas interp-just-exprs-lang-v9)
+     (cons uncover-free interp-lam-opticon-lang-v9)
+     (cons convert-closures interp-lam-free-lang-v9)
+     (cons optimize-known-calls interp-closure-lang-v9)
+     (cons hoist-lambdas interp-closure-lang-v9)
+     (cons implement-closures interp-hoisted-lang-v9)
+     (cons specify-representation interp-proc-exposed-lang-v9)
      (cons remove-complex-opera* interp-exprs-bits-lang-v8)
      (cons sequentialize-let interp-values-bits-lang-v8)
      (cons normalize-bind interp-imp-mf-lang-v8)
@@ -84,6 +97,6 @@
    (map car pass-map))
 
   (run-tests
-   (v8-public-test-suite
+   (v9-public-test-suite
     (current-pass-list)
     (map cdr pass-map))))
