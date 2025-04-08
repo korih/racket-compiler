@@ -1,10 +1,8 @@
 #lang racket
 
 (require rackunit
-         cpsc411/compiler-lib
          cpsc411/graph-lib
-         "../passes/conflict-analysis.rkt"
-         cpsc411/langs/v8)
+         "../passes/conflict-analysis.rkt")
 
 (module+ test
   (check-equal? (conflict-analysis '(module

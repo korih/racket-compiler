@@ -1,8 +1,6 @@
 #lang racket
 
 (require
-  cpsc411/compiler-lib
-  cpsc411/2c-run-time
   cpsc411/langs/v8
   rackunit
   "../passes/resolve-predicates.rkt")

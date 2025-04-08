@@ -1,8 +1,6 @@
 #lang racket
 
 (require
-  cpsc411/compiler-lib
-  cpsc411/langs/v8
   "../passes/normalize-bind.rkt"
   rackunit)
 

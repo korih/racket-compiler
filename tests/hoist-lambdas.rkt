@@ -2,8 +2,7 @@
 
 (require
   rackunit
-  "../passes/hoist-lambdas.rkt"
-  cpsc411/langs/v9)
+  "../passes/hoist-lambdas.rkt")
 
 (module+ test
   (check-equal?

@@ -2,8 +2,7 @@
 
 (require
   rackunit
-  "../passes/implement-closures.rkt"
-  cpsc411/langs/v9)
+  "../passes/implement-closures.rkt")
 
 (module+ test
   (check-equal?

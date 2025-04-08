@@ -1,7 +1,6 @@
 #lang racket
 
 (require
-  cpsc411/langs/v8
   rackunit
   "../passes/implement-safe-call.rkt")
 

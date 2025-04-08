@@ -2,7 +2,6 @@
 
 (require
   cpsc411/compiler-lib
-  cpsc411/langs/v8
   rackunit
   "../passes/replace-locations.rkt")
 

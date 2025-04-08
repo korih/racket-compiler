@@ -1,7 +1,6 @@
 #lang racket
 
 (require
-  cpsc411/langs/v9
   "../passes/define-letrec.rkt"
   rackunit)
 

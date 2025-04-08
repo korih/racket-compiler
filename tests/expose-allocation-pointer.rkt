@@ -2,8 +2,7 @@
 
 (require
   rackunit
-  "../passes/expose-allocation-pointer.rkt"
-  cpsc411/langs/v8)
+  "../passes/expose-allocation-pointer.rkt")
 
 (module+ test
   (check-equal? (expose-allocation-pointer '(module ((new-frames ()))
