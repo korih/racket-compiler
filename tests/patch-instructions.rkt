@@ -7,6 +7,46 @@
 
 (module+ test
   (check-equal? (patch-instructions '(begin
+                                       (set! rax (mref rsp rbp))))
+                '(begin (set! rax (mref rsp rbp))))
+  (check-equal? (patch-instructions '(begin
+                                       (set! (rbp - 8) (mref rsp 1))))
+                '(begin
+                   (set! r10 (mref rsp 1))
+                   (set! (rbp - 8) r10)))
+  (check-equal? (patch-instructions '(begin
+                                       (set! (rbp - 8) (mref rsp rbp))))
+                '(begin (set! r10 (mref rsp rbp)) (set! (rbp - 8) r10)))
+  (check-equal? (patch-instructions '(begin
+                                       (set! rax (mref (rbp - 8) 10))))
+                '(begin
+                   (set! r10 (rbp - 8))
+                   (set! rax (mref r10 10))))
+  (check-equal? (patch-instructions '(begin
+                                       (set! rax (mref rsp (rbp - 8)))))
+                '(begin
+                   (set! r10 (rbp - 8))
+                   (set! rax (mref rsp r10))))
+  (check-equal? (patch-instructions '(begin
+                                       (set! (rbp - 8) (mref (rbp - 16) 10))))
+                '(begin
+                   (set! r10 (rbp - 16))
+                   (set! r10 (mref r10 10))
+                   (set! (rbp - 8) r10)))
+  (check-equal? (patch-instructions '(begin
+                                       (set! (rbp - 8) (mref rsp (rbp - 16)))))
+                '(begin
+                   (set! r10 (rbp - 16))
+                   (set! r10 (mref rsp r10))
+                   (set! (rbp - 8) r10)))
+  (check-equal? (patch-instructions '(begin
+                                       (set! (rbp - 8) (mref (rbp - 16) (rbp - 24)))))
+                '(begin
+                   (set! r10 (rbp - 16))
+                   (set! r11 (rbp - 24))
+                   (set! r10 (mref r10 r11))
+                   (set! (rbp - 8) r10)))
+  (check-equal? (patch-instructions '(begin
                                        (with-label L.tmp.1 (set! rax 10))
                                        (set! (rbp - 8) 2)
                                        (compare rax (rbp - 8))
