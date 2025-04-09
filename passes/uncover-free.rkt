@@ -55,7 +55,7 @@
            (define-values (body^ free-vars) (uncover-free-value body env^))
            (define info (info-set '() 'free free-vars))
            (values (cons `(,aloc (lambda ,info ,args ,body^)) binding-acc)
-                   (append free-vars free-vars-acc))])))
+                   (set-union free-vars free-vars-acc))])))
     (values bindings free-variables))
 
   ;; (Listof alocs) (Listof lam-opticon-lang-v9.value) -> (Listof aloc lam-free-lang-v9.value)
@@ -78,19 +78,19 @@
     (match v
       [`(begin ,effects ... ,value) (define-values (effects^ free-var-effects) (traverse-effects-list effects env))
                                     (define-values (value^ free-vars-values) (uncover-free-value value env))
-                                    (values `(begin ,@effects^ ,value^) (append free-var-effects free-vars-values))]
+                                    (values `(begin ,@effects^ ,value^) (set-union free-var-effects free-vars-values))]
       [`(if ,v1 ,v2 ,v3) (define-values (v1^ free-vars1) (uncover-free-value v1 env))
                          (define-values (v2^ free-vars2) (uncover-free-value v2 env))
                          (define-values (v3^ free-vars3) (uncover-free-value v3 env))
-                         (values `(if ,v1^ ,v2^ ,v3^) (append free-vars1 free-vars2 free-vars3))]
+                         (values `(if ,v1^ ,v2^ ,v3^) (set-union free-vars1 free-vars2 free-vars3))]
       [`(let ([,alocs ,vs] ...) ,body) (define-values (bindings free-var-binding) (traverse-bindings-list alocs vs env))
                                        (define env^ (extend-env* env alocs vs))
                                        (define-values (body^ free-vars) (uncover-free-value body env^))
-                                       (values `(let ,bindings ,body^) (append free-vars free-var-binding))]
+                                       (values `(let ,bindings ,body^) (set-union free-vars free-var-binding))]
       [`(letrec ([,alocs ,vs] ...) ,body) (define-values (bindings free-var-binding) (traverse-letrec-bindings alocs vs env))
                                           (define-values (body^ free-vars) (uncover-free-value body env))
                                           (values `(letrec ,bindings  ,body^)
-                                                  (remove* alocs (append free-var-binding free-vars) ))]
+                                                  (remove* alocs (set-union free-var-binding free-vars) ))]
       [`(unsafe-procedure-call ,vs ...) (define-values (vs^ free-vars) (traverse-values-list vs env))
                                         (values `(unsafe-procedure-call ,@vs^) free-vars)]
       [`(,primops ,vs ...) (define-values (vs^ free-vars) (traverse-values-list vs env))
