@@ -13,12 +13,24 @@
 (define/contract (convert-closures p)
   (-> lam-free-lang-v9? closure-lang-v9?)
 
+  ;; lam-free-lang-v9.value (closure-lang-v9.value -> closure-lang-v9.value) -> closure-lang-v9.value
+  ;; binds the closure to a label if needed and forms a closure-call
+  (define (convert-closures/value2 value k)
+    ;; not using the template here because the code becomes too repititive
+    (if (aloc? value)
+      (k value)
+      (let ([l (fresh)])
+        `(let ([,l ,(convert-closures/value value)])
+           ,(k l)))))
+
   ;; lam-free-lang-v9.value -> closure-lang-v9.value
   ;; performs closure conversion on the value
   (define (convert-closures/value value)
     (match value
       [`(unsafe-procedure-call ,fun ,args ...)
-       `(closure-call ,fun ,fun ,@(map convert-closures/value args))]
+       (convert-closures/value2 fun
+                                (lambda (aloc)
+                                        `(closure-call ,aloc ,aloc ,@(map convert-closures/value args))))]
       [`(letrec ([,fun-names (lambda ,infos (,alocs ...) ,vs)] ...) ,value)
        (define-values (letrec-clauses cletrec-clauses)
          (map2 (lambda (name-aloc info loa lambda-body)
@@ -54,7 +66,8 @@
       [`(begin ,fx ... ,value)
        `(begin ,@(map convert-closures/effect fx)
                ,(convert-closures/value value))]
-      [`(,primop ,args ...) #:when (unsafe-primop? primop) `(,primop ,@(map convert-closures/value args))]
+      [`(,primop ,args ...) #:when (unsafe-primop? primop)
+                            `(,primop ,@(map convert-closures/value args))]
       [triv triv]))
 
   ;; lam-free-lang-v9.effect -> closure-lang-v9.effect
@@ -66,4 +79,3 @@
 
   (match p
     [`(module ,value) `(module ,(convert-closures/value value))]))
-
