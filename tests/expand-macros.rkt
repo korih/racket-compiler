@@ -165,4 +165,12 @@
                                                       (if (call error? tmp.32) tmp.32 #f))))
                                               (call not (call error? b))
                                               #f)))
-                                     (if (call error? tmp.30) tmp.30 (call vector-ref b 0)))))))))))
+                                     (if (call error? tmp.30) tmp.30 (call vector-ref b 0))))))))))
+  (check-equal?
+   (expand-macros '(module (error 5)))
+   '(module (error 5))
+   "Check if error works")
+  (check-equal?
+   (expand-macros '(module (call (void))))
+   '(module (call (void)))
+   "Check if error works"))

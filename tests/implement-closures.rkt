@@ -2,6 +2,7 @@
 
 (require
   rackunit
+  cpsc411/langs/v9
   "../passes/implement-closures.rkt")
 
 (module+ test

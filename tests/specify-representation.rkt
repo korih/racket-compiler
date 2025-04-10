@@ -609,13 +609,46 @@
                                 (define L.x.1.7
                                   (lambda (c.4)
                                     (let ((x.1 (unsafe-procedure-ref c.4 0))) (call L.x.1.7 x.1))))
-                              (let ((x.1 (make-procedure L.x.1.7 0 1)))
+                              (let ((x.1 (make-procedure L.x.1.7 0 0)))
                                 (begin (unsafe-procedure-set! x.1 0 x.1) x.1))))
    '(module
         (define L.x.1.7
           (lambda (c.4) (let ((x.1 (mref c.4 14))) (call L.x.1.7 x.1))))
       (let ((x.1
-             (let ((tmp.17 (+ (alloc 24) 2)))
+             (let ((tmp.17 (+ (alloc 16) 2)))
                (begin (mset! tmp.17 -2 L.x.1.7) (mset! tmp.17 6 0) tmp.17))))
         (begin (mset! x.1 14 x.1) x.1)))
-   "unsafe-procedure-set! call test"))
+   "make-procedure 0 n")
+  (check-equal?
+   (specify-representation '(module
+                                (define L.x.1.7
+                                  (lambda (c.4)
+                                    (let ((x.1 (unsafe-procedure-ref c.4 0))) (call L.x.1.7 x.1))))
+                              (let ((x.1 (make-procedure L.x.1.7 0 2)))
+                                (begin (unsafe-procedure-set! x.1 0 x.1) x.1))))
+   '(module
+        (define L.x.1.7
+          (lambda (c.4) (let ((x.1 (mref c.4 14))) (call L.x.1.7 x.1))))
+      (let ((x.1
+             (let ((tmp.18 (+ (alloc 32) 2)))
+               (begin (mset! tmp.18 -2 L.x.1.7) (mset! tmp.18 6 0) tmp.18))))
+        (begin (mset! x.1 14 x.1) x.1)))
+   "unsafe-procedure-set! call test")
+  (check-equal?
+   (specify-representation '(module
+                                (define L.x.1.7
+                                  (lambda (c.4)
+                                    (let ((x.1 (unsafe-procedure-ref c.4 x.4))) (call L.x.1.7 x.1))))
+                              (let ((x.1 (make-procedure L.x.1.7 0 0)))
+                                (begin (unsafe-procedure-set! x.1 0 x.1) x.1))))
+   '(module
+        (define L.x.1.7
+          (lambda (c.4)
+            (let ((x.1 (mref c.4 (+ (* (arithmetic-shift-right x.4 3) 8) 14))))
+              (call L.x.1.7 x.1))))
+      (let ((x.1
+             (let ((tmp.19 (+ (alloc 16) 2)))
+               (begin (mset! tmp.19 -2 L.x.1.7) (mset! tmp.19 6 0) tmp.19))))
+        (begin (mset! x.1 14 x.1) x.1)))
+   "unsafe-procedure-ref with aloc in i")
+  )

@@ -83,7 +83,7 @@
       ['make-procedure
        (define tmp (fresh 'tmp))
        (lambda (values)
-         `(let ([,tmp (+ (alloc 24) ,(current-procedure-tag))])
+         `(let ([,tmp (+ (alloc ,(+ 16 (third values))) ,(current-procedure-tag))])
             (begin
               (mset! ,tmp ,(- (current-procedure-tag)) ,(first values))
               (mset! ,tmp 6 ,(second values))
@@ -101,9 +101,9 @@
        (lambda (values)
          (define offset
            (if (int64? (second values))
-               (+ (second values) 8)
-               `(+ 14 (* (arithmetic-shift-right ,(second values) ,(current-fixnum-shift)) 8))))
-         `(mref ,(first values) ,offset))]
+               (+ (second values) 14)
+               `(+ (* (arithmetic-shift-right ,(second values) ,(current-fixnum-shift)) 8) 14)))
+         `(mref ,(first values)  ,offset))]
 
       ['unsafe-procedure-set!
        (lambda (values)
