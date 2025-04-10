@@ -136,6 +136,17 @@
          (set! ,patch-reg-1 (+ ,patch-reg-1 ,patch-reg-2))
          (set! ,patch-reg-2 ,triv)
          (mset! ,patch-reg-1 0 ,patch-reg-2))]
+      [(and (register? loc) (addr? index) (label? triv))
+       `((set! ,patch-reg-1 ,triv)
+         (set! ,patch-reg-2 ,index)
+         (mset! ,loc ,patch-reg-2 ,patch-reg-1))]
+      [(and (register? loc) (register? index) (label? triv))
+       `((set! ,patch-reg-1 ,triv)
+         (mset! ,loc ,index ,patch-reg-1))]
+      [(and (addr? loc) (register? index) (label? triv))
+       `((set! ,patch-reg-1 ,triv)
+         (set! ,patch-reg-2 ,loc)
+         (mset! ,patch-reg-2 ,index ,patch-reg-1))]
       [(and (addr? loc) (int64? index) (label? triv))
        `((set! ,patch-reg-1 ,triv)
          (set! ,patch-reg-2 ,loc)

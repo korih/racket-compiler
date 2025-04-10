@@ -336,4 +336,30 @@
    (patch-instructions '(begin (mset! rbp -2 L.tmp.1)))
    '(begin (set! r10 L.tmp.1) (mset! rbp -2 r10))
    "mset reg int label")
+  (check-equal?
+   (patch-instructions '(begin (mset! rbp (rbp - 8) L.tmp.1)))
+   '(begin (set! r10 L.tmp.1) (set! r11 (rbp - 8)) (mset! rbp r11 r10))
+   "mset reg addr label")
+  (check-equal?
+   (patch-instructions '(begin (mset! rbp rax L.tmp.1)))
+   '(begin (set! r10 L.tmp.1) (mset! rbp rax r10))
+   "mset reg reg label")
+  (check-equal?
+   (patch-instructions '(begin (mset! (rbp - 8) rax L.tmp.1)))
+   '(begin (set! r10 L.tmp.1) (set! r11 (rbp - 8)) (mset! r11 rax r10))
+   "mset addr reg label")
+  (check-equal?
+   (patch-instructions '(begin (mset! (rbp - 8) (rbp - 16) L.tmp.1)))
+   '(begin
+      (set! r10 (rbp - 8))
+      (set! r11 (rbp - 16))
+      (set! r10 (+ r10 r11))
+      (set! r11 L.tmp.1)
+      (mset! r10 0 r11))
+   "mset addr addr label")
+
+  (check-equal?
+   (patch-instructions '(begin (set! rax (mref (rbp - 8) (rbp - 16)))))
+   '(begin (set! r10 (rbp - 8)) (set! r11 (rbp - 16)) (set! rax (mref r10 r11)))
+   "mref addr addr")
   )
