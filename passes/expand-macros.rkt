@@ -108,7 +108,8 @@
        (expand-begin vs)]
       [`(lambda (,xs ...) ,v)
        `(lambda (,@xs) ,(expand-macros-value v))]
-      [`(error ,uint8) value]
+      [`(error ,uint8) `(error ,uint8)]
+      [`(void) value]
       [`(,f ,args ...)
        `(call ,(expand-macros-value f) ,@(map expand-macros-value args))]
       [_ value]))
@@ -116,3 +117,16 @@
   (match p
     [`(module ,funcs ... ,value)
      `(module ,@(map expand-macros-func funcs) ,(expand-macros-value value))]))
+
+(module+ test
+  (require rackunit)
+  (check-equal?
+   (expand-macros '(module (error 5)))
+   '(module (error 5))
+   "Check if error works")
+  (check-equal?
+   (expand-macros '(module (call (void))))
+   '(module (call (void)))
+   "Check if error works")
+
+  )
