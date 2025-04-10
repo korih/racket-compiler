@@ -124,48 +124,42 @@
     (define patch-reg-1 (first (current-patch-instructions-registers)))
     (define patch-reg-2 (second (current-patch-instructions-registers)))
     (cond
-      [(and (addr? loc) (int64? index) (int64? triv))
+      [(and (addr? loc) (or (int64? index) (register? index)) (and (int64? triv) (not (int32? triv))))
+       `((set! ,patch-reg-1 ,triv)
+         (set! ,patch-reg-2 ,loc)
+         (mset! ,patch-reg-2 ,index ,patch-reg-1))]
+      [(and (addr? loc) (or (int64? index) (register? index)) (or (register? triv) (int64? triv)))
        `((set! ,patch-reg-1 ,loc)
          (mset! ,patch-reg-1 ,index ,triv))]
-      [(and (register? loc) (int64? index) (label? triv))
+      [(and (addr? loc) (addr? index) (or (register? triv) (int64? triv)))
+       `((set! ,patch-reg-1 ,loc)
+         (set! ,patch-reg-2 ,index)
+         (mset! ,patch-reg-1 ,patch-reg-2 ,triv))]
+      [(and (addr? loc) (or (register? index) (int64? index)) (or (addr? triv) (label? triv)))
        `((set! ,patch-reg-1 ,triv)
-         (mset! ,loc ,index ,patch-reg-1))]
+         (set! ,patch-reg-2 ,loc)
+         (mset! ,patch-reg-2 ,index ,patch-reg-1))]
       [(and (addr? loc) (addr? index) (or (addr? triv) (label? triv)))
        `((set! ,patch-reg-1 ,loc)
          (set! ,patch-reg-2 ,index)
          (set! ,patch-reg-1 (+ ,patch-reg-1 ,patch-reg-2))
          (set! ,patch-reg-2 ,triv)
          (mset! ,patch-reg-1 0 ,patch-reg-2))]
-      [(and (register? loc) (addr? index) (label? triv))
+      [(and (register? loc) (or (int64? index) (register? index)) (and (int64? triv) (not (int32? triv))))
+       `((set! ,patch-reg-1 ,triv)
+         (mset! ,loc ,index ,patch-reg-1))]
+      [(and (register? loc) (or (int64? index) (register? index)) (or (label? triv) (addr? triv)))
+       `((set! ,patch-reg-1 ,triv)
+         (mset! ,loc ,index ,patch-reg-1))]
+      [(and (register? loc) (or (int64? index) (register? index)) (or (register? triv) (int64? triv)))
+       `((mset! ,loc ,index ,triv))]
+      [(and (register? loc) (addr? index) (or (label? triv) (addr? triv)))
        `((set! ,patch-reg-1 ,triv)
          (set! ,patch-reg-2 ,index)
          (mset! ,loc ,patch-reg-2 ,patch-reg-1))]
-      [(and (register? loc) (register? index) (label? triv))
-       `((set! ,patch-reg-1 ,triv)
-         (mset! ,loc ,index ,patch-reg-1))]
-      [(and (addr? loc) (register? index) (label? triv))
-       `((set! ,patch-reg-1 ,triv)
-         (set! ,patch-reg-2 ,loc)
-         (mset! ,patch-reg-2 ,index ,patch-reg-1))]
-      [(and (addr? loc) (int64? index) (label? triv))
-       `((set! ,patch-reg-1 ,triv)
-         (set! ,patch-reg-2 ,loc)
-         (mset! ,patch-reg-2 ,index ,patch-reg-1))]
-      [(and (register? loc) (addr? index) (addr? triv))
-       `((set! ,patch-reg-1 ,triv)
-         (set! ,patch-reg-2 ,index)
-         (mset! ,loc ,patch-reg-2 ,patch-reg-1))]
-      [(and (addr? loc) (addr? index) (int64? triv))
-       `((set! ,patch-reg-1 ,loc)
-         (set! ,patch-reg-2 ,index)
-         (mset! ,patch-reg-1 ,patch-reg-2 ,triv))]
-      [(and (addr? loc) (or (int64? triv) (addr? triv)))
-       `((set! ,patch-reg-1 ,triv)
-         (set! ,patch-reg-2 ,loc)
-         (mset! ,patch-reg-2 ,index ,patch-reg-1))]
-      [(or (int64? triv) (addr? triv))
-       `((set! ,patch-reg-1 ,triv)
-         (mset! ,loc ,index ,patch-reg-1))]
+      [(and (register? loc) (addr? index) (or (register? triv) (int64? triv)))
+       `((set! ,patch-reg-1 ,index)
+         (mset! ,loc ,patch-reg-1 ,triv))]
       [else (list `(mset! ,loc ,index ,triv))]))
 
   ;; para-asm-lang-v8.loc para-asm-lang-v8.opand -> (List-of paren-x64-mops-v8.s)
