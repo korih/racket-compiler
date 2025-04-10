@@ -108,6 +108,7 @@
        (expand-begin vs)]
       [`(lambda (,xs ...) ,v)
        `(lambda (,@xs) ,(expand-macros-value v))]
+      [`(error ,uint8) value]
       [`(,f ,args ...)
        `(call ,(expand-macros-value f) ,@(map expand-macros-value args))]
       [_ value]))

@@ -4,6 +4,8 @@
          "../passes/expand-macros.rkt")
 
 (module+ test
+  (check-equal? (expand-macros '(module (error 5)))
+                '(module (error 5)))
   (check-equal? (expand-macros '(module (#t #f)))
                 '(module (call #t #f)))
   (check-equal? (expand-macros '(module '(#t #f)))
