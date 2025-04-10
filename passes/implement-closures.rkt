@@ -11,111 +11,69 @@
 (define/contract (implement-closures p)
   (-> hoisted-lang-v9? proc-exposed-lang-v9?)
 
-
-  ;; (Listof hoisted-lang-v9) (Envof aloc to label) -> (Listof proc-exposed-lang-v9)
-  ;; helper for traversing through lists of values and compiling them
-  (define (traverse-values vs)
-    (for/foldr ([vs^ '()])
-      ([v vs])
-      (define v^ (implement-closure-value v))
-      (cons v^ vs^)))
-
-  ;; (Listof hoisted-lang-v9) (Envof aloc to label) -> (Listof proc-exposed-lang-v9)
-  ;; helper for traversing through lists of values and compiling them
-  (define (traverse-effects vs)
-    (for/foldr ([vs^ '()])
-      ([v vs])
-      (define v^ (implement-closures-effect v))
-      (cons v^ vs^)))
-
-  ;; (Listof aloc) (Listof hoisted-lang-v9) (Envof aloc to label)-> (Listof proc-exposed-lang-v9)
-  ;; helper for evaluating the values in binding position
-  (define (traverse-bindings alocs vs)
-    (for/foldr ([binding '()])
-      ([aloc alocs]
-       [v vs])
-      (define v^ (implement-closure-value v))
-      (cons `(,aloc ,v^) binding)))
-
-  ;; (Listof hoisted-lang-v9) -> (Listof proc-exposed-lang-v9)
-  ;; helper for evaluating the values in (make-closure ,label ,values ...)
-  (define (compile-make-closure aloc mcs)
-    (match mcs
-      [`(make-closure ,label ,arity ,vs ...)
-       (define vs^ (for/foldr ([opt-vs '()])
-                     ([v vs])
-                     (define v^ (implement-closure-value v))
-                     (cons v^ opt-vs)))
-       (define unsafe-procs (for/fold ([procs '()])
-                                      ([index (in-range (length vs^) 0 -1)])
-                              (define proc
-                                `(unsafe-procedure-set!
-                                  ,aloc
-                                  ,(sub1 index)
-                                  ,(list-ref vs^ (sub1 index))))
-                              (cons proc procs)))
-       (values `(make-procedure ,label ,arity ,(length vs^))
-               unsafe-procs)]))
-
   ;; func is (define label (lambda (alocs ...) value))
-  ;; interp. This is a function definition
+  ;; interp. a function definition
 
-  ;; hoisted-lang-v9.func -> proc-exposed-lang-v9.func
-  ;; compile a hoisted-lang-b9 func to proc-exposed-lang func
-  (define (implement-closure-func f)
+  ;; func -> func
+  ;; interp. transforms a lambda function from hoisted to proc-exposed form
+  (define (implement-closures-func f)
     (match f
-      [`(define ,label (lambda (,alocs ...) ,body)) (define body^ (implement-closure-value body))
-                                                    `(define ,label (lambda ,alocs ,body^))]))
+      [`(define ,label (lambda (,alocs ...) ,body))
+       `(define ,label (lambda (,@alocs) ,(implement-closures-value body)))]))
 
   ;; hoisted-lang-v9.value -> proc-exposed-lang-v9.value
-  ;; optimizes a value in hoisted-lang-v9 to proc-exposed-lang-v9
-  (define (implement-closure-value v)
-    (match v
-      [`(cletrec ([,alocs ,closures] ...) ,body)
-       (define-values (bindings procs) (for/foldr ([acc '()]
-                                                   [proc-acc '()])
-                                         ([aloc alocs]
-                                          [closure closures])
-                                         (define-values (closure^ unsafe-procs) (compile-make-closure aloc closure))
-                                         (values (cons `(,aloc ,closure^) acc)
-                                                 (append unsafe-procs proc-acc))))
-       (define body^ (implement-closure-value body))
-       `(let ,bindings (begin ,@procs ,body^))]
-      [`(begin ,effects ... ,value) (define effects^ (traverse-effects effects))
-                                    (define value^ (implement-closure-value value))
-                                    `(begin ,@effects^ ,value^)]
-      [`(if ,v1 ,v2 ,v3) (define v1^ (implement-closure-value v1))
-                         (define v2^ (implement-closure-value v2))
-                         (define v3^ (implement-closure-value v3))
-                         `(if ,v1^ ,v2^ ,v3^)]
-      [`(let ([,alocs ,vs] ...) ,body) (define bindings (traverse-bindings alocs vs))
-                                       (define body^ (implement-closure-value body))
-                                       `(let ,bindings ,body^)]
-      [`(call ,vs ...) (define vs^ (traverse-values vs))
-                       `(call ,@vs^)]
+  ;; interp. recursively rewrites closure constructs in hoisted-lang values into procedure objects
+  (define (implement-closures-value value)
+    (match value
+      [`(cletrec ([,alocs (make-closure ,labels ,arities ,vss ...)] ...) ,body)
+       (define-values (bindings procs)
+         (for/fold ([bindings '()]
+                    [procs '()])
+                   ([aloc alocs]
+                    [label labels]
+                    [arity arities]
+                    [vs vss])
+           (define vs^ (map implement-closures-value vs))
+           (define new-binding `(,aloc (make-procedure ,label ,arity ,(length vs^))))
+           (define unsafe-procs
+             (for/list ([v vs^] [i (in-naturals)])
+               `(unsafe-procedure-set! ,aloc ,i ,v)))
+           (values (cons new-binding bindings)
+                   (append procs unsafe-procs))))
+       `(let ,(reverse bindings)
+          (begin ,@procs ,(implement-closures-value body)))]
+      [`(begin ,effects ... ,value)
+       `(begin ,@(map implement-closures-effect effects) ,(implement-closures-value value))]
+      [`(if ,v1 ,v2 ,v3)
+       `(if ,(implement-closures-value v1)
+            ,(implement-closures-value v2)
+            ,(implement-closures-value v3))]
+      [`(let ([,alocs ,vs] ...) ,body)
+       (define bindings
+         (map (lambda (aloc v)
+                (list aloc (implement-closures-value v)))
+              alocs vs))
+       `(let (,@bindings) ,(implement-closures-value body))]
+      [`(call ,vs ...)
+       `(call ,@(map implement-closures-value vs))]
       [`(closure-call ,c ,vs ...)
-       (define c^ (implement-closure-value c))
-       (define vs^ (traverse-values vs))
-       `(call (unsafe-procedure-label ,c^) ,@vs^)]
-      [`(closure-ref ,v1 ,v2) (define v1^ (implement-closure-value v1))
-                              (define v2^ (implement-closure-value v2))
-                              `(unsafe-procedure-ref ,v1^ ,v2^)]
-      [`(,primops ,vs ...) (define vs^ (traverse-values vs))
-                           `(,primops ,@vs^)]
+       `(call (unsafe-procedure-label ,(implement-closures-value c)) ,@(map implement-closures-value vs))]
+      [`(closure-ref ,v1 ,v2)
+       `(unsafe-procedure-ref ,(implement-closures-value v1) ,(implement-closures-value v2))]
+      [`(,primops ,vs ...)
+       `(,primops ,@(map implement-closures-value vs))]
       [triv triv]))
 
   ;; hoisted-lang-v9.effect -> proc-exposed-lang-v9.effect
-  ;; compiles the effect in hoisted-lang-v9 to proc-exposed-lang-v9
-  (define (implement-closures-effect e)
-    (match e
-      [`(,primops ,vs ...) (define vs^ (traverse-values vs))
-                           `(,primops ,@vs^)]
-      [`(begin ,effects ...)  (define effects^ (traverse-effects effects))
-                              `(begin ,effects^)]))
+  ;; interp. rewrites closure-related constructs inside effects
+  (define (implement-closures-effect effect)
+    (match effect
+      [`(,primops ,vs ...)
+       `(,primops ,@(map implement-closures-value vs))]
+      [`(begin ,effects ...)
+       `(begin ,@(map implement-closures-effect effects))]))
+  
   (match p
-    [`(module ,funcs ... ,v) (define funcs^ (for/foldr ([closed-funcs '()])
-                                              ([func funcs])
-                                              (cons (implement-closure-func func) closed-funcs)))
-                             (define v^ (implement-closure-value v))
-                             `(module ,@funcs^ ,v^)]))
+    [`(module ,funcs ... ,value)
+     `(module ,@(map implement-closures-func funcs) ,(implement-closures-value value))]))
 
