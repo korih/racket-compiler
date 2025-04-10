@@ -5,7 +5,6 @@
   "../passes/implement-safe-call.rkt")
 
 (module+ test
-  (require rackunit)
   (check-equal? (implement-safe-call '(module
                                           (define |+.1|
                                             (lambda (tmp.1 tmp.2)

@@ -351,4 +351,62 @@
                        "mov r11, QWORD [rbp - 16]"
                        "mov QWORD [r11 + rsp], r10"
                        "jmp L.tmp.102")
-                 "\n")))
+                 "\n"))
+  (check-equal? (generate-x64 '(begin
+                                 (with-label L.tmp.421 (set! rbx r15))
+                                 (set! rsp r12)
+                                 (set! r12 (+ r12 16))
+                                 (set! rsp rsp)
+                                 (set! rsp (+ rsp 2))
+                                 (set! r10 L.tmp.55)
+                                 (set! (rsp + -2) r10)
+                                 (set! (rsp + 6) 16)
+                                 (set! rcx rsp)
+                                 (set! rsp (rcx + -2))
+                                 (set! rdi rcx)
+                                 (set! rsi 56)
+                                 (set! rdx 22)
+                                 (set! r15 rbx)
+                                 (jump rsp)
+                                 (with-label L.tmp.55 (set! rdx r15))
+                                 (set! rsp rdi)
+                                 (set! rcx rsi)
+                                 (set! rbx rdx)
+                                 (set! rsp r12)
+                                 (set! r12 (+ r12 16))
+                                 (set! rsp rsp)
+                                 (set! rsp (+ rsp 1))
+                                 (set! (rsp + -1) rcx)
+                                 (set! (rsp + 7) rbx)
+                                 (set! rax rsp)
+                                 (jump rdx)))
+                (string-join (list "L.tmp.421:"
+                                   "mov rbx, r15"
+                                   "mov rsp, r12"
+                                   "add r12, 16"
+                                   "mov rsp, rsp"
+                                   "add rsp, 2"
+                                   "lea r10, [rel L.tmp.55]"
+                                   "mov QWORD [rsp + -2], r10"
+                                   "mov QWORD [rsp + 6], 16"
+                                   "mov rcx, rsp"
+                                   "mov rsp, QWORD [rcx + -2]"
+                                   "mov rdi, rcx"
+                                   "mov rsi, 56"
+                                   "mov rdx, 22"
+                                   "mov r15, rbx"
+                                   "jmp rsp"
+                                   "L.tmp.55:"
+                                   "mov rdx, r15"
+                                   "mov rsp, rdi"
+                                   "mov rcx, rsi"
+                                   "mov rbx, rdx"
+                                   "mov rsp, r12"
+                                   "add r12, 16"
+                                   "mov rsp, rsp"
+                                   "add rsp, 1"
+                                   "mov QWORD [rsp + -1], rcx"
+                                   "mov QWORD [rsp + 7], rbx"
+                                   "mov rax, rsp"
+                                   "jmp rdx")
+                             "\n")))
