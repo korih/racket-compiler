@@ -294,4 +294,46 @@
    (patch-instructions '(begin (mset! (rbp - 8) 1 1)))
    '(begin (set! r10 (rbp - 8)) (mset! r10 1 1))
    "Basic mset addr (patch-instructions '(begin (mset! (rbp - 8) 1 1)))")
+  (check-equal?
+   (patch-instructions '(begin (mset! (rbp - 8) 1 (rbp - 16))))
+   '(begin (set! r10 (rbp - 16)) (set! r11 (rbp - 8)) (mset! r11 1 r10))
+   "Basic mset addr addr")
+  (check-equal?
+   (patch-instructions '(begin (mset! rax 1 (rbp - 16))))
+   '(begin (set! r10 (rbp - 16)) (mset! rax 1 r10))
+   "mset reg index addr")
+  (check-equal?
+   (patch-instructions '(begin (mset! rax (rbp - 8) (rbp - 16))))
+   '(begin (set! r10 (rbp - 16)) (set! r11 (rbp - 8)) (mset! rax r11 r10))
+   "mset reg index addr")
+  (check-equal?
+   (patch-instructions '(begin (mset! (rbp - 24) (rbp - 8) (rbp - 16))))
+   '(begin
+      (set! r10 (rbp - 24))
+      (set! r11 (rbp - 8))
+      (set! r10 (+ r10 r11))
+      (set! r11 (rbp - 16))
+      (mset! r10 0 r11))
+   "mset! all addr")
+  (check-equal?
+   (patch-instructions '(begin (mset! (rbp - 24) (rbp - 8) 1)))
+   '(begin (set! r10 (rbp - 24)) (set! r11 (rbp - 8)) (mset! r10 r11 1))
+   "mset addr addr int")
+  (check-equal?
+   (patch-instructions '(begin (mset! (rbp - 24) (rbp - 8) L.tmp.1)))
+   '(begin
+      (set! r10 (rbp - 24))
+      (set! r11 (rbp - 8))
+      (set! r10 (+ r10 r11))
+      (set! r11 L.tmp.1)
+      (mset! r10 0 r11))
+   "mset addr addr label")
+  (check-equal?
+   (patch-instructions '(begin (mset! (rbp - 24) -2 L.tmp.1)))
+   '(begin (set! r10 L.tmp.1) (set! r11 (rbp - 24)) (mset! r11 -2 r10))
+   "mset addr int label")
+  (check-equal?
+   (patch-instructions '(begin (mset! rbp -2 L.tmp.1)))
+   '(begin (set! r10 L.tmp.1) (mset! rbp -2 r10))
+   "mset reg int label")
   )
