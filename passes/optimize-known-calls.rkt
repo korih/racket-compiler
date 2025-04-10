@@ -120,5 +120,6 @@
   (match p
     [`(module ,value)
      (define-values (value^ _) (optimize-known-calls-value value empty-env))
-     `(module ,value^)]))
+     `(module ,value^)
+     p]))
 
