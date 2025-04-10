@@ -9,7 +9,7 @@
 ;; compiles p to Proc-exposed-lang v9 by implementing closures in terms of the
 ;; procedure data structure
 (define/contract (implement-closures p)
-  (-> hoisted-lang-v9? any #;proc-exposed-lang-v9?)
+  (-> hoisted-lang-v9? proc-exposed-lang-v9?)
 
 
   ;; (Listof hoisted-lang-v9) (Envof aloc to label) -> (Listof proc-exposed-lang-v9)
@@ -83,7 +83,7 @@
        `(let ,bindings (begin ,@procs ,body^))]
       [`(begin ,effects ... ,value) (define effects^ (traverse-effects effects))
                                     (define value^ (implement-closure-value value))
-                                    `(begin ,effects^ ,value^)]
+                                    `(begin ,@effects^ ,value^)]
       [`(if ,v1 ,v2 ,v3) (define v1^ (implement-closure-value v1))
                          (define v2^ (implement-closure-value v2))
                          (define v3^ (implement-closure-value v3))
