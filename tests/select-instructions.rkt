@@ -2041,4 +2041,25 @@
                                                (set! rsi tmp.94)
                                                (set! rdi tmp.91)
                                                (set! r15 tmp-ra.107)
-                                               (jump L.+.12 rbp r15 rdi rsi))))))
+                                               (jump L.+.12 rbp r15 rdi rsi)))))
+  (check-equal? (select-instructions
+                 '(module ((new-frames ())) 
+                    (begin 
+                      (set! x.1 0)
+                      (set! x.1 (- 1 x.1))
+                      (jump done x.1))))
+                '(module ((new-frames ()))
+                   (begin
+                     (set! x.1 0)
+                     (set! tmp.2 1)
+                     (set! tmp.2 (- tmp.2 x.1))
+                     (set! x.1 tmp.2)
+                     (jump done x.1))))
+  (check-equal? (select-instructions
+                 '(module ((new-frames ()))
+                    (begin
+                      (set! rax (+ 1 2))
+                      (jump done rax))))
+                '(module
+                     ((new-frames ()))
+                   (begin (set! rax 1) (set! rax (+ rax 2)) (jump done rax)))))

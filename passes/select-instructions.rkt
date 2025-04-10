@@ -49,9 +49,15 @@
       [`(alloc ,op)
        `((set! ,loc (alloc ,op)))]
       [`(,binop ,op1 ,op2)
-       (define-values (stmts1 loc1) (select-opand op1 loc))
-       (append stmts1
-               `((set! ,loc (,binop ,loc ,op2))))]
+       (define-values (stmts1 loc1) (select-opand op1 (if (and (eq? binop '-) (eq? loc op2))
+                                                          (fresh 'tmp)
+                                                          loc)))
+       (if (and (eq? binop '-) (not (eq? loc1 loc)))
+           (append stmts1
+                   `((set! ,loc1 (,binop ,loc1 ,op2))
+                     (set! ,loc ,loc1)))
+           (append stmts1
+                   `((set! ,loc (,binop ,loc ,op2)))))]
       [triv
        `((set! ,loc ,triv))]))
 
