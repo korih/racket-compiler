@@ -124,6 +124,9 @@
     (define patch-reg-1 (first (current-patch-instructions-registers)))
     (define patch-reg-2 (second (current-patch-instructions-registers)))
     (cond
+      [(and (addr? loc) (int64? index) (int64? triv))
+       `((set! ,patch-reg-1 ,loc)
+         (mset! ,patch-reg-1 ,index ,triv))]
       [(and (addr? loc) (or (int64? triv) (addr? triv)))
        `((set! ,patch-reg-1 ,triv)
          (set! ,patch-reg-2 ,loc)

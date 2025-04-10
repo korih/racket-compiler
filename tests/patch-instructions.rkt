@@ -277,4 +277,21 @@
                                              (jump-if = L.tmp.8)
                                              (jump L.tmp.9)
                                              (with-label L.__nested.5 (set! rax 574))
-                                             (jump r15)))))
+                                             (jump r15))))
+  (check-equal?
+   (patch-instructions '(begin (jump L.tmp.10)))
+   '(begin (jump L.tmp.10))
+   "Basic jump test")
+  (check-equal?
+   (patch-instructions '(begin (jump (rbp - 8))))
+   '(begin (set! r10 (rbp - 8)) (jump r10))
+   "Basic jump addr")
+  (check-equal?
+   (patch-instructions '(begin (compare (rbp - 8) 1)))
+   '(begin (set! r10 (rbp - 8)) (compare r10 1))
+   "Basic compare addr")
+  (check-equal?
+   (patch-instructions '(begin (mset! (rbp - 8) 1 1)))
+   '(begin (set! r10 (rbp - 8)) (mset! r10 1 1))
+   "Basic mset addr (patch-instructions '(begin (mset! (rbp - 8) 1 1)))")
+  )
