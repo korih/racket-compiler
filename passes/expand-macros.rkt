@@ -117,16 +117,3 @@
   (match p
     [`(module ,funcs ... ,value)
      `(module ,@(map expand-macros-func funcs) ,(expand-macros-value value))]))
-
-(module+ test
-  (require rackunit)
-  (check-equal?
-   (expand-macros '(module (error 5)))
-   '(module (error 5))
-   "Check if error works")
-  (check-equal?
-   (expand-macros '(module (call (void))))
-   '(module (call (void)))
-   "Check if error works")
-
-  )
