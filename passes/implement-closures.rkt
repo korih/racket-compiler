@@ -11,26 +11,6 @@
 (define/contract (implement-closures p)
   (-> hoisted-lang-v9? proc-exposed-lang-v9?)
 
-  ;; aloc  -> (List-of proc-exposed-lang-v9)
-  ;; helper for evaluating the values in (make-closure ,label ,values ...)
-  (define (compile-make-closure aloc mcs)
-    (match mcs
-      [`(make-closure ,label ,arity ,vs ...)
-       (define vs^ (for/foldr ([opt-vs '()])
-                     ([v vs])
-                     (define v^ (implement-closures-value v))
-                     (cons v^ opt-vs)))
-       (define unsafe-procs (for/fold ([procs '()])
-                                      ([index (in-range (length vs^) 0 -1)])
-                              (define proc
-                                `(unsafe-procedure-set!
-                                  ,aloc
-                                  ,(sub1 index)
-                                  ,(list-ref vs^ (sub1 index))))
-                              (cons proc procs)))
-       (values `(make-procedure ,label ,arity ,(length vs^))
-               unsafe-procs)]))
-
   ;; func is (define label (lambda (alocs ...) value))
   ;; interp. a function definition
 
