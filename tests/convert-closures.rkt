@@ -24,7 +24,6 @@
                                                  (letrec ([add.1 (lambda ((free ())) (x.1 y.2) (unsafe-fx+ x.1 y.2))]
                                                           [mul.2 (lambda ((free ())) (x.3 y.4) (unsafe-fx* x.3 y.4))])
                                                    (unsafe-procedure-call mul.2 (unsafe-procedure-call add.1 1 2) 3))))])
-    (displayln (format "compiled program: ~a" compiled-program))
     (check-equal? (interp-closure-lang-v9 compiled-program)
                   (interp-closure-lang-v9 '(module
                                                (letrec ((L.add.1.7 (lambda (c.4 x.1 y.2) (let () (unsafe-fx+ x.1 y.2))))

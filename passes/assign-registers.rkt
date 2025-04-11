@@ -9,17 +9,21 @@
 
 (provide assign-registers)
 
-;; asm-lang-v8/framed -> asm-lang-v8/spilled
+;; asm-pred-lang-v8/framed -> asm-pred-lang-v8/spilled
 ;; perform graph-colouring register allocation, compiling p to
-;; Asm-pred-lang.v8/spilled by decorating programs with their register
+;; Asm-pred-lang-v8/spilled by decorating programs with their register
 ;; assignments
 (define/contract (assign-registers p)
   (-> asm-pred-lang-v8/framed? asm-pred-lang-v8/spilled?)
 
+  ;; func is `(define ,label ,info ,tail)
+  ;; interp. a function definition
+
+  ;; spilled-variables is 
   ;; keeps track of spilled variables
   (define spilled-variables (box '()))
 
-  ;; func-info -> func-info
+  ;; func -> func
   (define (assign-registers-func func)
     (match func
       [`(define ,label ,info ,tail)
