@@ -46,13 +46,13 @@
     ;; graph -> (List-of (list aloc loc))
     ;; interp. performs the graph colouring algorithm
     (define (colour-graph graph)
+      (define sorted-graph (sort (filter aloc? (map car graph))
+                                 (lambda (a b)
+                                   (< (length (get-neighbors graph a))
+                                      (length (get-neighbors graph b))))))
       (cond
-        [(null? graph) '()]
+        [(null? sorted-graph) '()]
         [else
-         (define sorted-graph (sort (map car graph)
-                                    (lambda (a b)
-                                      (< (length (get-neighbors graph a))
-                                         (length (get-neighbors graph b))))))
          (define chosen-node (car sorted-graph))
          (define updated-graph (remove-vertex graph chosen-node))
          (define sub-assign (colour-graph updated-graph))
