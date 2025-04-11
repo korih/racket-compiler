@@ -28,7 +28,9 @@
     (match func
       [`(define ,label ,info ,tail)
        (set-box! spilled-variables '())
-       (define assignments (graph-colouring-with-spilling (info-ref info 'assignment) (info-ref info 'conflicts) (current-assignable-registers)))
+       (define assignments (graph-colouring-with-spilling (info-ref info 'assignment)
+                                                          (info-ref info 'conflicts)
+                                                          (reverse (current-assignable-registers))))
        (define updated-info (info-set info 'assignment assignments))
        (define updated-locals (remove* (map car (info-ref updated-info 'assignment)) (info-ref updated-info 'locals)))
        (set! updated-info (info-set updated-info 'locals updated-locals))
@@ -36,7 +38,6 @@
 
   ;; graph (List-of register) -> (List-of (list aloc loc))
   (define (graph-colouring-with-spilling assignments conflict-graph registers)
-
     (define assigned-alocs (map car assignments))
     (define graph^ (for/fold ([new-graph conflict-graph])
                              ([assignment assigned-alocs])
@@ -83,7 +84,9 @@
   (match p
     [`(module ,info ,funcs ... ,tail)
      (set-box! spilled-variables '())
-     (define assignments (graph-colouring-with-spilling (info-ref info 'assignment) (info-ref info 'conflicts) (current-assignable-registers)))
+     (define assignments (graph-colouring-with-spilling (info-ref info 'assignment)
+                                                        (info-ref info 'conflicts)
+                                                        (reverse (current-assignable-registers))))
      (define updated-info (info-set info 'assignment assignments))
      (define updated-locals (remove* (map car (info-ref updated-info 'assignment)) (info-ref updated-info 'locals)))
      (set! updated-info (info-set updated-info 'locals updated-locals))
