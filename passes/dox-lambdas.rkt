@@ -8,17 +8,19 @@
 (provide dox-lambdas)
 
 ;; just-exprs-lang-v9 -> lam-opticon-lang-v9
-;; compiles p to Lam-opticon-lang-v9 by explicitly binds all procedures to
+;; compiles p to Lam-opticon-lang-v9 by explicitly binding all procedures to
 ;; abstract locations
 (define/contract (dox-lambdas p)
   (-> just-exprs-lang-v9? lam-opticon-lang-v9?)
 
   ;; just-exprs-lang-v9.value -> lam-opticon-lang-v9.value
-  ;; compiles the values expression, binding all procedures to abstract locations in value position
+  ;; interp. compiles the values expression, binding all procedures to abstract
+  ;; locations in value position
   (define (dox-lambdas/value v)
     (match v
       [`(unsafe-procedure-call ,procV ,argsV ...)
-       `(unsafe-procedure-call ,(dox-lambdas/value procV) ,@(map dox-lambdas/value argsV))]
+       `(unsafe-procedure-call ,(dox-lambdas/value procV)
+                               ,@(map dox-lambdas/value argsV))]
       [`(letrec ([,aloc1 (lambda (,lambdaArgs ...) ,lambdaVs)] ...) ,v)
        (define compiled-lambda-vs (map dox-lambdas/value lambdaVs))
        `(letrec ,(for/foldr ([acc '()])
@@ -40,19 +42,24 @@
             ,(dox-lambdas/value aV))]
       [`(begin ,e ... ,v)
        `(begin ,@(map dox-lambdas/effect e) ,(dox-lambdas/value v))]
-      [`(,primop ,v ...) #:when (unsafe-primop? primop)
-                         `(,primop ,@(map dox-lambdas/value v))]
+      [`(,primop ,v ...)
+       #:when (unsafe-primop? primop)
+       `(,primop ,@(map dox-lambdas/value v))]
       [triv (dox-lambdas/triv triv)]))
 
   ;; just-exprs-lang-v9.effect -> lam-opticon-lang-v9.effect
-  ;; compiles the effect expression, binding all procedures to abstract locations in effect position
+  ;; interp. compiles the effect expression, binding all procedures to abstract
+  ;; locations in effect position
   (define (dox-lambdas/effect e)
     (match e
-      [`(begin ,e ...) `(begin ,@(map dox-lambdas/effect e))]
-      [`(,primop ,vs ...) `(,primop ,@(map dox-lambdas/value vs))]))
+      [`(begin ,e ...)
+       `(begin ,@(map dox-lambdas/effect e))]
+      [`(,primop ,vs ...)
+       `(,primop ,@(map dox-lambdas/value vs))]))
 
   ;; just-exprs-lang-v9.triv -> lam-opticon-lang-v9.value
-  ;; compiles the triv expression, value expressions can replace triv expressions in src expression
+  ;; interp. compiles the triv expression, value expressions can replace triv
+  ;; expressions in src expression
   (define (dox-lambdas/triv t)
     (match t
       [#f #f]
@@ -68,7 +75,6 @@
       [i #:when (fixnum? i) i]
       [a #:when (aloc? a) a]
       [c c]))
-
 
   (match p
     [`(module ,value) `(module ,(dox-lambdas/value value))]))
