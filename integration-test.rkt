@@ -116,7 +116,43 @@
                               (begin
                                 (vector-set! x 0 p)
                                 p))))])
-            (sorted? (quicksort (build-list (lambda (x) (random)) 20)))))))))
+            (sorted? (quicksort (build-list (lambda (x) (random)) 20)))))))
+
+     ("basic define"
+      (module
+          (define x (lambda () 42))
+        42))
+
+     ("nested function calls"
+      (module
+          (define add1 (lambda (x) (+ x 1)))
+        (call add1 5)))
+
+     ("let and if"
+      (module
+          (define max (lambda (a b)
+                        (if (< a b) b a)))
+        (call max 3 7)))
+
+     ("quoted s-expression"
+      (module
+          (define quoted (lambda () (quote (1 2 3))))
+        (call quoted)))
+
+     ("macro and"
+      (module
+          (define always-true (lambda () (and #t #t)))
+        (call always-true)))
+
+     ("make-vector and vector-ref"
+      (module
+          (define vec (lambda ()
+                        (let ([v (make-vector 3)])
+                          (begin
+                            (vector-set! v 0 99)
+                            (vector-ref v 0)))))
+        (call vec)))
+     ))
 
   (define pass-map
     (list
