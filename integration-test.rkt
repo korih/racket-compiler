@@ -173,7 +173,7 @@
       (module
           (define fact
             (lambda (n)
-              (if (= n 0)
+              (if (eq? n 0)
                   1
                   (* n (fact (- n 1))))))
         (call fact 5)))
@@ -209,20 +209,20 @@
       (module (vector? (vector 1 2 3))))
 
      ("primitive predicates"
-      (module (list (not #f)
-                    (boolean? #t)
-                    (fixnum? 5)
-                    (ascii-char? #\a))))
+      (module (vector (not #f)
+                      (boolean? #t)
+                      (fixnum? 5)
+                      (ascii-char? #\a))))
 
      ("quote in let"
       (module (let ([x (quote (#\a #\b #\c))]) x)))
 
      ("misc predicates"
-      (module (list (void? (void))
-                    (empty? empty)
-                    (error? (error 5))
-                    (pair? (cons 1 2))
-                    (procedure? (lambda () 42)))))
+      (module (vector (void? (void))
+                      (empty? empty)
+                      (error? (error 5))
+                      (pair? (cons 1 2))
+                      (procedure? (lambda () 42)))))
 
      ("nested if/let"
       (module (let ([x 5])
