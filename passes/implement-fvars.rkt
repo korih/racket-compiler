@@ -33,7 +33,7 @@
       ['* (set! base-pointer-offset (* base-pointer-offset offset))]
       ['- (set! base-pointer-offset (- base-pointer-offset offset))]
 
-      ;; Wildcard TODO: should not be able to put some binops here
+      ;; Wildcard: All other operations have the same transformation
       [_ (set! base-pointer-offset offset)]))
 
   ;; nested-asm-lang-fvars-v8.tail -> nested-asm-lang-v8.tail
