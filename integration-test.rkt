@@ -120,7 +120,118 @@
                      result))))))
 
         (let ([v (vector 1 25 0)])
-          (+ (call mystery (call helper v)) 7))))))
+          (+ (call mystery (call helper v)) 7))))
+
+     ("primitive booleans"
+      (module (and #t #f)))
+
+     ("arithmetic and comparison"
+      (module (+ (* 2 3) (- 10 4))))
+
+     ("comparison chain"
+      (module (if (< 3 5) 42 99)))
+
+     ("quoted list"
+      (module (quote (1 #t (2 3)))))
+
+     ("quoted empty"
+      (module (quote ())))
+
+     ("lambda literal application"
+      (module ((lambda (x) (+ x 1)) 5)))
+
+     ("lambda with multiple params"
+      (module ((lambda (a b) (* a b)) 3 4)))
+
+     ("and macro short-circuit"
+      (module (and #f (error 5))))
+
+     ("or macro short-circuit"
+      (module (or #t (error 99))))
+
+     ("begin sequencing"
+      (module (begin 1 2 3)))
+
+     ("nested let binding"
+      (module (let ([x 3])
+                (let ([y 4])
+                  (+ x y)))))
+
+     ("if with void"
+      (module (if #t (void) 42)))
+
+     ("vector-literal access"
+      (module (vector-ref (vector 1 2 3) 2)))
+
+     ("make-vector mutation"
+      (module (let ([v (make-vector 2)])
+                (begin
+                  (vector-set! v 0 7)
+                  (vector-ref v 0)))))
+
+     ("recursive factorial"
+      (module
+          (define fact
+            (lambda (n)
+              (if (= n 0)
+                  1
+                  (* n (fact (- n 1))))))
+        (call fact 5)))
+
+     ("stateful closure"
+      (module
+          (define make-counter
+            (lambda ()
+              (let ([x (make-vector 1)])
+                (begin
+                  (vector-set! x 0 0)
+                  (lambda ()
+                    (begin
+                      (vector-set! x 0 (+ 1 (vector-ref x 0)))
+                      (vector-ref x 0)))))))
+        (let ([counter (make-counter)])
+          (+ (call counter) (call counter)))))
+
+     ("procedure-arity"
+      (module (procedure-arity (lambda (a b) (+ a b)))))
+
+     ("vector with expressions"
+      (module (vector (+ 1 2) (* 2 3) (- 5 1))))
+
+     ("nested function calls"
+      (module
+          ((lambda (f x)
+             (call f x))
+           (lambda (y) (+ y 2))
+           5)))
+
+     ("vector?"
+      (module (vector? (vector 1 2 3))))
+
+     ("primitive predicates"
+      (module (list (not #f)
+                    (boolean? #t)
+                    (fixnum? 5)
+                    (ascii-char? #\a))))
+
+     ("quote in let"
+      (module (let ([x (quote (a b c))]) x)))
+
+     ("misc predicates"
+      (module (list (void? (void))
+                    (empty? empty)
+                    (error? (error 5))
+                    (pair? (cons 1 2))
+                    (procedure? (lambda () 42)))))
+
+     ("nested if/let"
+      (module (let ([x 5])
+                (if (> x 4)
+                    (let ([y 2]) (+ x y))
+                    (let ([z 3]) (- x z))))))
+
+     ("multi-binding let"
+      (module (let ([a 2] [b 3] [c 4]) (+ (* a b) c))))))
 
   (define pass-map
     (list
