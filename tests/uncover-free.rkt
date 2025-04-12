@@ -261,4 +261,55 @@
                           (a.4 (unsafe-procedure-call identify.13 identify.13)))
                       a.4))))
           x.1))
-   "Test, let with duplicate bindings"))
+   "Test, let with duplicate bindings")
+  (check-equal?
+   (uncover-free '(module
+                      (letrec ([x.1 (lambda
+                                        (f.15 ls.14)
+                                      (if (unsafe-procedure-call empty?.91 ls.14)
+                                          ls.14
+                                          (let ((x.16 (unsafe-procedure-call car.92 ls.14)))
+                                            (unsafe-procedure-call
+                                             (letrec ((lam.105
+                                                       (lambda
+                                                           (y.17)
+                                                         (if (if (procedure? f.15)
+                                                                 (if (eq? (unsafe-procedure-arity f.15) 1)
+                                                                     (unsafe-procedure-call f.15 x.16)
+                                                                     (error 42))
+                                                                 (error 43))
+                                                             (unsafe-procedure-call cons.94 x.16 y.17)
+                                                             y.17))))
+                                               lam.105)
+                                             (unsafe-procedure-call
+                                              filter.8
+                                              f.15
+                                              (unsafe-procedure-call cdr.93 ls.14))))))])
+                        x.1)))
+
+   '(module
+        (letrec ((x.1
+                  (lambda ((free (cons.94 filter.8 cdr.93 car.92 empty?.91)))
+                    (f.15 ls.14)
+                    (if (unsafe-procedure-call empty?.91 ls.14)
+                        ls.14
+                        (let ((x.16 (unsafe-procedure-call car.92 ls.14)))
+                          (unsafe-procedure-call
+                           (letrec ((lam.105
+                                     (lambda ((free (cons.94 x.16 f.15)))
+                                       (y.17)
+                                       (if (if (procedure? f.15)
+                                               (if (eq? (unsafe-procedure-arity f.15) 1)
+                                                   (unsafe-procedure-call f.15 x.16)
+                                                   (error 42))
+                                               (error 43))
+                                           (unsafe-procedure-call cons.94 x.16 y.17)
+                                           y.17))))
+                             lam.105)
+                           (unsafe-procedure-call
+                            filter.8
+                            f.15
+                            (unsafe-procedure-call cdr.93 ls.14))))))))
+          x.1))
+   "bounded outside but not inside"))
+

@@ -550,4 +550,22 @@
                                           3)))
                                     (if (closure-call error?.211 error?.211 tmp.5.84)
                                         tmp.5.84
-                                        tmp.2.81)))))))))))
+                                        tmp.2.81))))))))))
+  (check-equal?
+   (hoist-lambdas '(module
+                       (letrec ((L.+.2.8
+                                 (lambda (c.5 tmp.3 tmp.4)
+                                   (let ((|+.1| (closure-ref c.5 0)))
+                                     (call L.+.1.7 |+.1| tmp.3 tmp.4)))))
+                         (cletrec
+                          ((|+.1| (make-closure L.+.1.7 2 tmp.3)))
+                          (call L.+.2.8 |+.1| 1 2 tmp.3)))))
+   '(module
+        (define L.+.2.8
+          (lambda (c.5 tmp.3 tmp.4)
+            (let ((|+.1| (closure-ref c.5 0))) (call L.+.1.7 |+.1| tmp.3 tmp.4))))
+      (cletrec
+       ((|+.1| (make-closure L.+.1.7 2 tmp.3)))
+       (call L.+.2.8 |+.1| 1 2 tmp.3)))
+   "one def test")
+  )

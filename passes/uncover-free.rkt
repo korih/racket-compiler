@@ -48,11 +48,15 @@
          [val vs])
         (match val
           [`(lambda (,args ...) ,body)
-           (define env^ (extend-env* env args args))
+           (define env^ (extend-env* empty-env args args))
            (define-values (body^ free-vars) (uncover-free-value body env^))
-           (define info (info-set '() 'free free-vars))
+           ;; need to remove free-vars from stuff that is in args
+           ;; need to remove free-vars that are bounded by the aloc in binding position
+           ;; if there is a letrec inside the body
+           (define new-set (set-subtract free-vars args))
+           (define info (info-set '() 'free new-set))
            (values (cons `(,aloc (lambda ,info ,args ,body^)) binding-acc)
-                   (set-union free-vars free-vars-acc))])))
+                   (set-union new-set free-vars-acc))])))
     (values bindings free-variables))
 
   ;; (Listof alocs) (Listof lam-opticon-lang-v9.value) -> (Listof aloc lam-free-lang-v9.value)
@@ -83,9 +87,12 @@
        (values `(if ,v1^ ,v2^ ,v3^) (set-union free-vars1 free-vars2 free-vars3))]
       [`(let ([,alocs ,vs] ...) ,body)
        (define-values (bindings free-var-binding) (traverse-bindings-list alocs vs env))
-       (define env^ (extend-env* env alocs vs))
+       (define env^ (extend-env* env alocs alocs))
        (define-values (body^ free-vars) (uncover-free-value body env^))
-       (values `(let ,bindings ,body^) (set-union free-vars free-var-binding))]
+       ;; check for anythiing in sie body for if free, if its not let bound boil back up
+       ;; else remoe it from the returne free-vars
+       (define new-set (set-subtract free-vars alocs))
+       (values `(let ,bindings ,body^) (set-union new-set free-var-binding))]
       [`(letrec ([,alocs ,vs] ...) ,body)
        (define-values (bindings free-var-binding) (traverse-letrec-bindings alocs vs env))
        (define-values (body^ free-vars) (uncover-free-value body env))
