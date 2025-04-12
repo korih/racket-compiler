@@ -215,7 +215,7 @@
                     (ascii-char? #\a))))
 
      ("quote in let"
-      (module (let ([x (quote (a b c))]) x)))
+      (module (let ([x (quote (#\a #\b #\c))]) x)))
 
      ("misc predicates"
       (module (list (void? (void))
