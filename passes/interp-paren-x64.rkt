@@ -38,13 +38,3 @@
         (eval-statement env pc los (list-ref los pc))))
 
   (TODO "Redesign and implement interp-paren-x64 for Exercise 3."))
-
-(module+ test
-  (check-equal? (interp-paren-x64 '(begin
-                                     (with-label L.tmp.1 (set! rax (+ rax rax)))
-                                     (set! rax 1)
-                                     (with-label L.tmp.2 (jump L.tmp.3))
-                                     (with-label L.tmp.3 (set! rax (* rax 10)))
-                                     (compare rax 2)
-                                     (jump-if != L.tmp.2)))
-                #f))

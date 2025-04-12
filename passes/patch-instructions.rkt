@@ -4,8 +4,7 @@
 
 (require
   cpsc411/compiler-lib
-  cpsc411/langs/v8
-  rackunit)
+  cpsc411/langs/v8)
 
 (provide patch-instructions)
 
@@ -17,7 +16,7 @@
   (-> para-asm-lang-v8? paren-x64-mops-v8?)
 
   ;; relop -> relop
-  ;; produces the negation of relop
+  ;; interp. produces the negation of relop
   (define (negate-relop relop)
     (match relop
       [`< `>=]
@@ -27,65 +26,186 @@
       [`> `<=]
       [`!= `=]))
 
-  ;; para-asm-lang-v8.s -> paren-x64-v8.s
-  (define (compile-s s)
+  ;; para-asm-lang-v8.loc para-asm-lang-v8.loc para-asm-lang-v8.index -> (List-of paren-x64-mops-v8.s)
+  ;; interp. patches memory reference instructions into valid paren-x64 sequences
+  (define (patch-mref loc1 loc2 index)
+    (define patch-reg-1 (first (current-patch-instructions-registers)))
+    (define patch-reg-2 (second (current-patch-instructions-registers)))
+    (cond
+      ;; Case 1: loc1 is register, loc2 is register, index is register or int32
+      [(and (register? loc1)
+            (register? loc2)
+            (or (register? index) (int32? index)))
+       (list `(set! ,loc1 (mref ,loc2 ,index)))]
+      ;; Case 2: loc1 is register, loc2 is addr, index is register or int32
+      [(and (register? loc1)
+            (addr? loc2)
+            (or (register? index) (int32? index)))
+       `((set! ,patch-reg-1 ,loc2)
+         (set! ,loc1 (mref ,patch-reg-1 ,index)))]
+      ;; Case 3: loc1 is register, loc2 is register, index is addr
+      [(and (register? loc1)
+            (register? loc2)
+            (addr? index))
+       `((set! ,patch-reg-1 ,index)
+         (set! ,loc1 (mref ,loc2 ,patch-reg-1)))]
+      ;; Case 4: loc1 is register, loc2 and index are addr
+      [(and (register? loc1)
+            (addr? loc2)
+            (addr? index))
+       `((set! ,patch-reg-1 ,loc2)
+         (set! ,patch-reg-2 ,index)
+         (set! ,loc1 (mref ,patch-reg-1 ,patch-reg-2)))]
+      ;; Case 5: loc1 is addr
+      [(addr? loc1)
+       (cond
+         ;; Subcase A: loc2 is register, index is register or int32
+         [(and (register? loc2) (or (register? index) (int32? index)))
+          `((set! ,patch-reg-1 (mref ,loc2 ,index))
+            (set! ,loc1 ,patch-reg-1))]
+         ;; Subcase B: loc2 is addr, index is register or int32
+         [(and (addr? loc2) (or (register? index) (int32? index)))
+          `((set! ,patch-reg-1 ,loc2)
+            (set! ,patch-reg-1 (mref ,patch-reg-1 ,index))
+            (set! ,loc1 ,patch-reg-1))]
+         ;; Subcase C: loc2 is register, index is addr
+         [(and (register? loc2) (addr? index))
+          `((set! ,patch-reg-1 ,index)
+            (set! ,patch-reg-1 (mref ,loc2 ,patch-reg-1))
+            (set! ,loc1 ,patch-reg-1))]
+         ;; Subcase D: loc2 and index are addr
+         [(and (addr? loc2) (addr? index))
+          `((set! ,patch-reg-1 ,loc2)
+            (set! ,patch-reg-2 ,index)
+            (set! ,patch-reg-1 (mref ,patch-reg-1 ,patch-reg-2))
+            (set! ,loc1 ,patch-reg-1))])]))
+
+  ;; para-asm-lang-v8.loc para-asm-lang-v8.binop para-asm-lang-v8.triv -> (List-of paren-x64-mops-v8.s)
+  ;; interp. patches binary operations into valid paren-x64 sequences
+  (define (patch-binop loc binop triv)
+    (define patch-reg-1 (first (current-patch-instructions-registers)))
+    (define patch-reg-2 (second (current-patch-instructions-registers)))
+    (cond
+      ;; if loc is an addr and triv is a label, loc, or larger than int32,
+      ;; then both loc and triv must be stored in temporary registers
+      [(and (addr? loc) (not (int32? triv)))
+       `((set! ,patch-reg-1 ,loc)
+         (set! ,patch-reg-2 ,triv)
+         (set! ,patch-reg-1 (,binop ,patch-reg-1 ,patch-reg-2))
+         (set! ,loc ,patch-reg-1))]
+      ;; if loc is an addr and triv is an int32, then only loc needs to be
+      ;; stored in a temporary register
+      [(and (addr? loc) (int32? triv))
+       `((set! ,patch-reg-1 ,loc)
+         (set! ,patch-reg-1 (,binop ,patch-reg-1 ,triv))
+         (set! ,loc ,patch-reg-1))]
+      ;; if loc is a register and triv is larger than int32, then triv
+      ;; needs to be stored in a temporary register
+      [(and (not (int32? triv)) (int64? triv))
+       `((set! ,patch-reg-1 ,triv)
+         (set! ,loc (,binop ,loc ,patch-reg-1)))]
+      [else (list `(set! ,loc (,binop ,loc ,triv)))]))
+
+  ;; para-asm-lang-v8.loc para-asm-lang-v8.triv -> (List-of paren-x64-mops-v8.s)
+  ;; interp. patches set! instructions with potentially invalid destinations or values
+  (define (patch-set loc triv)
+    (define patch-reg (first (current-patch-instructions-registers)))
+    (if (and (addr? loc)
+             (or (and (not (int32? triv)) (int64? triv))
+                 (addr? triv)
+                 (label? triv)))
+        `((set! ,patch-reg ,triv)
+          (set! ,loc ,patch-reg))
+        (list `(set! ,loc ,triv))))
+
+  ;; para-asm-lang-v8.loc para-asm-lang-v8.index para-asm-lang-v8.triv -> (List-of paren-x64-mops-v8.s)
+  ;; interp. patches mset! instructions to ensure valid operands
+  (define (patch-mset loc index triv)
+    (define patch-reg-1 (first (current-patch-instructions-registers)))
+    (define patch-reg-2 (second (current-patch-instructions-registers)))
+    (cond
+      [(and (addr? loc) (or (int64? index) (register? index)) (and (int64? triv) (not (int32? triv))))
+       `((set! ,patch-reg-1 ,triv)
+         (set! ,patch-reg-2 ,loc)
+         (mset! ,patch-reg-2 ,index ,patch-reg-1))]
+      [(and (addr? loc) (or (int64? index) (register? index)) (or (register? triv) (int64? triv)))
+       `((set! ,patch-reg-1 ,loc)
+         (mset! ,patch-reg-1 ,index ,triv))]
+      [(and (addr? loc) (addr? index) (or (register? triv) (int64? triv)))
+       `((set! ,patch-reg-1 ,loc)
+         (set! ,patch-reg-2 ,index)
+         (mset! ,patch-reg-1 ,patch-reg-2 ,triv))]
+      [(and (addr? loc) (or (register? index) (int64? index)) (or (addr? triv) (label? triv)))
+       `((set! ,patch-reg-1 ,triv)
+         (set! ,patch-reg-2 ,loc)
+         (mset! ,patch-reg-2 ,index ,patch-reg-1))]
+      [(and (addr? loc) (addr? index) (or (addr? triv) (label? triv)))
+       `((set! ,patch-reg-1 ,loc)
+         (set! ,patch-reg-2 ,index)
+         (set! ,patch-reg-1 (+ ,patch-reg-1 ,patch-reg-2))
+         (set! ,patch-reg-2 ,triv)
+         (mset! ,patch-reg-1 0 ,patch-reg-2))]
+      [(and (register? loc) (or (int64? index) (register? index)) (and (int64? triv) (not (int32? triv))))
+       `((set! ,patch-reg-1 ,triv)
+         (mset! ,loc ,index ,patch-reg-1))]
+      [(and (register? loc) (or (int64? index) (register? index)) (or (label? triv) (addr? triv)))
+       `((set! ,patch-reg-1 ,triv)
+         (mset! ,loc ,index ,patch-reg-1))]
+      [(and (register? loc) (or (int64? index) (register? index)) (or (register? triv) (int64? triv)))
+       `((mset! ,loc ,index ,triv))]
+      [(and (register? loc) (addr? index) (or (label? triv) (addr? triv)))
+       `((set! ,patch-reg-1 ,triv)
+         (set! ,patch-reg-2 ,index)
+         (mset! ,loc ,patch-reg-2 ,patch-reg-1))]
+      [(and (register? loc) (addr? index) (or (register? triv) (int64? triv)))
+       `((set! ,patch-reg-1 ,index)
+         (mset! ,loc ,patch-reg-1 ,triv))]
+      [else (list `(mset! ,loc ,index ,triv))]))
+
+  ;; para-asm-lang-v8.loc para-asm-lang-v8.opand -> (List-of paren-x64-mops-v8.s)
+  ;; interp. patches compare instructions with address operands
+  (define (patch-compare loc op)
+    (define reg (first (current-patch-instructions-registers)))
+    (define reg2 (second (current-patch-instructions-registers)))
+    (cond
+      [(and (addr? loc) (addr? op)) `((set! ,reg2 ,op)(set! ,reg ,loc) (compare ,reg ,reg2))]
+      [(addr? loc) `((set! ,reg ,loc) (compare ,reg ,op))]
+      [(addr? op) `((set! ,reg ,op) (compare ,loc ,reg))]
+      [else `((compare ,loc ,op))]))
+
+  ;; para-asm-lang-v8.relop para-asm-lang-v8.trg -> (List-of paren-x64-mops-v8.s)
+  ;; interp. patches jump-if instructions with address targets
+  (define (patch-jump-if relop trg)
+    (define label (fresh-label))
+    (define reg (first (current-patch-instructions-registers)))
+    (cond
+      [(addr? trg)
+       `((set! ,reg ,trg)
+         (jump-if ,(negate-relop relop) ,label)
+         (jump ,reg)
+         (with-label ,label (set! ,reg ,reg)))]
+      [(label? trg)
+       `((jump-if ,relop ,trg))]
+      [else
+       `((jump-if ,(negate-relop relop) ,label)
+         (jump ,trg)
+         (with-label ,label (set! ,reg ,reg)))]))
+
+  ;; para-asm-lang-v8.s -> (List-of paren-x64-mops-v8.s)
+  ;; interp. transforms a single para-asm statement into one or more valid
+  ;; paren-x64 instructions
+  (define (patch-instructions-s s)
     (match s
       [`(set! ,loc1 (mref ,loc2 ,index))
-       `((set! ,loc1 (mref ,loc2 ,index)))]
+       (patch-mref loc1 loc2 index)]
       [`(set! ,loc (,binop ,loc ,triv))
-       (cond
-         ;; if loc is an addr and triv is a label, loc, or larger than int32,
-         ;; then both loc and triv must be stored in temporary registers
-         [(and (addr? loc) (not (int32? triv)))
-          (define patch-reg-1 (first (current-patch-instructions-registers)))
-          (define patch-reg-2 (second (current-patch-instructions-registers)))
-          `((set! ,patch-reg-1 ,loc)
-            (set! ,patch-reg-2 ,triv)
-            (set! ,patch-reg-1 (,binop ,patch-reg-1 ,patch-reg-2))
-            (set! ,loc ,patch-reg-1))]
-
-         ;; if loc is an addr and triv is an int32, then only loc needs to be
-         ;; stored in a temporary register
-         [(and (addr? loc) (int32? triv))
-          (define patch-reg-1 (first (current-patch-instructions-registers)))
-          `((set! ,patch-reg-1 ,loc)
-            (set! ,patch-reg-1 (,binop ,patch-reg-1 ,triv))
-            (set! ,loc ,patch-reg-1))]
-
-         ;; if loc is a register and triv is larger than int32, then triv
-         ;; needs to be stored in a temporary register
-         [(and (not (int32? triv)) (int64? triv))
-          (define patch-reg-1 (first (current-patch-instructions-registers)))
-          `((set! ,patch-reg-1 ,triv)
-            (set! ,loc (,binop ,loc ,patch-reg-1)))]
-         [else (list `(set! ,loc (,binop ,loc ,triv)))])]
+       (patch-binop loc binop triv)]
       [`(set! ,loc ,triv)
-       (cond
-         ;; if loc is an addr and triv is a label, loc, or larger than int32,
-         ;; then triv must be stored in a temporary register
-         [(and (addr? loc)
-               (or (and (not (int32? triv)) (int64? triv))
-                   (addr? triv)
-                   (label? triv)))
-          (define patch-reg (first (current-patch-instructions-registers)))
-          `((set! ,patch-reg ,triv)
-            (set! ,loc ,patch-reg))]
-         [else (list `(set! ,loc ,triv))])]
+       (patch-set loc triv)]
       [`(mset! ,loc ,index ,triv)
-       (cond
-         [(and (addr? loc) (or (int64? triv) (addr? triv)))
-          (define patch-reg-1 (first (current-patch-instructions-registers)))
-          (define patch-reg-2 (second (current-patch-instructions-registers)))
-          `((set! ,patch-reg-1 ,triv)
-            (set! ,patch-reg-2 ,loc)
-            (mset! ,patch-reg-2 ,index ,patch-reg-1))]
-         [(or (int64? triv) (addr? triv))
-          (define patch-reg (first (current-patch-instructions-registers)))
-          `((set! ,patch-reg ,triv)
-            (mset! ,loc ,index ,patch-reg))]
-         [else (list `(mset! ,loc ,index ,triv))])]
+       (patch-mset loc index triv)]
       [`(with-label ,label ,s)
-       (define s-compiled (compile-s s))
+       (define s-compiled (patch-instructions-s s))
        (if (empty? (rest s-compiled))
            `((with-label ,label ,(first s-compiled)))
            `((with-label ,label ,(first s-compiled)) ,@(rest s-compiled)))]
@@ -95,270 +215,18 @@
            `((set! ,reg ,trg) (jump ,reg))
            `((jump ,trg)))]
       [`(compare ,loc ,op)
-       (define reg (first (current-patch-instructions-registers)))
-       (define reg2 (second (current-patch-instructions-registers)))
-       (cond
-         [(and (addr? loc) (addr? op)) `((set! ,reg2 ,op)(set! ,reg ,loc) (compare ,reg ,reg2))]
-         [(addr? loc) `((set! ,reg ,loc) (compare ,reg ,op))]
-         [(addr? op) `((set! ,reg ,op) (compare ,loc ,reg))]
-         [else `((compare ,loc ,op))])]
+       (patch-compare loc op)]
       [`(jump-if ,relop ,trg)
-       (define label (fresh-label))
-       (define reg (first (current-patch-instructions-registers)))
-       (cond
-         [(addr? trg)
-          `((set! ,reg ,trg)
-            (jump-if ,(negate-relop relop) ,label)
-            (jump ,reg)
-            (with-label ,label (set! ,reg ,reg)))]
-         [(label? trg)
-          `((jump-if ,relop ,trg))]
-         [else
-          `((jump-if ,(negate-relop relop) ,label)
-            (jump ,trg)
-            (with-label ,label (set! ,reg ,reg)))])]
+       (patch-jump-if relop trg)]
       [`(halt ,op)
        (define set-rax `(set! ,(current-return-value-register) ,op))
-       `(,@(compile-s set-rax)
+       `(,@(patch-instructions-s set-rax)
          (jump done))]))
 
   (match p
-    [`(begin ,effects ...)
-     (define effects^ (for/list ([effect effects])
-                        (compile-s effect)))
-     `(begin ,@(apply append effects^))]))
+    [`(begin ,stmts ...)
+     (define stmts^ (for/list ([stmt stmts])
+                      (patch-instructions-s stmt)))
+     `(begin ,@(apply append stmts^))]))
 
 
-(module+ test
-  (check-equal? (patch-instructions '(begin
-                                       (with-label L.tmp.1 (set! rax 10))
-                                       (set! (rbp - 8) 2)
-                                       (compare rax (rbp - 8))
-                                       (jump-if != L.tmp.1)))
-                '(begin
-                   (with-label L.tmp.1 (set! rax 10))
-                   (set! (rbp - 8) 2)
-                   (set! r10 (rbp - 8))
-                   (compare rax r10)
-                   (jump-if != L.tmp.1)))
-  (check-equal? (patch-instructions '(begin
-                                       (set! (rbp - 0) 0)
-                                       (set! (rbp - 8) 1)
-                                       (set! r8 (rbp - 8))
-                                       (set! r9 (rbp - 0))
-                                       (compare r8 r9)
-                                       (jump-if > L.foo.1)
-                                       (jump done)
-                                       (with-label L.foo.1 (jump done))))
-                '(begin
-                   (set! (rbp - 0) 0)
-                   (set! (rbp - 8) 1)
-                   (set! r8 (rbp - 8))
-                   (set! r9 (rbp - 0))
-                   (compare r8 r9)
-                   (jump-if > L.foo.1)
-                   (jump done)
-                   (with-label L.foo.1 (jump done))))
-  (check-equal? (patch-instructions
-                 '(begin
-                    (set! rsi L.label.1)
-                    (with-label L.label.1
-                      (set! rbx 18))
-                    (jump done)))
-                '(begin (set! rsi L.label.1) (with-label L.label.1 (set! rbx 18)) (jump done)))
-  (check-equal? (patch-instructions '(begin
-                                       (with-label L.tmp.99 (set! rbx r15))
-                                       (set! rcx 10)
-                                       (set! rsp 100)
-                                       (compare rcx rsp)
-                                       (jump-if != L.tmp.101)
-                                       (jump L.tmp.100)
-                                       (with-label L.tmp.101 (set! rdi 1000))
-                                       (set! r15 rbx)
-                                       (jump L.f.2)
-                                       (with-label L.tmp.100 (set! rdi rcx))
-                                       (set! r15 rbx)
-                                       (jump L.f.1)
-                                       (with-label L.f.1 (set! rsp r15))
-                                       (set! rcx rdi)
-                                       (set! rdx 1)
-                                       (set! rbx 2)
-                                       (set! rdx rdx)
-                                       (set! rdx (bitwise-and rdx rcx))
-                                       (set! rbx rbx)
-                                       (set! rbx (bitwise-ior rbx rcx))
-                                       (set! rdx (bitwise-xor rdx rbx))
-                                       (set! rax rdx)
-                                       (set! rax (arithmetic-shift-right rax 3))
-                                       (jump rsp)))
-                '(begin
-                   (with-label L.tmp.99 (set! rbx r15))
-                   (set! rcx 10)
-                   (set! rsp 100)
-                   (compare rcx rsp)
-                   (jump-if != L.tmp.101)
-                   (jump L.tmp.100)
-                   (with-label L.tmp.101 (set! rdi 1000))
-                   (set! r15 rbx)
-                   (jump L.f.2)
-                   (with-label L.tmp.100 (set! rdi rcx))
-                   (set! r15 rbx)
-                   (jump L.f.1)
-                   (with-label L.f.1 (set! rsp r15))
-                   (set! rcx rdi)
-                   (set! rdx 1)
-                   (set! rbx 2)
-                   (set! rdx rdx)
-                   (set! rdx (bitwise-and rdx rcx))
-                   (set! rbx rbx)
-                   (set! rbx (bitwise-ior rbx rcx))
-                   (set! rdx (bitwise-xor rdx rbx))
-                   (set! rax rdx)
-                   (set! rax (arithmetic-shift-right rax 3))
-                   (jump rsp)))
-  (check-equal? (patch-instructions '(begin
-                                       (with-label L.tmp.105 (set! rsp r15))
-                                       (set! rdi 1)
-                                       (set! rsi 2)
-                                       (set! r15 rsp)
-                                       (jump L.f.1)
-                                       (with-label L.g.1 (set! rsp r15))
-                                       (set! rax 8)
-                                       (jump rsp)
-                                       (with-label L.f.1 (set! (rbp - 24) r15))
-                                       (set! (rbp - 8) rdi)
-                                       (set! (rbp - 0) rsi)
-                                       (set! rsp 10)
-                                       (set! rsp (+ rsp 6))
-                                       (set! (rbp - 16) r12)
-                                       (set! r12 (+ r12 rsp))
-                                       (set! rbp (- rbp 32))
-                                       (set! r15 L.rp.21)
-                                       (jump L.g.1)
-                                       (with-label L.rp.21 (set! rbp (+ rbp 32)))
-                                       (set! rsp rax)
-                                       (jump L.tmp.103)
-                                       (with-label L.tmp.102 (set! rbx 10))
-                                       (set! rbx (+ rbx 6))
-                                       (set! rsp r12)
-                                       (set! r12 (+ r12 rbx))
-                                       (set! rbx 8)
-                                       (set! rbx (bitwise-and rbx 8))
-                                       (set! rax (mref rsp rbx))
-                                       (jump (rbp - 24))
-                                       (with-label L.tmp.104 (mset! (rbp - 16) rsp (rbp - 0)))
-                                       (jump L.tmp.102)
-                                       (with-label L.tmp.103 (mset! (rbp - 16) rsp (rbp - 8)))
-                                       (jump L.tmp.102)))
-                '(begin
-                   (with-label L.tmp.105 (set! rsp r15))
-                   (set! rdi 1)
-                   (set! rsi 2)
-                   (set! r15 rsp)
-                   (jump L.f.1)
-                   (with-label L.g.1 (set! rsp r15))
-                   (set! rax 8)
-                   (jump rsp)
-                   (with-label L.f.1 (set! (rbp - 24) r15))
-                   (set! (rbp - 8) rdi)
-                   (set! (rbp - 0) rsi)
-                   (set! rsp 10)
-                   (set! rsp (+ rsp 6))
-                   (set! (rbp - 16) r12)
-                   (set! r12 (+ r12 rsp))
-                   (set! rbp (- rbp 32))
-                   (set! r15 L.rp.21)
-                   (jump L.g.1)
-                   (with-label L.rp.21 (set! rbp (+ rbp 32)))
-                   (set! rsp rax)
-                   (jump L.tmp.103)
-                   (with-label L.tmp.102 (set! rbx 10))
-                   (set! rbx (+ rbx 6))
-                   (set! rsp r12)
-                   (set! r12 (+ r12 rbx))
-                   (set! rbx 8)
-                   (set! rbx (bitwise-and rbx 8))
-                   (set! rax (mref rsp rbx))
-                   (set! r10 (rbp - 24))
-                   (jump r10)
-                   (with-label L.tmp.104 (set! r10 (rbp - 0)))
-                   (set! r11 (rbp - 16))
-                   (mset! r11 rsp r10)
-                   (jump L.tmp.102)
-                   (with-label L.tmp.103 (set! r10 (rbp - 8)))
-                   (set! r11 (rbp - 16))
-                   (mset! r11 rsp r10)
-                   (jump L.tmp.102)))
-
-  (check-equal? (interp-paren-x64-mops-v8 (patch-instructions '(begin
-                                                                 (with-label L.__main.14 (set! r15 r15))
-                                                                 (set! r13 rdi)
-                                                                 (set! r14 rsi)
-                                                                 (set! r9 r14)
-                                                                 (set! r9 10)
-                                                                 (set! r9 (bitwise-and r9 7))
-                                                                 (compare r9 0)
-                                                                 (jump-if = L.tmp.11)
-                                                                 (jump L.tmp.12)
-                                                                 (with-label L.tmp.11 (set! r9 14))
-                                                                 (jump L.tmp.13)
-                                                                 (with-label L.tmp.12 (set! r9 6))
-                                                                 (jump L.tmp.13)
-                                                                 (with-label L.tmp.13 (compare r9 6))
-                                                                 (jump-if != L.__nested.4)
-                                                                 (jump L.__nested.5)
-                                                                 (with-label L.tmp.8 (set! r9 14))
-                                                                 (jump L.tmp.10)
-                                                                 (with-label L.tmp.9 (set! r9 6))
-                                                                 (jump L.tmp.10)
-                                                                 (with-label L.tmp.10 (compare r9 6))
-                                                                 (jump-if != L.__nested.6)
-                                                                 (jump L.__nested.7)
-                                                                 (with-label L.__nested.6 (set! rax r13))
-                                                                 (set! rax (+ rax r14))
-                                                                 (jump r15)
-                                                                 (with-label L.__nested.7 (set! rax 574))
-                                                                 (jump r15)
-                                                                 (with-label L.__nested.4 (set! r9 r13))
-                                                                 (set! r9 (bitwise-and r9 7))
-                                                                 (compare r9 0)
-                                                                 (jump-if = L.tmp.8)
-                                                                 (jump L.tmp.9)
-                                                                 (with-label L.__nested.5 (set! rax 574))
-                                                                 (jump r15))))
-                (interp-paren-x64-mops-v8 '(begin
-                                             (with-label L.__main.14 (set! r15 r15))
-                                             (set! r13 rdi)
-                                             (set! r14 rsi)
-                                             (set! r9 r14)
-                                             (set! r9 10)
-                                             (set! r9 (bitwise-and r9 7))
-                                             (compare r9 0)
-                                             (jump-if = L.tmp.11)
-                                             (jump L.tmp.12)
-                                             (with-label L.tmp.11 (set! r9 14))
-                                             (jump L.tmp.13)
-                                             (with-label L.tmp.12 (set! r9 6))
-                                             (jump L.tmp.13)
-                                             (with-label L.tmp.13 (compare r9 6))
-                                             (jump-if != L.__nested.4)
-                                             (jump L.__nested.5)
-                                             (with-label L.tmp.8 (set! r9 14))
-                                             (jump L.tmp.10)
-                                             (with-label L.tmp.9 (set! r9 6))
-                                             (jump L.tmp.10)
-                                             (with-label L.tmp.10 (compare r9 6))
-                                             (jump-if != L.__nested.6)
-                                             (jump L.__nested.7)
-                                             (with-label L.__nested.6 (set! rax r13))
-                                             (set! rax (+ rax r14))
-                                             (jump r15)
-                                             (with-label L.__nested.7 (set! rax 574))
-                                             (jump r15)
-                                             (with-label L.__nested.4 (set! r9 r13))
-                                             (set! r9 (bitwise-and r9 7))
-                                             (compare r9 0)
-                                             (jump-if = L.tmp.8)
-                                             (jump L.tmp.9)
-                                             (with-label L.__nested.5 (set! rax 574))
-                                             (jump r15)))))

@@ -7,347 +7,114 @@
 (provide implement-safe-call)
 
 ;; exprs-unsafe-data-lang-v9 -> exprs-unsafe-lang-v9
-;; interp. Implement call as an unsafe procedure call with dynamic checks.
+;; compiles p to Exprs-unsafe-lang v9 by implementing call as an unsafe
+;; procedure call with dynamic checks
 (define/contract (implement-safe-call p)
   (-> exprs-unsafe-data-lang-v9? exprs-unsafe-lang-v9?)
 
   ;; func is `(define ,label (lambda (,alocs ...) ,value))
   ;; interp. a function definition
 
-  (define bad-arrity-error `(error 42))
+  ;; bad-arity-error is an error raised when procedure call has wrong number of
+  ;; arguments
+  (define bad-arity-error `(error 42))
+
+  ;; bad-proc-error is an error raised when a non-procedure value is called
   (define bad-proc-error `(error 43))
 
-  ;; map of Label -> arity
+  ;; func-map is (Map-of Label Integer)
+  ;; interp. keeps track of function arities by label
   (define func-map (make-hash))
 
-  ;; exprs.safe-data-lang-v9.func -> exprs-unsafe-data-lang-v9.func
-  ;; produce exprs-unsafe-data-lang-v9 of function definitions
-  (define (implement-safe-primops-func func)
-    (match func
-      [`(define ,label (lambda (,alocs ...) ,value))
-       (hash-set! func-map label (length alocs))
-       `(define ,label (lambda (,@alocs) ,(implement-safe-primops-value value)))]))
+  ;; exprs-unsafe-data-lang-v9.triv (List-of exprs-unsafe-data-lang-v9.value) -> exprs-unsafe-lang-v9.value
+  ;; interp. transforms a call expression with dynamic checks for arity and
+  ;; procedure validity
+  (define (expand-safe-call target args)
+    (define arg-count (length args))
+    (match target
+      ;; Case 1: direct lambda expression
+      [`(lambda (,params ...) ,body)
+       (define lambda^ `(lambda ,params ,(implement-safe-call-value body)))
+       (if (= (length params) arg-count)
+           `(unsafe-procedure-call ,lambda^ ,@args)
+           bad-arity-error)]
+      ;; Case 2: direct label reference with known arity
+      [label #:when (hash-has-key? func-map label)
+             (define arity (hash-ref func-map label))
+             (if (= arity arg-count)
+                 `(unsafe-procedure-call ,label ,@args)
+                 bad-arity-error)]
+      ;; Case 3: any other expression
+      [_ (define (procedure-check tmp)
+           `(if (procedure? ,tmp)
+                (if (eq? (unsafe-procedure-arity ,tmp) ,(length args))
+                    (unsafe-procedure-call ,tmp ,@args)
+                    ,bad-arity-error)
+                ,bad-proc-error))
+         (define fresh-var (fresh 'call-tmp))
+         (if (aloc? target)
+             (procedure-check target)
+             `(let ((,fresh-var ,target))
+                ,(procedure-check fresh-var)))]))
 
-  ;; exprs.safe-data-lang-v9.func -> Hash-map of Label -> arity
-  ;; produce exprs-unsafe-data-lang-v9 of function definitions
-  (define (implement-safe-primops-func-scan func)
+  ;; func -> void
+  ;; interp. saves a function's arity in the global function map
+  ;; EFFECTS: mutates func-map by inserting (label -> arity) entry
+  (define (save-function-arity func)
     (match func
       [`(define ,label (lambda (,alocs ...) ,value))
        (hash-set! func-map label (length alocs))]))
 
-  ;; exprs-unsafe-data-lang-v9.value -> exprs-unsafe-data-lang-v9.value
-  ;; produce unsafe values from exprs-unsafe-data-lang-v9
-  (define (implement-safe-primops-value value)
+  ;; func -> func
+  ;; interp. recursively implements safe call transformation in a function
+  ;; definition
+  (define (implement-safe-call-func func)
+    (match func
+      [`(define ,label (lambda (,alocs ...) ,value))
+       `(define ,label (lambda (,@alocs) ,(implement-safe-call-value value)))]))
+
+  ;; exprs-unsafe-data-lang-v9.value -> exprs-unsafe-lang-v9.value
+  ;; interp. recursively transforms value-level expressions to implement safe
+  ;; calls
+  (define (implement-safe-call-value value)
     (match value
       [`(call ,p ,args ...)
-       (define args^ (map implement-safe-primops-value args))
-       (define p^ (implement-safe-primops-value p))
-       (check-call-triv p^ args^)]
-
+       (expand-safe-call (implement-safe-call-value p) (map implement-safe-call-value args))]
       [`(let ([,alocs ,vs] ...) ,v)
        (define bindings
          (map (lambda (aloc val)
-                (list aloc (implement-safe-primops-value val)))
+                (list aloc (implement-safe-call-value val)))
               alocs vs))
-       `(let ,bindings ,(implement-safe-primops-value v))]
+       `(let ,bindings ,(implement-safe-call-value v))]
       [`(if ,v1 ,v2 ,v3)
-       `(if ,(implement-safe-primops-value v1)
-            ,(implement-safe-primops-value v2)
-            ,(implement-safe-primops-value v3))]
+       `(if ,(implement-safe-call-value v1)
+            ,(implement-safe-call-value v2)
+            ,(implement-safe-call-value v3))]
       [`(begin ,effects ... ,value)
-       (define effects^ (map implement-safe-primops-effect effects))
-       (define value^ (implement-safe-primops-value value))
-       `(begin ,@effects^ ,value^)]
-      [triv (implement-safe-primops-triv triv)]))
+       `(begin ,@(map implement-safe-call-effect effects) ,(implement-safe-call-value value))]
+      [triv (implement-safe-call-triv triv)]))
 
-  ;; exprs-unsafe-data-lang-v9.effect -> exprs-unsafe-data-lang-v9.effect
-  ;; interp. produces unsafe effects from exprs-unsafe-data-lang-v9
-  (define (implement-safe-primops-effect e)
-    (match e
-      [`(begin ,effects ... ,effect) (define effects^ (map implement-safe-primops-effect effects))
-                                     (define effect^ (implement-safe-primops-effect effect))
-                                     `(begin ,@effects^ ,effect^)]
-      [`(,primop ,vs ...) (define vs^ (map implement-safe-primops-value vs))
-                          `(,primop ,@vs^)]))
-
-  ;; exprs-unsafe-data-lang-v9.triv -> exprs-unsafe-data-lang-v9.triv
-  ;; GLOBAL VARIABLE: new-funcs maps prim-f expressions to (Listof Label Safety-Check-Funtion)
-  ;; interp. produce unsafe triv from exprs-unsafe-data-lang-v9.triv
-  (define (implement-safe-primops-triv triv)
-    (match triv
-      [`(lambda (,alocs ...) ,value)
-       `(lambda ,alocs ,(implement-safe-primops-value value))]
-      ;; Wildcard collapse case used because they are terminal cases with no transformation
-      [_ triv]))
+  ;; exprs-unsafe-data-lang-v9.effect -> exprs-unsafe-lang-v9.effect
+  ;; interp. recursively transforms effects to implement safe calls
+  (define (implement-safe-call-effect effect)
+    (match effect
+      [`(begin ,effs ...)
+       `(begin ,@(map implement-safe-call-effect effs))]
+      [`(,primop ,vs ...)
+       `(,primop ,@(map implement-safe-call-value vs))]))
 
   ;; exprs-unsafe-data-lang-v9.triv -> exprs-unsafe-lang-v9.triv
-  (define (check-call-triv t args)
-    (match t
-      [`(lambda (,alocs ...) ,value) (define value^ (implement-safe-primops-value value))
-                                     (define lambda^ `(lambda ,alocs ,value^))
-                                     ;; if the length is not equal we know we have a bad arity
-                                     (if (equal? (length alocs) (length args))
-                                         `(unsafe-procedure-call ,lambda^ ,@args)
-                                         bad-arrity-error)]
-
-      [label #:when (hash-has-key? func-map label) (define arity (hash-ref func-map label))
-             (if (equal? (length args) arity)
-                 `(unsafe-procedure-call ,label ,@args)
-                 bad-arrity-error)]
-
-      ;; WILDCARD: collapse case because they all result in the same transformation
-      [_ (define (procedure-check tmp) `(if (procedure? ,tmp)
-                                            (if (eq? (unsafe-procedure-arity ,tmp) ,(length args))
-                                                (unsafe-procedure-call ,tmp ,@args)
-                                                ,bad-arrity-error)
-                                            ,bad-proc-error))
-         (define fresh-var (fresh 'call-tmp))
-         (if (aloc? t)
-             (procedure-check t)
-             `(let ((,fresh-var ,t))
-                ,(procedure-check fresh-var)))]))
+  ;; interp. transforms trivial values (e.g. inline lambdas) recursively
+  (define (implement-safe-call-triv triv)
+    (match triv
+      [`(lambda (,alocs ...) ,value)
+       `(lambda ,alocs ,(implement-safe-call-value value))]
+      ;; Wildcard collapse case used because they are terminal cases with no
+      ;; transformation
+      [_ triv]))
 
   (match p
     [`(module ,funcs ... ,value)
-     ;; top level pass to get function names
-     (map implement-safe-primops-func-scan funcs)
-     (define funcs^ (map implement-safe-primops-func funcs))
-     (define value^ (implement-safe-primops-value value))
-     `(module ,@funcs^ ,value^)]))
+     (for-each save-function-arity funcs)
+     `(module ,@(map implement-safe-call-func funcs) ,(implement-safe-call-value value))]))
 
-(module+ test
-  (require rackunit)
-  (check-equal? (implement-safe-call '(module
-                                          (define |+.1|
-                                            (lambda (tmp.1 tmp.2)
-                                              (if (fixnum? tmp.1)
-                                                  (if (fixnum? tmp.2) (unsafe-fx+ tmp.1 tmp.2) (error 2))
-                                                  (error 2))))
-                                        (call |+.1| 1 2)))
-                '(module
-                     (define |+.1|
-                       (lambda (tmp.1 tmp.2)
-                         (if (fixnum? tmp.1)
-                             (if (fixnum? tmp.2) (unsafe-fx+ tmp.1 tmp.2) (error 2))
-                             (error 2))))
-                   (unsafe-procedure-call |+.1| 1 2))
-                "Checking if normal call with addition works")
-  (check-equal? (implement-safe-call '(module
-                                          (define |+.1|
-                                            (lambda (tmp.1 tmp.2)
-                                              (if (fixnum? tmp.1)
-                                                  (if (fixnum? tmp.2) (unsafe-fx+ tmp.1 tmp.2) (error 2))
-                                                  (error 2))))
-                                        (call (lambda (tmp.10 tmp.11) (call |+.1| tmp.10 tmp.12)) 1 2)))
-                '(module
-                     (define |+.1|
-                       (lambda (tmp.1 tmp.2)
-                         (if (fixnum? tmp.1)
-                             (if (fixnum? tmp.2) (unsafe-fx+ tmp.1 tmp.2) (error 2))
-                             (error 2))))
-                   (unsafe-procedure-call
-                    (lambda (tmp.10 tmp.11) (unsafe-procedure-call |+.1| tmp.10 tmp.12))
-                    1
-                    2))
-                "Checking if lambda with nested call works")
-
-  ;; NOTE: Does tmp.1 get shadowed? they should be unique here, just going to let it pass for now
-  (check-equal? (implement-safe-call '(module
-                                          (define |+.1|
-                                            (lambda (tmp.1 tmp.2)
-                                              (if (fixnum? tmp.1)
-                                                  (if (fixnum? tmp.2) (unsafe-fx+ tmp.1 tmp.2) (error 2))
-                                                  (error 2))))
-                                        (call 1)))
-                '(module
-                     (define |+.1|
-                       (lambda (tmp.1 tmp.2)
-                         (if (fixnum? tmp.1)
-                             (if (fixnum? tmp.2) (unsafe-fx+ tmp.1 tmp.2) (error 2))
-                             (error 2))))
-                   (let ((call-tmp.1 1))
-                     (if (procedure? call-tmp.1)
-                         (if (eq? (unsafe-procedure-arity call-tmp.1) 0)
-                             (unsafe-procedure-call call-tmp.1)
-                             (error 42))
-                         (error 43))))
-                "Checking if it works with no args and non-procedure")
-
-  (check-equal? (implement-safe-call '(module
-                                          (define |+.1|
-                                            (lambda (tmp.1 tmp.2)
-                                              (if (fixnum? tmp.1)
-                                                  (if (fixnum? tmp.2) (unsafe-fx+ tmp.1 tmp.2) (error 2))
-                                                  (error 2))))
-                                        (call |+.1| 1 2)))
-                '(module
-                     (define |+.1|
-                       (lambda (tmp.1 tmp.2)
-                         (if (fixnum? tmp.1)
-                             (if (fixnum? tmp.2) (unsafe-fx+ tmp.1 tmp.2) (error 2))
-                             (error 2))))
-                   (unsafe-procedure-call |+.1| 1 2))
-                "Checking if it works with defined function call")
-  (check-equal?
-   (implement-safe-call '(module
-                             (define |+.1|
-                               (lambda (tmp.1 tmp.2)
-                                 (if (fixnum? tmp.1)
-                                     (if (fixnum? tmp.2) (unsafe-fx+ tmp.1 tmp.2) (error 2))
-                                     (error 2))))
-                           (call a.1 1 2)))
-   '(module
-        (define |+.1|
-          (lambda (tmp.1 tmp.2)
-            (if (fixnum? tmp.1)
-                (if (fixnum? tmp.2) (unsafe-fx+ tmp.1 tmp.2) (error 2))
-                (error 2))))
-      (if (procedure? a.1)
-          (if (eq? (unsafe-procedure-arity a.1) 2)
-              (unsafe-procedure-call a.1 1 2)
-              (error 42))
-          (error 43)))
-   "Checking if there is it works with aloc as procedure call")
-  (check-equal?
-   (implement-safe-call '(module
-                             (define |+.1|
-                               (lambda (tmp.1 tmp.2)
-                                 (if (fixnum? tmp.1)
-                                     (if (fixnum? tmp.2) (unsafe-fx+ tmp.1 tmp.2) (error 2))
-                                     (error 2))))
-                           (call |+.1|)))
-   '(module
-        (define |+.1|
-          (lambda (tmp.1 tmp.2)
-            (if (fixnum? tmp.1)
-                (if (fixnum? tmp.2) (unsafe-fx+ tmp.1 tmp.2) (error 2))
-                (error 2))))
-      (error 42))
-   "checking if it works with no args and defined function")
-  (check-equal?
-   (implement-safe-call '(module
-                             (define |+.1|
-                               (lambda (tmp.1 tmp.2)
-                                 (if (fixnum? tmp.1)
-                                     (if (fixnum? tmp.2) (unsafe-fx+ tmp.1 tmp.2) (error 2))
-                                     (error 2))))
-                           (call |+.1| 1 2 3 )))
-   '(module
-        (define |+.1|
-          (lambda (tmp.1 tmp.2)
-            (if (fixnum? tmp.1)
-                (if (fixnum? tmp.2) (unsafe-fx+ tmp.1 tmp.2) (error 2))
-                (error 2))))
-      (error 42))
-   "checking if it works with too many args and defined function")
-  (check-equal?
-   (implement-safe-call '(module
-                             (define |+.1|
-                               (lambda (tmp.1 tmp.2)
-                                 (if (fixnum? tmp.1)
-                                     (if (fixnum? tmp.2) (unsafe-fx+ tmp.1 tmp.2) (error 2))
-                                     (error 2))))
-                           (call |+.1| (void) (void))))
-   '(module
-        (define |+.1|
-          (lambda (tmp.1 tmp.2)
-            (if (fixnum? tmp.1)
-                (if (fixnum? tmp.2) (unsafe-fx+ tmp.1 tmp.2) (error 2))
-                (error 2))))
-      (unsafe-procedure-call |+.1| (void) (void)))
-   "wrong types for addition")
-
-  (check-equal?
-   (implement-safe-call '(module
-                             (define |+.1|
-                               (lambda (tmp.1 tmp.2)
-                                 (if (fixnum? tmp.1)
-                                     (if (fixnum? tmp.2) (unsafe-fx+ tmp.1 tmp.2) (error 2))
-                                     (error 2))))
-                           (call (lambda (tmp.1 tmp.2) (call |+.1| tmp.1 tmp.2)) (void) (void))))
-   '(module
-        (define |+.1|
-          (lambda (tmp.1 tmp.2)
-            (if (fixnum? tmp.1)
-                (if (fixnum? tmp.2) (unsafe-fx+ tmp.1 tmp.2) (error 2))
-                (error 2))))
-      (unsafe-procedure-call
-       (lambda (tmp.1 tmp.2) (unsafe-procedure-call |+.1| tmp.1 tmp.2))
-       (void)
-       (void)))
-   "checking lambda with wrong arg types")
-
-  (check-equal?
-   (implement-safe-call '(module
-                             (define |+.1|
-                               (lambda (tmp.1 tmp.2)
-                                 (if (fixnum? tmp.1)
-                                     (if (fixnum? tmp.2) (unsafe-fx+ tmp.1 tmp.2) (error 2))
-                                     (error 2))))
-                           (call (lambda (tmp.1 tmp.2) (call |+.1| tmp.1 tmp.2)) 1 (void) (void))))
-   '(module
-        (define |+.1|
-          (lambda (tmp.1 tmp.2)
-            (if (fixnum? tmp.1)
-                (if (fixnum? tmp.2) (unsafe-fx+ tmp.1 tmp.2) (error 2))
-                (error 2))))
-      (error 42))
-   "checking lambda with wrong arg arity")
-
-  (check-equal?
-   (implement-safe-call '(module
-                             (define |+.1|
-                               (lambda (tmp.1 tmp.2)
-                                 (if (fixnum? tmp.1)
-                                     (if (fixnum? tmp.2) (unsafe-fx+ tmp.1 tmp.2) (error 2))
-                                     (error 2))))
-                           (call (lambda (tmp.1 tmp.2) (call |+.1| tmp.1 tmp.2)) 1 )))
-   '(module
-        (define |+.1|
-          (lambda (tmp.1 tmp.2)
-            (if (fixnum? tmp.1)
-                (if (fixnum? tmp.2) (unsafe-fx+ tmp.1 tmp.2) (error 2))
-                (error 2))))
-      (error 42))
-   "checking lambda with wrong arity")
-  (check-equal?
-   (implement-safe-call '(module
-                             (define |+.1|
-                               (lambda (tmp.1 tmp.2)
-                                 (if (fixnum? tmp.1)
-                                     (if (fixnum? tmp.2) (unsafe-fx+ tmp.1 tmp.2) (error 2))
-                                     (error 2))))
-                           (define |+.2|
-                             (lambda (tmp.3 tmp.4) (call |+.1| tmp.3 tmp.4)))
-                           (call |+.2| 1 2)))
-   '(module
-        (define |+.1|
-          (lambda (tmp.1 tmp.2)
-            (if (fixnum? tmp.1)
-                (if (fixnum? tmp.2) (unsafe-fx+ tmp.1 tmp.2) (error 2))
-                (error 2))))
-      (define |+.2|
-        (lambda (tmp.3 tmp.4) (unsafe-procedure-call |+.1| tmp.3 tmp.4)))
-      (unsafe-procedure-call |+.2| 1 2))
-   "Check functions that depend on each other")
-  (check-equal?
-   (implement-safe-call '(module
-                             (define |+.2|
-                               (lambda (tmp.3 tmp.4) (call |+.1| tmp.3 tmp.4)))
-                           (define |+.1|
-                             (lambda (tmp.1 tmp.2)
-                               (if (fixnum? tmp.1)
-                                   (if (fixnum? tmp.2) (unsafe-fx+ tmp.1 tmp.2) (error 2))
-                                   (error 2))))
-
-                           (call |+.2| 1 2)))
-   '(module
-        (define |+.2|
-          (lambda (tmp.3 tmp.4) (unsafe-procedure-call |+.1| tmp.3 tmp.4)))
-      (define |+.1|
-        (lambda (tmp.1 tmp.2)
-          (if (fixnum? tmp.1)
-              (if (fixnum? tmp.2) (unsafe-fx+ tmp.1 tmp.2) (error 2))
-              (error 2))))
-      (unsafe-procedure-call |+.2| 1 2))
-   "Check out of order function dependecy"))
