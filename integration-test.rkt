@@ -157,6 +157,9 @@
                 (let ([y 4])
                   (+ x y)))))
 
+     ("void"
+      (module (void)))
+
      ("if with void"
       (module (if #t (void) 42)))
 
