@@ -10,112 +10,101 @@
 
 ;; lam-opticon-lang-v9 -> lam-free-lang-v9
 ;; compiles p to Lam-free-lang v9 by explicitly annotate procedures with their
-;; free variable sets.
+;; free variable sets
 (define/contract (uncover-free p)
   (-> lam-opticon-lang-v9? lam-free-lang-v9?)
 
-  ;; (Listof lam-opticon-lang-v9.value) -> (Listof lam-free-lang-v9.value) (Listof alocs)
-  ;; helper compiles the list of values in lam-opticon-lang-v9 to lam-free-lang-v9
-  (define (traverse-values-list vs env)
-    (define-values (reversed-vs^ all-free-vars)
-      (for/foldr ([acc '()]
-                  [free-vars-acc '()])
-        ([v vs])
-        (define-values (v^ val-free-vars) (uncover-free-value v env))
-        (values (cons v^ acc)
-                (set-union val-free-vars free-vars-acc))))
-    (values reversed-vs^ all-free-vars))
+  ;; bound is (Set-of aloc)
+  ;; interp. the set of variables that are currently bound and should not be
+  ;; considered free
 
-  ;; (Listof lam-opticon-lang-v9.effect) -> (Listof lam-free-lang-v9.effect)
-  ;; helper compiles the list of values in lam-opticon-lang-v9 to lam-free-lang-v9
-  (define (traverse-effects-list effects env)
-    (define-values (reversed-es^ all-free-vars)
-      (for/foldr ([acc '()]
-                  [free-vars-acc '()])
-        ([e effects])
-        (define-values (e^ effect-free-vars) (uncover-free-effect e env))
-        (values (cons e^ acc)
-                (set-union effect-free-vars free-vars-acc))))
-    (values reversed-es^ all-free-vars))
-
-  ;; (Listof alocs) (Listof lam-opticon-lang-v9.value) -> (Listof aloc lam-free-lang-v9.value)
-  ;; helper compiles the letrec in lam-opticon-lang-v9 to lam-free-lang-v9
-  (define (traverse-letrec-bindings alocs vs env)
-    (define-values (bindings free-variables)
-      (for/foldr ([binding-acc '()]
-                  [free-vars-acc '()])
-        ([aloc alocs]
-         [val vs])
-        (match val
-          [`(lambda (,args ...) ,body)
-           (define env^ (extend-env* env args args))
-           (define-values (body^ free-vars) (uncover-free-value body env^))
-           (define info (info-set '() 'free free-vars))
-           (values (cons `(,aloc (lambda ,info ,args ,body^)) binding-acc)
-                   (set-union free-vars free-vars-acc))])))
-    (values bindings free-variables))
-
-  ;; (Listof alocs) (Listof lam-opticon-lang-v9.value) -> (Listof aloc lam-free-lang-v9.value)
-  ;; helper compiles the list of values in lam-opticon-lang-v9 to lam-free-lang-v9
-  (define (traverse-bindings-list alocs vs env)
-    (define-values (bindings free-variables)
-      (for/foldr ([binding-acc '()]
-                  [free-vars-acc '()])
-        ([aloc alocs]
-         [val vs])
-        (define-values (val^ free-vars) (uncover-free-value val env))
-        (values (cons `(,aloc ,val^) binding-acc)
-                (set-union free-vars free-vars-acc))))
-    (values bindings free-variables))
-
-  ;; lam-opticon-lang-v9.value (Envof alocs)  -> lam-free-lang-v9.value (Listof alocs)
-  ;; compiles the values in lam-opticon-lang-v9 to lam-free-lang-v9
-  (define (uncover-free-value v env)
+  ;; lam-opticon-lang-v9.value (Set-of aloc) -> lam-free-lang-v9.value (Set-of aloc)
+  ;; interp. annotates a value expression with its free variables, given a set
+  ;; of currently bound variables
+  ;; INVARIANT: result contains all variables referenced in the value that are
+  ;; not bound in the current scope
+  (define (uncover-free-value v bound)
     (match v
       [`(begin ,effects ... ,value)
-       (define-values (effects^ free-var-effects) (traverse-effects-list effects env))
-       (define-values (value^ free-vars-values) (uncover-free-value value env))
-       (values `(begin ,@effects^ ,value^) (set-union free-var-effects free-vars-values))]
+       (define-values (effects^ free1)
+         (for/foldr ([acc '()] [free-vars-acc '()])
+           ([e effects])
+           (define-values (e^ f) (uncover-free-effect e bound))
+           (values (cons e^ acc) (set-union f free-vars-acc))))
+       (define-values (value^ free2) (uncover-free-value value bound))
+       (values `(begin ,@effects^ ,value^) (set-union free1 free2))]
       [`(if ,v1 ,v2 ,v3)
-       (define-values (v1^ free-vars1) (uncover-free-value v1 env))
-       (define-values (v2^ free-vars2) (uncover-free-value v2 env))
-       (define-values (v3^ free-vars3) (uncover-free-value v3 env))
-       (values `(if ,v1^ ,v2^ ,v3^) (set-union free-vars1 free-vars2 free-vars3))]
+       (define-values (v1^ f1) (uncover-free-value v1 bound))
+       (define-values (v2^ f2) (uncover-free-value v2 bound))
+       (define-values (v3^ f3) (uncover-free-value v3 bound))
+       (values `(if ,v1^ ,v2^ ,v3^) (set-union f1 f2 f3))]
       [`(let ([,alocs ,vs] ...) ,body)
-       (define-values (bindings free-var-binding) (traverse-bindings-list alocs vs env))
-       (define env^ (extend-env* env alocs vs))
-       (define-values (body^ free-vars) (uncover-free-value body env^))
-       (values `(let ,bindings ,body^) (set-union free-vars free-var-binding))]
+       (define-values (bindings f1 _)
+         (for/foldr ([binding-acc '()] [free-vars-acc '()] [bound-vars bound])
+           ([aloc alocs] [val vs])
+           (define-values (val^ f) (uncover-free-value val bound-vars))
+           (values (cons `(,aloc ,val^) binding-acc)
+                   (set-union f free-vars-acc)
+                   (cons aloc bound-vars))))
+       (define-values (body^ f2) (uncover-free-value body (append alocs bound)))
+       (values `(let ,bindings ,body^) (set-union f1 f2))]
       [`(letrec ([,alocs ,vs] ...) ,body)
-       (define-values (bindings free-var-binding) (traverse-letrec-bindings alocs vs env))
-       (define-values (body^ free-vars) (uncover-free-value body env))
-       (values `(letrec ,bindings  ,body^)
-               (remove* alocs (set-union free-var-binding free-vars) ))]
+       (define-values (bindings f1)
+         (for/foldr ([binding-acc '()] [free-vars-acc '()])
+           ([aloc alocs] [val vs])
+           (match val
+             [`(lambda (,args ...) ,body)
+              (define-values (body^ f) (uncover-free-value body args))
+              (define info (info-set '() 'free f))
+              (values (cons `(,aloc (lambda ,info ,args ,body^)) binding-acc)
+                      (set-subtract (set-union f free-vars-acc) bound))])))
+       (define-values (body^ f2) (uncover-free-value body bound))
+       (values `(letrec ,bindings ,body^) (remove* alocs (set-union f1 f2)))]
       [`(unsafe-procedure-call ,vs ...)
-       (define-values (vs^ free-vars) (traverse-values-list vs env))
-       (values `(unsafe-procedure-call ,@vs^) free-vars)]
+       (define-values (vs^ free)
+         (for/foldr ([acc '()] [free-vars-acc '()])
+           ([v vs])
+           (define-values (v^ f) (uncover-free-value v bound))
+           (values (cons v^ acc) (set-union f free-vars-acc))))
+       (values `(unsafe-procedure-call ,@vs^) free)]
       [`(,primops ,vs ...)
-       (define-values (vs^ free-vars) (traverse-values-list vs env))
-       (values `(,primops ,@vs^) free-vars)]
-      [triv (define free-vars (cond
-                                [(assoc v env) '()]
-                                [(aloc? v) `(,triv)]
-                                [else `()]))
-            (values triv free-vars)]))
+       (define-values (vs^ free)
+         (for/foldr ([acc '()] [free-vars-acc '()])
+           ([v vs])
+           (define-values (v^ f) (uncover-free-value v bound))
+           (values (cons v^ acc) (set-union f free-vars-acc))))
+       (values `(,primops ,@vs^) free)]
+      [triv
+       (define free-vars
+         (if (and (aloc? triv) (not (member triv bound)))
+             (list triv)
+             '()))
+       (values triv free-vars)]))
 
-
-  ;; lam-opticon-lang-v9.value -> lam-free-lang-v9.value
-  ;; compiles the values in lam-opticon-lang-v9 to lam-free-lang-v9
-  (define (uncover-free-effect e env)
+  ;; lam-opticon-lang-v9.value (Set-of aloc) -> lam-free-lang-v9.value (Set-of aloc)
+  ;; interp. annotates an effect expression with its free variables, given a set
+  ;; of currently bound variables
+  ;; INVARIANT: result contains all variables referenced in the effect that are
+  ;; not bound in the current scope
+  (define (uncover-free-effect e bound)
     (match e
       [`(,primops ,vs ...)
-       (define-values (vs^ free-vars) (traverse-values-list vs env))
-       (values `(,primops ,@vs^) free-vars)]
-      [`(begin ,effects ...) (define-values (effects^ free-vars) (traverse-effects-list effects env))
-                             (values `(begin ,@effects^) free-vars)]))
+       (define-values (vs^ free)
+         (for/foldr ([acc '()] [free-vars-acc '()])
+           ([v vs])
+           (define-values (v^ f) (uncover-free-value v bound))
+           (values (cons v^ acc) (set-union f free-vars-acc))))
+       (values `(,primops ,@vs^) free)]
+
+      [`(begin ,effects ...)
+       (define-values (effects^ free)
+         (for/foldr ([acc '()] [free-vars-acc '()])
+           ([e effects])
+           (define-values (e^ f) (uncover-free-effect e bound))
+           (values (cons e^ acc) (set-union f free-vars-acc))))
+       (values `(begin ,@effects^) free)]))
 
   (match p
     [`(module ,value)
-     (define-values (value^ _) (uncover-free-value value empty-env))
+     (define-values (value^ _) (uncover-free-value value '()))
      `(module ,value^)]))
-

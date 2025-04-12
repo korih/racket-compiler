@@ -57,5 +57,5 @@
 
   (match p
     [`(module ,value)
-     `(module ,(optimize-direct-calls-value value))]))
+     p]))
 
