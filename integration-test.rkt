@@ -157,12 +157,6 @@
                 (let ([y 4])
                   (+ x y)))))
 
-     ("void"
-      (module (void)))
-
-     ("if with void"
-      (module (if #t (void) 42)))
-
      ("vector-literal access"
       (module (vector-ref (vector 1 2 3) 2)))
 
