@@ -142,10 +142,12 @@
                   (lambda ((free (tmp.4 tmp.3)))
                     ()
                     (letrec ((a.2
-                              (lambda ((free (tmp.4 tmp.3)))
+                              (lambda ((free (tmp.3 tmp.4)))
                                 ()
                                 (let ((a.3
-                                       (begin (eq? 1 2) (if (eq? 2 1) tmp.3 tmp.4))))
+                                       (begin
+                                         (eq? 1 2)
+                                         (if (eq? 2 1) tmp.3 tmp.4))))
                                   a.3))))
                       a.2))))
           a.1))
