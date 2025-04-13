@@ -206,8 +206,8 @@
                                     (unsafe-vector-set! ,vec3 ,i 0)
                                     (call ,loop-label ,len3 (unsafe-fx+ ,i 1) ,vec3))))))
 
-       (hash-set! new-funcs loop-label (list loop-func))
-       (hash-set! new-funcs init-label (list init-vector-func))
+       (hash-set! new-funcs init-label  (list loop-label loop-func))
+       (hash-set! new-funcs make-label (list init-label init-vector-func))
        (hash-set! new-funcs prim-f (list make-label make-vector-func))
        make-label]
       ['vector-ref
