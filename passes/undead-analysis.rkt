@@ -57,18 +57,18 @@
   (define (analyze-effects e undead-out)
     (match e
       [`(begin ,effects ...)
-       (define-values (rev-ust undead-in call-undead)
-         (for/foldr ([rev-ust '()]
+       (define-values (begins-ust undead-in call-undead)
+         (for/foldr ([eff-ust '()]
                      [undead-out undead-out]
                      [call-undead '()])
            ([effect effects])
            (define-values (ust undead-in call-undead-effect)
              (analyze-effects effect undead-out))
            (values
-            (cons ust rev-ust)
+            (cons ust eff-ust)
             undead-in
             (set-union call-undead call-undead-effect))))
-       (values rev-ust undead-in call-undead)]
+       (values begins-ust undead-in call-undead)]
       [`(set! ,loc1 (mref ,loc2 ,index))
        (define undead-loc1 (analyze-loc loc1))
        (define undead-out^ (if (empty? undead-loc1)

@@ -148,7 +148,8 @@
       [label #:when (label? label) (k label)]
       [int64 #:when (int64? int64) (k int64)]
       [aloc #:when (aloc? aloc) (k aloc)]
-      [else
+      ;; Wildcard case: all other values require trivialization
+      [_
        (define tmp (fresh))
        `(let ([,tmp ,(remove-complex-opera*-value value (λ (v) v))])
           ,(k tmp))]))
