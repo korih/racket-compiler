@@ -19,27 +19,28 @@
   (define (select-func f)
     (match f
       [`(define ,label ,info ,tail)
-       `(define ,label ,info ,(select-tail tail))]))
+       `(define ,label ,info ,(call-with-values (lambda () (select-tail tail))
+                                                (lambda (fx tail)
+                                                  (make-begin fx tail))))]))
 
-  ;; imp-cmf-lang-v8.tail -> asm-alloc-lang-v8.tail
+  ;; imp-cmf-lang-v8.tail -> ((list-of asm-alloc-lang-v8.effect) asm-alloc-lang-v8.tail)
   (define (select-tail t)
     (match t
-      [`(jump ,trg ,locs ...) `(jump ,trg ,@locs)]
+      [`(jump ,trg ,locs ...) (values empty `(jump ,trg ,@locs))]
       [`(if ,pred ,tail1 ,tail2)
-       `(if ,(select-pred pred)
-            ,(select-tail tail1)
-            ,(select-tail tail2))]
+       (values empty
+               `(if ,(select-pred pred)
+                    ,(call-with-values (lambda () (select-tail tail1))
+                                       (lambda (fx tail) (make-begin fx tail)))
+                    ,(call-with-values (lambda () (select-tail tail2))
+                                       (lambda (fx tail) (make-begin fx tail)))))]
       [`(begin ,fx ... ,tail)
        (define compiled-fx (for/foldr ([instructions empty])
                              ([e fx])
                              (append (select-effect e) instructions)))
-       (define tail-compiled (select-tail tail))
-       (cond
-         [(empty? compiled-fx) tail-compiled]
-         [else (match tail-compiled
-                 [`(begin ,inner-effects^ ... ,inner-tail^)
-                  `(begin ,@compiled-fx ,@inner-effects^ ,inner-tail^)]
-                 [_ `(begin ,@compiled-fx ,tail-compiled)])])]))
+       (define-values (more-compiled-fx tail-compiled) (select-tail tail))
+       (values (append compiled-fx more-compiled-fx)
+               tail-compiled)]))
 
   ;; imp-cmf-lang-v8.value loc -> (List-of asm-alloc-lang-v8.effect)
   (define (select-value value loc)
@@ -84,7 +85,8 @@
                   ,@e1^
                   ,@e2^))]
       [`(return-point ,label ,tail)
-       (list `(return-point ,label ,(select-tail tail)))]))
+       (list `(return-point ,label ,(call-with-values (lambda () (select-tail tail))
+                                                      (lambda (fx tail) (make-begin fx tail)))))]))
 
   ;; imp-cmf-lang-v8.pred -> asm-alloc-lang-v8.pred
   (define (select-pred p)
@@ -127,5 +129,5 @@
 
   (match p
     [`(module ,info ,funcs ... ,tail)
-     `(module ,info ,@(map select-func funcs) ,(select-tail tail))]))
-
+     `(module ,info ,@(map select-func funcs) ,(call-with-values (lambda () (select-tail tail))
+                                                                 (lambda (fx tail) (make-begin fx tail))))]))
