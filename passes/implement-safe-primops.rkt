@@ -13,16 +13,25 @@
 (define/contract (implement-safe-primops p)
   (-> exprs-unique-lang-v9? exprs-unsafe-data-lang-v9?)
 
-  ;; TODO: change the values and stuff for call
+  ;; parameter-type is one-of:
+  ;; - fixnum?
+  ;; - vector?
+  ;; - any?
+  ;; interp. represents a runtime type predicate used to check the type of an
+  ;;argument
 
   ;; func is `(define ,label (lambda (,alocs ...) ,value))
   ;; interp. a function definition
 
-  ;; primop-spec is `(Symbol Symbol (Listof Parameter-types) Natural)
+  ;; new-funcs is (Map-of exprs-unique-lang-v9.binop (list label func))
+  ;; interp. keeps track of new funcs that were created ...
+  (define new-funcs (make-hash))
+
+  ;; primop-spec is `(Symbol Symbol (List-of parameter-type) Natural)
   ;; interp. represents the safety specifications for primitive operations, the
   ;; first symbol is the safe label, the second symbol is the unsafe label, the
-  ;; list of parameter types are the types that the operation, and the natural
-  ;; is the error code for that operation
+  ;; list of parameter types are the types that the operation must receive, and
+  ;; the natural is the error code for that operation
   (define primop-spec-table
     `((*  unsafe-fx*  (fixnum? fixnum?) 1)
       (+  unsafe-fx+  (fixnum? fixnum?) 2)
@@ -34,10 +43,10 @@
 
       (procedure-arity unsafe-procedure-arity (procedure?) 26)
 
-      (make-vector   make-init-vector-label   (fixnum?)               8)
-      (vector-length unsafe-vector-length     (vector?)               9)
-      (vector-set!   unsafe-vector-set!-label (vector? fixnum? any?) 10)
-      (vector-ref    unsafe-vector-ref-label  (vector? fixnum?)      11)
+      (make-vector   unsafe-make-vector   (fixnum?)               8)
+      (vector-length unsafe-vector-length (vector?)               9)
+      (vector-set!   unsafe-vector-set!   (vector? fixnum? any?) 10)
+      (vector-ref    unsafe-vector-ref    (vector? fixnum?)      11)
 
       (car unsafe-car (pair?) 12)
       (cdr unsafe-cdr (pair?) 13)
@@ -51,59 +60,22 @@
       ,@(map (lambda (x) `(,x ,x (any? any?) 0))
              '(cons eq?))))
 
-  ;; (Immutable Map-of exprs-unique-lang-v9.prim-f) -> (Listof exprs-unsafe-data-lang-v9.prim-f unsafe-prim-f (Listof Paramter-Type) Natural)
-  ;; interp. map of data sturcture allocations to unsafe counter parts with specifications such as the types of the parameters and
-  ;; the natural represents the error code
+  ;; primop-spec-map is (Map-of Symbol (list Symbol (List-of parameter-type) Natural))
+  ;; interp. maps each safe primitive operation to a tuple of its corresponding
+  ;; unsafe primitive name, a list of parameter type checks, and a unique error
+  ;; code used for dynamic safety enforcement
   (define primop-spec-map
     (for/fold ([h (hash)]) ([prim-table^ primop-spec-table])
       (hash-set h (first prim-table^) (rest prim-table^))))
 
-  ;; new-funcs is (Mutable Map-of exprs-unique-lang-v9.binop (list label func))
-  ;; interp. keeps track of new funcs that were created by compiling binop or unops
-  (define new-funcs (make-hash))
-
-  ;; exprs.safe-data-lang-v9.func -> exprs-unsafe-data-lang-v9.func
-  ;; produce exprs-unsafe-data-lang-v9 of function definitions
-  (define (implement-safe-primops-func func)
-    (match func
-      [`(define ,label (lambda (,alocs ...) ,value))
-       `(define ,label (lambda (,@alocs) ,(implement-safe-primops-value value)))]))
-
-  ;; exprs-unique-lang-v9.value -> exprs-unsafe-data-lang-v9.value
-  ;; produce unsafe values from exprs-unique-lang-v9
-  (define (implement-safe-primops-value value)
-    (match value
-      [`(call ,vs ...)
-       `(call ,@(map implement-safe-primops-value vs))]
-      [`(let ([,alocs ,vs] ...) ,v)
-       (define bindings
-         (map (lambda (aloc val)
-                (list aloc (implement-safe-primops-value val)))
-              alocs vs))
-       `(let (,@bindings) ,(implement-safe-primops-value v))]
-      [`(if ,v1 ,v2 ,v3)
-       `(if ,(implement-safe-primops-value v1)
-            ,(implement-safe-primops-value v2)
-            ,(implement-safe-primops-value v3))]
-      [triv (implement-safe-primops-triv triv)]))
-
-  ;; exprs-unique-lang-v9.triv -> exprs-unsafe-data-lang-v9.triv
-  ;; GLOBAL VARIABLE: new-funcs maps prim-f expressions to (Listof Label Safety-Check-Funtion)
-  ;; interp. produce unsafe triv from exprs-unique-lang-v9.triv
-  (define (implement-safe-primops-triv triv)
-    (match triv
-      [prim-f #:when (hash-has-key? primop-spec-map prim-f)
-              (if (hash-has-key? new-funcs prim-f)
-                  (car (hash-ref new-funcs prim-f)) ; returns the label
-                  (implement-safe-primops-prim prim-f))]
-      [`(lambda (,alocs ...) ,value)
-       `(lambda ,alocs ,(implement-safe-primops-value value))]
-      ;; Wildcard collapse case used because they are terminal cases with no transformation
-      [_ triv]))
-
-  ;; prim-f (Listof tmp) (Listof tmp) (Listof Parameter Types) Natural kont -> prim-f
-  ;; GLOBAL VARIABLE: new-funs maps prim-f expressions to (Listof Label Safety-Check-Funtion)
-  ;; interp. builds a safety check for a primitive operation
+  ;; Symbol (List-of aloc) (List-of aloc) (List-of parameter-type) Natural (exprs-unsafe-data-lang-v9.value -> func) -> func
+  ;; interp: builds a nested series of type checks for a safe primitive, where
+  ;; unsafe-primop is the underlying unsafe version of the primitive op, args
+  ;; is the list of arguments used in dynamic type checks, args-cons is the
+  ;; original argument list for constructing the actual call, p-types is the
+  ;; expected types for each argument (fixnum?, vector?, etc.), error-code is
+  ;; the code to use if the type check fails, and k is the continuation
+  ;; representing the computation to perform after passing the checks
   (define (primop-safety-builder unsafe-primop args args-const p-types error-code k)
     (cond
       ;; if there is only one type left or the next type is any? then we can just
@@ -126,10 +98,10 @@
                               error-code
                               kont)]))
 
-  ;; label prim-f primop-spec -> label
-  ;; interp. helper generates safety checks for unsafe primops and setting it in the new-funcs hash
-  ;; GLOBAL VARIABLE: new-funs maps prim-f expressions to (Listof Label Safety-Check-Funtion)
-  ;; EFFECTS: mutates new-funcs to include the new safety check functions
+  ;; label prim-f (list Symbol (List-of parameter-type) Natural) -> void
+  ;; interp: generates a safe wrapper function for prim-f using its unsafe form
+  ;; EFFECTS: mutates new-funcs by inserting a binding from prim-f to its safe
+  ;; wrapper definition
   (define (generate-safety-checks label prim-f primop-spec)
     ;; Destructuring the primop spec
     (define-values (unsafe-primop p-types error-code)
@@ -138,123 +110,176 @@
          (values unsafe-primop p-types error-code)]))
 
     ;; Creating fresh variables for the parameter type args
-    (define arg (map (lambda (_) (fresh)) p-types))
+    (define args (map (lambda (_) (fresh)) p-types))
     (define safety-check-fun (primop-safety-builder unsafe-primop
-                                                    arg
-                                                    arg
+                                                    args
+                                                    args
                                                     p-types
                                                     error-code
                                                     (lambda (inner)
-                                                      `(define ,label (lambda (,@arg)
+                                                      `(define ,label (lambda (,@args)
                                                                         ,inner)))))
     (hash-set! new-funcs prim-f (list label safety-check-fun)))
 
+  ;; exprs.safe-data-lang-v9.func -> exprs-unsafe-data-lang-v9.func
+  ;; interp: recursively transforms a function body to replace primitive ops
+  ;; with their safe counterparts
+  (define (implement-safe-primops-func func)
+    (match func
+      [`(define ,label (lambda (,alocs ...) ,value))
+       `(define ,label (lambda (,@alocs) ,(implement-safe-primops-value value)))]))
+
+  ;; exprs-unique-lang-v9.value -> exprs-unsafe-data-lang-v9.value
+  ;; interp: transforms a value expression, recursively replacing primitive ops
+  ;; with their safe counterparts
+  (define (implement-safe-primops-value value)
+    (match value
+      [`(call ,vs ...)
+       `(call ,@(map implement-safe-primops-value vs))]
+      [`(let ([,alocs ,vs] ...) ,v)
+       (define bindings
+         (map (lambda (aloc val)
+                (list aloc (implement-safe-primops-value val)))
+              alocs vs))
+       `(let (,@bindings) ,(implement-safe-primops-value v))]
+      [`(if ,v1 ,v2 ,v3)
+       `(if ,(implement-safe-primops-value v1)
+            ,(implement-safe-primops-value v2)
+            ,(implement-safe-primops-value v3))]
+      [triv (implement-safe-primops-triv triv)]))
+
+  ;; exprs-unique-lang-v9.triv -> exprs-unsafe-data-lang-v9.triv
+  ;; interp: transforms trivials to their safe forms when needed
+  (define (implement-safe-primops-triv triv)
+    (match triv
+      [prim-f
+       #:when (hash-has-key? primop-spec-map prim-f)
+       (if (hash-has-key? new-funcs prim-f)
+           (car (hash-ref new-funcs prim-f))
+           (implement-safe-primops-prim prim-f))]
+      [`(lambda (,alocs ...) ,value)
+       `(lambda ,alocs ,(implement-safe-primops-value value))]
+      ;; Wildcard collapse case used because they are terminal cases with no
+      ;; transformation
+      [_ triv]))
+
   ;; exprs-unique-lang-v9.prim-f -> exprs-unsafe-data-lang-v9.prim-f
-  ;; produce safety checks for unsafe primops
-  ;; GLOBAL VARIABLE: new-funs maps prim-f expressions to (Listof Label Safety-Check-Funtion)
-  ;; EFFECTS: mutates new-funcs to include the new safety check functions
+  ;; interp: constructs the complete safety wrapper for known primitives
+  ;; EFFECTS: mutates new-funcs to insert multiple helper functions as needed
   (define (implement-safe-primops-prim prim-f)
     (match prim-f
-      ['make-vector (define make-label (fresh 'make-vector))
-                    (define init-label (fresh 'make-init-vector))
-                    (define loop-label (fresh 'vector-init-loop))
+      ['make-vector
+       (define-values (unsafe-primop param-types error-code)
+         (match (hash-ref primop-spec-map prim-f)
+           [`(,unsafe ,params ,err) (values unsafe params err)]))
+       (define make-label (fresh 'make-vector))
+       (define init-label (fresh 'make-init-vector))
+       (define loop-label (fresh 'vector-init-loop))
 
-                    ;; Generate safty check for if argument is fixnum?
-                    (define arg1 (fresh))
-                    (define fun1 `(define ,make-label
-                                    (lambda (,arg1) (if (fixnum? ,arg1) (call ,init-label ,arg1) (error 8)))))
+       ;; Generate safety check for: is length a fixnum?
+       (define len1 (fresh 'tmp))
+       (define make-vector-func `(define ,make-label
+                                   (lambda (,len1)
+                                     (if (fixnum? ,len1)
+                                         (call ,init-label ,len1)
+                                         (error ,error-code)))))
 
+       ;; Generate check: is length ≥ 0
+       (define len2 (fresh 'tmp))
+       (define vec (fresh 'tmp))
+       (define init-vector-func  `(define ,init-label
+                                    (lambda (,len2)
+                                      (if (unsafe-fx>= ,len2 0)
+                                          (let ([,vec (unsafe-make-vector ,len2)])
+                                            (call ,loop-label ,len2 0 ,vec))
+                                          (error 12)))))
 
-                    ;; Generate safety check for if argument is >= 0
-                    (define arg2 (fresh))
-                    (define arg3 (fresh))
-                    (define fun2 `(define ,init-label
-                                    (lambda (,arg2) (if (unsafe-fx>= ,arg2 0)
-                                                        (let ((,arg3 (unsafe-make-vector ,arg2)))
-                                                          (call ,loop-label ,arg2 0 ,arg3))
-                                                        (error 12)))))
+       ;; Loop: initialize all elements to 0
+       (define len3 (fresh 'len))
+       (define i (fresh 'i))
+       (define vec3 (fresh 'vec))
+       (define loop-func `(define ,loop-label
+                            (lambda (,len3 ,i ,vec3)
+                              (if (eq? ,len3 ,i)
+                                  ,vec3
+                                  (begin
+                                    (unsafe-vector-set! ,vec3 ,i 0)
+                                    (call ,loop-label ,len3 (unsafe-fx+ ,i 1) ,vec3))))))
 
-                    ;; Generate loop for initializing vector to 0
-                    (define arg4 (fresh 'len))
-                    (define arg5 (fresh 'i))
-                    (define arg6 (fresh 'vec))
-                    (define fun3 `(define ,loop-label
-                                    (lambda (,arg4 ,arg5 ,arg6) (if (eq? ,arg4 ,arg5)
-                                                                    ,arg6
-                                                                    (begin
-                                                                      (unsafe-vector-set! ,arg6 ,arg5 0)
-                                                                      (call ,loop-label ,arg4 (unsafe-fx+ ,arg5 1) ,arg6))))))
+       (hash-set! new-funcs loop-label (list loop-func))
+       (hash-set! new-funcs init-label (list init-vector-func))
+       (hash-set! new-funcs prim-f (list make-label make-vector-func))
+       make-label]
+      ['vector-ref
+       (define-values (unsafe-primop param-types error-code)
+         (match (hash-ref primop-spec-map prim-f)
+           [`(,unsafe ,params ,err) (values unsafe params err)]))
 
-                    (hash-set! new-funcs fun2 (list loop-label fun3))
-                    (hash-set! new-funcs fun1 (list init-label fun2))
-                    (hash-set! new-funcs prim-f (list make-label fun1))
-                    make-label]
-      ['vector-ref (define safe-label (fresh 'vector-ref))
-                   (define unsafe-label (fresh 'unsafe-vector-ref))
+       (define safe-label (fresh 'vector-ref))
+       (define unsafe-label (fresh unsafe-primop))
 
-                   ;; Generate safety check for if arguments are vector? and fixnum?
-                   (define arg1 (fresh))
-                   (define arg2 (fresh))
-                   (define fun1 `(define ,safe-label
-                                   (lambda (,arg1 ,arg2)
-                                     (if (fixnum? ,arg2)
-                                         (if (vector? ,arg1)
-                                             (call ,unsafe-label ,arg1 ,arg2)
-                                             (error 11))
-                                         (error 11)))))
+       ;; First safety check: argument types (vector? and fixnum?)
+       (define vec (fresh 'vec))
+       (define index (fresh 'index))
+       (define fun1 `(define ,safe-label
+                       (lambda (,vec ,index)
+                         (if (fixnum? ,index)
+                             (if (vector? ,vec)
+                                 (call ,unsafe-label ,vec ,index)
+                                 (error ,error-code))
+                             (error ,error-code)))))
 
-                   ;; Generate safety check for if fixnum is within bounds of vector
-                   (define arg3 (fresh))
-                   (define arg4 (fresh))
-                   (define fun2 `(define ,unsafe-label
-                                   (lambda (,arg3 ,arg4)
-                                     (if (unsafe-fx< ,arg4 (unsafe-vector-length ,arg3))
-                                         (if (unsafe-fx>= ,arg4 0)
-                                             (unsafe-vector-ref ,arg3 ,arg4)
-                                             (error 11))
-                                         (error 11)))))
+       ;; Second safety check: bounds check on the index
+       (define vec^ (fresh 'vec))
+       (define index^ (fresh 'index))
+       (define fun2 `(define ,unsafe-label
+                       (lambda (,vec^ ,index^)
+                         (if (unsafe-fx< ,index^ (unsafe-vector-length ,vec^))
+                             (if (unsafe-fx>= ,index^ 0)
+                                 (unsafe-vector-ref ,vec^ ,index^)
+                                 (error ,error-code))
+                             (error ,error-code)))))
 
-                   (hash-set! new-funcs prim-f (list safe-label fun1))
-                   (hash-set! new-funcs fun1 (list unsafe-label fun2))
-                   safe-label]
-      ['vector-set! (define safe-label (fresh 'vector-set!))
-                    (define unsafe-label (fresh 'unsafe-vector-set!))
+       (hash-set! new-funcs prim-f (list safe-label fun1))
+       (hash-set! new-funcs fun1 (list unsafe-label fun2))
+       safe-label]
+      ['vector-set!
+       (define-values (unsafe-primop param-types error-code)
+         (match (hash-ref primop-spec-map prim-f)
+           [`(,unsafe ,params ,err) (values unsafe params err)]))
 
-                    ;; Generate safety check for if arguments are vector? and fixnum?
-                    (define arg1 (fresh))
-                    (define arg2 (fresh))
-                    (define arg3 (fresh))
-                    (define fun1 `(define ,safe-label
-                                    (lambda (,arg1 ,arg2 ,arg3)
-                                      (if (fixnum? ,arg2)
-                                          (if (vector? ,arg1)
-                                              (call ,unsafe-label ,arg1 ,arg2 ,arg3)
-                                              (error 10))
-                                          (error 10)))))
+       (define safe-label (fresh 'vector-set!))
+       (define unsafe-label (fresh unsafe-primop))
 
-                    ;; Generate safety check for if fixnum is within bounds of vector
-                    (define arg4 (fresh))
-                    (define arg5 (fresh))
-                    (define arg6 (fresh))
-                    (define fun2 `(define ,unsafe-label
-                                    (lambda (,arg4 ,arg5 ,arg6)
-                                      (if (unsafe-fx< ,arg5 (unsafe-vector-length ,arg4))
-                                          (if (unsafe-fx>= ,arg5 0)
-                                              (begin (unsafe-vector-set! ,arg4 ,arg5 ,arg6) (void))
-                                              (error 10))
-                                          (error 10)))))
+       ;; First safety check: type checks for (vector? vec) and (fixnum? index)
+       (define vec (fresh 'vec))
+       (define index (fresh 'index))
+       (define val (fresh 'val))
+       (define fun1 `(define ,safe-label
+                       (lambda (,vec ,index ,val)
+                         (if (fixnum? ,index)
+                             (if (vector? ,vec)
+                                 (call ,unsafe-label ,vec ,index ,val)
+                                 (error ,error-code))
+                             (error ,error-code)))))
 
-                    (hash-set! new-funcs prim-f (list safe-label fun1))
-                    (hash-set! new-funcs fun1 (list unsafe-label fun2))
-                    safe-label]
+       ;; Second safety check: bounds check for index in vector
+       (define vec^ (fresh 'vec))
+       (define index^ (fresh 'index))
+       (define val^ (fresh 'val))
+       (define fun2 `(define ,unsafe-label
+                       (lambda (,vec^ ,index^ ,val^)
+                         (if (unsafe-fx< ,index^ (unsafe-vector-length ,vec^))
+                             (if (unsafe-fx>= ,index^ 0)
+                                 (begin (unsafe-vector-set! ,vec^ ,index^ ,val^) (void))
+                                 (error ,error-code))
+                             (error ,error-code)))))
 
-      ['vector-length (define primop-spec (hash-ref primop-spec-map prim-f))
-                      (define label (fresh 'vector-length))
-                      (generate-safety-checks label prim-f primop-spec)
-                      label]
-
-      ;; Wildcard case for all other primitive operations as they have the same pattern
-      ;; of generating a safety check
+       (hash-set! new-funcs prim-f (list safe-label fun1))
+       (hash-set! new-funcs fun1 (list unsafe-label fun2))
+       safe-label]
+      ;; Wildcard collapse case used for all other primitive operations as they 
+      ;; have the same pattern of generating a safety check
       [_ (define primop (hash-ref primop-spec-map prim-f))
          (define label (fresh prim-f))
          (generate-safety-checks label prim-f primop)

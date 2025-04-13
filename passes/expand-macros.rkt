@@ -74,12 +74,15 @@
       [_ s-expr]))
 
   ;; func -> func
+  ;; interp. expands all macros in a single top-level function definition
   (define (expand-macros-func func)
     (match func
       [`(define ,x (lambda (,xs ...) ,value))
        `(define ,x (lambda (,@xs) ,(expand-macros-value value)))]))
 
   ;; racketish-surface.value -> exprs-lang-v9.value
+  ;; interp. recursively expands macros within a Racketish-surface value
+  ;; expression
   (define (expand-macros-value value)
     (match value
       [`(let ([,xs ,vs] ...) ,v)
