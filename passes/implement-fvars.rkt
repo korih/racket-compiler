@@ -18,13 +18,15 @@
   (define base-pointer-offset 0)
 
   ;; fvar -> addr
-  ;; convert fvar into displacement mode operand
+  ;; interp. convert fvar into displacement mode operand
   (define (fvar->addr fvar)
     `(,(current-frame-base-pointer-register) - ,(+ (* (fvar->index fvar)
                                                       (current-word-size-bytes))
                                                    base-pointer-offset)))
 
   ;; nested-asm-lang-fvars-v8.binop Integer -> void
+  ;; interp. updates base-pointer-offset based on operations that move the
+  ;; frame base pointer
   ;; EFFECTS: mutates `base-pointer-offset` by applying the given binop with the
   ;; offset
   (define (update-base-pointer-offset! binop offset)
@@ -37,6 +39,7 @@
       [_ (set! base-pointer-offset offset)]))
 
   ;; nested-asm-lang-fvars-v8.tail -> nested-asm-lang-v8.tail
+  ;; interp. recursively lowers all fvars in a tail to displacement-mode addresses
   (define (implement-fvars-tail tail)
     (match tail
       [`(jump ,trg)
@@ -49,6 +52,8 @@
             ,(implement-fvars-tail t2))]))
 
   ;; nested-asm-lang-fvars-v8.effect -> nested-asm-lang-v8.effect
+  ;; interp. lowers all fvars in an effect to displacement-mode addresses,
+  ;; updating frame pointer offset when modified
   (define (implement-fvars-effect effect)
     (match effect
       [`(set! ,loc1 (mref ,loc2 ,index))
@@ -79,6 +84,7 @@
        `(return-point ,label ,(implement-fvars-tail tail))]))
 
   ;; nested-asm-lang-fvars-v8.pred -> nested-asm-lang-v8.pred
+  ;; interp. lowers all fvars in a predicate to displacement-mode addresses
   (define (implement-fvars-pred pred)
     (match pred
       ['(true) pred]
@@ -94,24 +100,29 @@
        `(,relop ,(implement-fvars-loc loc) ,(implement-fvars-opand opand))]))
 
   ;; nested-asm-lang-fvars-v8.loc -> nested-asm-lang-v8.loc
+  ;; interp. replaces an fvar with its displacement-mode address;
+  ;; leaves registers unchanged 
   (define (implement-fvars-loc loc)
     (match loc
       [reg #:when (register? reg) reg]
       [fvar #:when (fvar? fvar) (fvar->addr fvar)]))
 
   ;; nested-asm-lang-fvars-v8.trg -> nested-asm-lang-v8.trg
+  ;; interp. replaces fvar target with displacement-mode address if applicable
   (define (implement-fvars-trg trg)
     (match trg
       [label #:when (label? label) label]
       [loc (implement-fvars-loc loc)]))
 
   ;; nested-asm-lang-fvars-v8.opand -> nested-asm-lang-v8.opand
+  ;; interp. replaces fvar operand with displacement-mode address if applicable
   (define (implement-fvars-opand opand)
     (match opand
       [int64 #:when (int64? int64) int64]
       [loc (implement-fvars-loc loc)]))
 
   ;; nested-asm-lang-fvars-v8.triv -> nested-asm-lang-v8.triv
+  ;; interp. replaces fvar trivials with displacement-mode addresses
   (define (implement-fvars-triv triv)
     (match triv
       [label #:when (label? label) label]

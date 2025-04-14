@@ -12,20 +12,22 @@
 (define/contract (expose-basic-blocks p)
   (-> nested-asm-lang-v8? block-pred-lang-v8?)
 
-  ;; blocks is (Box (List-of block-pred-lang-v8.b))
-  ;; stores new block definitions created
+  ;; blocks is (Box-of (List-of block-pred-lang-v8.b))
+  ;; interp. stores new block definitions created
   (define blocks (box '()))
 
-  ;; block-pred-lang-v8.b ->
-  ;; adds blk to blocks
-  (define (add-block blk)
+  ;; block-pred-lang-v8.b -> void
+  ;; interp. adds blk to blocks
+  ;; EFFECTS: mutates blocks by prepending blk
+  (define (add-block! blk)
     (set-box! blocks (cons blk (unbox blocks))))
 
   ;; block-pred-lang-v8.tail (list-of block-pred-lang-v8.effect) -> block-pred-lang-v8.tail
-  ;; creates a new tail with the given effects
+  ;; interp. creates a new tail with the given effects
   (define (make-new-tail tail fx)
     (match tail
-      [`(begin ,fx^ ... ,tail^) (make-new-tail tail^ (append fx fx^))]
+      [`(begin ,fx^ ... ,tail^)
+       (make-new-tail tail^ (append fx fx^))]
       ;; Other cases are handled in the same way:
       [_ (if (empty? fx)
              tail
@@ -33,6 +35,7 @@
 
   ;; nested-asm-lang-v8.tail -> block-pred-lang-v8.tail
   ;; interp. converts the tail program into a list of basic blocks
+  ;; EFFECTS: adds new blocks to blocks
   (define (expose-basic-blocks-tail tail)
     (match tail
       [`(begin ,fx ... ,tail)
@@ -42,13 +45,14 @@
       [`(if ,pred ,t-tail ,f-tail)
        (let* ([tail1-label (fresh-label)]
               [tail2-label (fresh-label)])
-         (add-block `(define ,tail1-label ,(expose-basic-blocks-tail t-tail)))
-         (add-block `(define ,tail2-label ,(expose-basic-blocks-tail f-tail)))
+         (add-block! `(define ,tail1-label ,(expose-basic-blocks-tail t-tail)))
+         (add-block! `(define ,tail2-label ,(expose-basic-blocks-tail f-tail)))
          ((expose-basic-blocks-pred pred) tail1-label tail2-label))]
       [`(jump ,trg) `(jump ,trg)]))
 
-  ;; interp. returns the effects and tails of the current block
   ;; nested-asm-lang-v8.effect block-pred-lang-v8.tail -> block-pred-lang-v8.tail
+  ;; interp. returns the effects and tails of the current block
+  ;; EFFECTS: adds new blocks to blocks
   (define (expose-basic-blocks-effect e bpl-tail)
     (match e
       [`(set! ,loc1 (mref ,loc2 ,index))
@@ -73,20 +77,22 @@
        (define false-tail
          (expose-basic-blocks-effect f-e
                                      `(jump ,merge-label)))
-       (add-block `(define ,true-label ,true-tail))
-       (add-block `(define ,false-label ,false-tail))
+       (add-block! `(define ,true-label ,true-tail))
+       (add-block! `(define ,false-label ,false-tail))
 
        (define merge-tail bpl-tail)
-       (add-block `(define ,merge-label ,merge-tail))
+       (add-block! `(define ,merge-label ,merge-tail))
 
        (define pred-creator (expose-basic-blocks-pred pred))
        (pred-creator true-label false-label)]
       [`(return-point ,label ,tail)
-       (add-block `(define ,label ,bpl-tail))
+       (add-block! `(define ,label ,bpl-tail))
        tail]))
 
-  ;; nested-asm-lang-v8.pred
-  ;; -> (block-pred-lang-v8.trg block-pred-lang-v8.trg -> block-pred-lang-v8.tail)
+  ;; nested-asm-lang-v8.pred -> (block-pred-lang-v8.trg block-pred-lang-v8.trg -> block-pred-lang-v8.tail)
+  ;; interp. rewrites a predicate to return a function that jumps to the
+  ;; appropriate block based on its truth value
+  ;; EFFECTS: adds new blocks to blocks
   (define (expose-basic-blocks-pred p)
     (match p
       ['(true)
@@ -106,8 +112,8 @@
        (lambda (t f)
          (let* ([label2 (fresh-label)]
                 [label3 (fresh-label)])
-           (add-block `(define ,label3 ,((expose-basic-blocks-pred pred3) t f)))
-           (add-block `(define ,label2 ,((expose-basic-blocks-pred pred2) t f)))
+           (add-block! `(define ,label3 ,((expose-basic-blocks-pred pred3) t f)))
+           (add-block! `(define ,label2 ,((expose-basic-blocks-pred pred2) t f)))
            ((expose-basic-blocks-pred pred1) label2 label3)))]
       [`(,relop ,loc ,triv)
        (lambda (t f) `(if (,relop ,loc ,triv) (jump ,t) (jump ,f)))]))
@@ -117,8 +123,8 @@
      (for ([fun funs])
        (match fun
          [`(define ,label ,tail^)
-          (add-block `(define ,label ,(expose-basic-blocks-tail tail^)))]))
-     (add-block `(define ,(fresh-label) ,(expose-basic-blocks-tail tail)))
+          (add-block! `(define ,label ,(expose-basic-blocks-tail tail^)))]))
+     (add-block! `(define ,(fresh-label) ,(expose-basic-blocks-tail tail)))
      `(module ,@(unbox blocks))]))
 
 

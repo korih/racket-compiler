@@ -17,7 +17,7 @@
   ;; interp. a function definition
 
   ;; (List-of aloc) (Graph-of loc) (List-of (list aloc rloc)) -> (List-of (list aloc rloc))
-  ;; Recursively assigns frame variables to each aloc, avoiding conflicts
+  ;; interp. recursively assigns frame variables to each aloc, avoiding conflicts
   (define (graph-colouring alocs conflicts-graph assignments)
     (cond
       [(empty? alocs) assignments]
@@ -38,7 +38,10 @@
 
 
   ;; asm-pred-lang-v8/spilled.info -> asm-pred-lang-v8/assignments.info
-  (define (assign-call-variables-info info)
+  ;; interp. updates the assignment field in the info object by assigning
+  ;; all abstract locations in locals to fresh frame variables, avoiding
+  ;; conflicts using the conflict graph
+  (define (assign-frame-variables-info info)
     (define conflicts-graph (info-ref info 'conflicts))
     (define locals (info-ref info 'locals))
     (define existing-assignments (info-ref info 'assignment))
@@ -51,12 +54,14 @@
     (info-set info 'assignment final-assignments))
 
   ;; func -> func
-  (define (assign-call-fun f)
-    (match f
+  ;; interp. updates the info of a function definition by assigning
+  ;; remaining locals to frame variables
+  (define (assign-frame-variables-func func)
+    (match func
       [`(define ,name ,info ,tail)
-       `(define ,name ,(assign-call-variables-info info) ,tail)]))
+       `(define ,name ,(assign-frame-variables-info info) ,tail)]))
 
   (match p
-    [`(module ,info ,funs ... ,tail)
-     `(module ,(assign-call-variables-info info) ,@(map assign-call-fun funs) ,tail)]))
+    [`(module ,info ,funcs ... ,tail)
+     `(module ,(assign-frame-variables-info info) ,@(map assign-frame-variables-func funcs) ,tail)]))
 
