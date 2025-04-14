@@ -18,7 +18,7 @@
   ;; func is `(define ,label ,info ,tail)
   ;; interp. a function definition that uses calling conventions for arguments
 
-  ;; (List-of opand) (List-of register) aloc -> (values (List-of effect) (List-of rloc))
+  ;; (List-of opand) (List-of register) aloc -> (List-of effect) (List-of rloc)
   ;; interp. converts a list of arguments from a tail call into a sequence of
   ;; register assignments, following calling conventions
   (define (transform-tail-call ops regs return-aloc)
@@ -80,16 +80,20 @@
   (define info (info-set '() 'new-frames '()))
 
   ;; imp-cmf-lang-v8.info (List-of aloc) -> imp-cmf-lang-v8.info
-  ;; EFFECTS: adds the frame to the end of the new-frames's info
+  ;; interp. adds a list of fresh frame variables to the current new-frames info
+  ;; EFFECTS: mutates global info by appending a new frame to its 'new-frames list
   (define (add-frame! frame)
     (set! info (info-set '() 'new-frames (cons frame (info-ref info 'new-frames)))))
 
   ;; void -> void
-  ;; EFFECTS: resets the new-frames of new-frames of info to an empty list
+  ;; interp. clears all previously recorded new frames from the global info
+  ;; EFFECTS: mutates global info to reset its 'new-frames field to '()
   (define (reset-info!)
     (set! info (info-set info 'new-frames '())))
 
   ;; func-lambda -> func
+  ;; interp. applies calling convention to the lambda-style function body and
+  ;; wraps it in the correct function info structure
   (define (impose-calling-conventions-func func)
     (match func
       [`(define ,label (lambda (,alocs ...) ,entry))
@@ -123,6 +127,8 @@
        ,(impose-calling-conventions-tail entry return-aloc)))
 
   ;; proc-imp-cmf-lang-v8.tail aloc -> imp-cmf-lang-v8.tail
+  ;; interp. applies calling conventions recursively on tail position
+  ;; expressions, transforming function calls and return values to jump form
   (define (impose-calling-conventions-tail tail return-aloc)
     (match tail
       [`(begin ,es ... ,t)
@@ -145,6 +151,8 @@
            effect^)]))
 
   ;; proc-imp-cmf-lang-v8.effect -> imp-cmf-lang-v8.effect
+  ;; interp. applies calling conventions inside side-effect expressions, and
+  ;; lifts calls using return-point if needed
   (define (impose-calling-conventions-effect effect)
     (match effect
       [`(set! ,aloc ,value)
@@ -163,6 +171,7 @@
             ,(impose-calling-conventions-effect e2))]))
 
   ;; proc-imp-cmf-lang-v8.pred -> imp-cmf-lang-v8.pred
+  ;; interp. applies calling conventions inside predicate expressions recursively
   (define (impose-calling-conventions-pred pred)
     (match pred
       ['(true) pred]
@@ -178,6 +187,7 @@
       [`(,relop ,op1 ,op2) pred]))
 
   ;; proc-imp-cmf-lang-v8.value -> imp-cmf-lang-v8.effect imp-cmf-lang-v8.value
+  ;; interp. applies calling conventions to a value
   (define (impose-calling-conventions-value value)
     (match value
       [`(call ,triv ,ops ...)
@@ -188,7 +198,7 @@
                           ,@effects
                           (jump ,triv ,(current-frame-base-pointer-register) ,(current-return-address-register) ,@used-rlocs)))
        (values effect^ return-label)]
-      ;; Using wildcard collapse case because in all other cases, the
+      ;; Wildcard collapse case used because in all other cases, the
       ;; expression is already in imp-cmf-lang-v8.value form
       [_ (values '() value)]))
 
