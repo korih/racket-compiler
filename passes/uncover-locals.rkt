@@ -19,21 +19,25 @@
   ;; interp. a function definition that has metadata
 
   ;; unique-alocs is (Set-of aloc)
-  ;; keeps track of unique abstract locations
+  ;; interp. keeps track of unique abstract locations
   (define unique-alocs (mutable-set))
 
   ;; func-info -> func-info
-  (define (uncover-locals-func f)
+  ;; interp. collects alocs used in the tail of the function and adds them to
+  ;; its info
+  ;; EFFECTS: clears the unique-alocs set
+  (define (uncover-locals-func func)
     (set-clear! unique-alocs)
-    (match f
+    (match func
       [`(define ,label ,info ,tail)
        (uncover-locals-tail tail)
        `(define ,label ,(info-set info 'locals (set->list unique-alocs)) ,tail)]))
 
   ;; asm-pred-lang-v8.tail -> void
+  ;; interp. recursively collects alocs from tail position
   ;; EFFECTS: adds alocs from tail t to unique-alocs
-  (define (uncover-locals-tail t)
-    (match t
+  (define (uncover-locals-tail tail)
+    (match tail
       [`(begin ,ef ... ,ta)
        (for-each uncover-locals-effect ef)
        (uncover-locals-tail ta)]
@@ -45,9 +49,10 @@
        (for-each uncover-locals-tail (list tail1 tail2))]))
 
   ;; asm-pred-lang-v8.effect -> void
+  ;; interp. recursively collects alocs from effects 
   ;; EFFECTS: adds alocs from effect e to unique-alocs
-  (define (uncover-locals-effect e)
-    (match e
+  (define (uncover-locals-effect effect)
+    (match effect
       [`(set! ,loc1 (mref ,loc2 ,index))
        (for-each uncover-locals-loc (list loc1 loc2))
        (uncover-locals-opand index)]
@@ -70,9 +75,10 @@
        (uncover-locals-tail tail)]))
 
   ;; asm-pred-lang-v8.pred -> void
+  ;; interp. recursively collects alocs from predicates
   ;; EFFECTS: adds alocs from pred p to unique-alocs
-  (define (uncover-locals-pred p)
-    (match p
+  (define (uncover-locals-pred pred)
+    (match pred
       [`(not ,pred)
        (uncover-locals-pred pred)]
       [`(begin ,e ... ,pred)
@@ -87,13 +93,15 @@
       ['(false) (void)]))
 
   ;; asm-pred-lang-v8.triv -> void
+  ;; interp. collects alocs from trivials
   ;; EFFECTS: adds alocs from triv t to unique-alocs
-  (define (uncover-locals-triv t)
-    (match t
+  (define (uncover-locals-triv triv)
+    (match triv
       [label #:when (label? label) (void)]
       [opand (uncover-locals-opand opand)]))
 
   ;; asm-pred-lang-v8.opand -> void
+  ;; interp. collects alocs from operands
   ;; EFFECTS: adds alocs from opand op to unique-alocs
   (define (uncover-locals-opand op)
     (match op
@@ -101,6 +109,7 @@
       [loc (uncover-locals-loc loc)]))
 
   ;; asm-pred-lang-v8.loc -> void
+  ;; interp. adds aloc to set if it's not a register
   ;; EFFECTS: adds alocs from loc to unique-alocs
   (define (uncover-locals-loc loc)
     (match loc
@@ -108,6 +117,7 @@
       [rloc #:when (rloc? rloc) (void)]))
 
   ;; asm-pred-lang-v8.trg -> void
+  ;; interp. collects alocs from jump targets
   ;; EFFECTS: adds alocs from trg to unique-alocs
   (define (uncover-locals-trg trg)
     (match trg

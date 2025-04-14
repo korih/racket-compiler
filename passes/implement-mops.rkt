@@ -12,6 +12,8 @@
   (-> paren-x64-mops-v8? paren-x64-v8?)
 
   ;; paren-x64-mops-v8.s -> paren-x64-v8.s
+  ;; interp. compiles a single instruction s by rewriting memory operations 
+  ;; into pointer arithmetic using index/displacement mode syntax 
   (define (implement-mops-s s)
     (match s
       [`(with-label ,label ,s)

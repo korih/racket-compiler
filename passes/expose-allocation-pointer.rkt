@@ -16,12 +16,16 @@
   ;; interp. a function definition
 
   ;; func -> func
+  ;; interp. lowers all alloc expressions inside the tail of a function
+  ;; definition
   (define (expose-allocation-pointer-func func)
     (match func
       [`(define ,label ,info ,tail)
        `(define ,label ,info ,(expose-allocation-pointer-tail tail))]))
 
   ;; asm-alloc-lang-v8.tail -> asm-pred-lang-v8.tail
+  ;; interp. transforms allocation inside tail expressions with pointer
+  ;; arithmetic on the heap base pointer register
   (define (expose-allocation-pointer-tail tail)
     (match tail
       [`(begin ,es ... ,t)
@@ -33,6 +37,7 @@
       [`(jump ,trg ,locs ...) tail]))
 
   ;; asm-alloc-lang-v8.effect -> asm-pred-lang-v8.effect
+  ;; transforms effects to replace (alloc n) with heap pointer operations
   (define (expose-allocation-pointer-effect effect)
     (match effect
       [`(set! ,loc (alloc ,index))
@@ -53,6 +58,7 @@
       [_ effect]))
 
   ;; asm-alloc-lang-v8.pred -> asm-pred-lang-v8.pred
+  ;; transforms predicates by recursively exposing allocations in sub-effects
   (define (expose-allocation-pointer-pred pred)
     (match pred
       [`(not ,p)

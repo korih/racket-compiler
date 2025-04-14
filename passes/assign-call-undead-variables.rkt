@@ -8,8 +8,8 @@
 (provide assign-call-undead-variables)
 
 ;; asm-lang-v8/conflicts -> asm-lang-v8/pre-framed
-;; Compiles Asm-pred-lang-v8/conflicts to Asm-pred-lang-v8/pre-framed by
-;; pre-assigning all variables in the call-undead sets to frame variables
+;; compiles p to Asm-pred-lang-v8/pre-framed by pre-assigning all variables in
+;; in the call-undead sets to frame variables
 (define/contract (assign-call-undead-variables p)
   (-> asm-pred-lang-v8/conflicts? asm-pred-lang-v8/pre-framed?)
 
@@ -57,6 +57,8 @@
          (cons (list x (find-fvar 0)) assignments^))]))
 
   ;; asm-lang-v8/conflicts.info -> asm-lang-v8/pre-framed.info
+  ;; interp. assigns all call-undead variables in the module-level info to frame 
+  ;; variables and updates the 'assignment and 'locals fields
   (define (assign-call-undead-variables-info info)
     (define assignments (graph-colouring (info-ref info 'call-undead) (info-ref info 'conflicts) '()))
     (define locals
@@ -65,6 +67,8 @@
     (info-set (info-set info 'locals locals) 'assignment assignments))
 
   ;; func -> func
+  ;; interp. updates the function's info to include a conflict-free assignment
+  ;; of call-undead variables to frame variables
   (define (assign-call-undead-variables-func func)
     (match func
       [`(define ,label ,info ,tail)

@@ -18,7 +18,11 @@
   ;; func is `(define ,label (lambda (,alocs ...) ,value))
   ;; interp. a function definition
 
-  ;; (List-of func) -> (Env-of exprs-unique-lang-v9.triv)
+  ;; env is (Env-of aloc)
+  ;; interp. maps each lexical variable or function name to a unique aloc or label
+  ;; INVARIANT: env contains all identifiers in scope with unique mappings, no duplicates
+
+  ;; (List-of func) -> (Env-of aloc)
   ;; interp. creates an environment with all the unique function labels
   (define (initialize-env funcs)
     (for/fold ([env empty-env])
@@ -29,8 +33,11 @@
          (define env^ (extend-env env funcName unique-label))
          env^])))
 
-  ;; (List-of func) (Env-of exprs-unique-lang-v9.triv) -> (values (List-of func) (Env-of exprs-unique-lang-v9.triv))
-  ;; interp. processes each function definition by assigning lexical identifiers with unique labels and abstract locations
+  ;; (List-of func) (Env-of aloc) -> (values (List-of func) (Env-of aloc))
+  ;; interp. processes each function definition by assigning lexical identifiers
+  ;; with unique labels and abstract locations
+  ;; ACCUMULATOR: env accumulates all known unique identifiers
+  ;; INVARIANT: env maps all top-level function names and previously seen args
   (define (identify-function-labels funcs env)
     (for/fold ([updated-funcs '()]
                [updated-env env])
@@ -38,8 +45,10 @@
       (define-values (updated-func new-env) (uniquify-func func updated-env))
       (values (cons updated-func updated-funcs) new-env)))
 
-  ;; func (Env-of exprs-unique-lang-v9.triv) -> func (Env-of exprs-unique-lang-v9.triv)
-  ;; interp. for a given function definition, go through its args and body and produce uniquified version
+  ;; func (Env-of aloc) -> func (Env-of aloc)
+  ;; interp. rewrites the function’s args and body to use unique names
+  ;; ACCUMULATOR: env accumulates known identifiers across functions
+  ;; INVARIANT: env contains mappings for all outer scopes and the current function label
   (define (uniquify-func func env)
     (match func
       [`(define ,funcName (lambda (,args ...) ,value))
@@ -49,8 +58,10 @@
        (values `(define ,unique-label (lambda (,@unique-args) ,(uniquify-value value new-env)))
                env)]))
 
-  ;; exprs-lang-v9.value (Env-of exprs-unique-lang-v9.triv) -> exprs-unique-lang-v9.value
-  ;; interp. rom a given value and environment, produce the uniquified version of it
+  ;; exprs-lang-v9.value (Env-of aloc) -> exprs-unique-lang-v9.value
+  ;; interp. rewrites the body of a function by resolving all variables to unique names
+  ;; ACCUMULATOR: env accumulates mappings from original names to unique alocs
+  ;; INVARIANT: all variables referenced in value must exist in env
   (define (uniquify-value value env)
     (match value
       [`(let ([,xs ,vs] ...) ,v)
@@ -69,8 +80,10 @@
        `(call ,@(map (lambda (v) (uniquify-value v env)) vs))]
       [triv (uniquify-triv triv env)]))
 
-  ;; exprs-lang-v9.triv (Env-of exprs-unique-lang-v9.triv) -> exprs-unique-lang-v9.triv
-  ;; interp. resolves triv as terminal case, or x
+  ;; exprs-lang-v9.triv (Env-of aloc) -> exprs-unique-lang-v9.triv
+  ;; interp. resolves trivials with variables to use unique names
+  ;; ACCUMULATOR: env carries all known mappings for free and bound names
+  ;; INVARIANT: any name? must appear in env, and literals are unchanged
   (define (uniquify-triv triv env)
     (match triv
       [#t #t]
@@ -87,8 +100,10 @@
        `(lambda ,unique-names ,value^)]
       [x (uniquify-x x env)]))
 
-  ;; exprs-unique-lang-v9.x (Env-of exprs-unique-lang-v9.triv) -> exprs-unique-lang-v9.triv
-  ;; interp. resolves x primitive function or a unique variable definition
+  ;; exprs-unique-lang-v9.x (Env-of aloc) -> (or/c aloc prim-f)
+  ;; interp. resolves a name to its unique aloc or passes through primitive
+  ;; ACCUMULATOR: env maps all lexical names to alocs or labels
+  ;; INVARIANT: every name must be present in env, primitive functions may be unmapped
   (define (uniquify-x x env)
     (match x
       [prim-f

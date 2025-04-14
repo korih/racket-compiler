@@ -18,11 +18,19 @@
   ;; func-info is `(define ,label ,info ,tail)
   ;; interp. a function definition that has metadata
 
-  ;; acc is (Graph-of aloc)
+  ;; undead-set-tree is one-of:
+  ;; - undead-set
+  ;; - (List-of undead-set-tree)
+  ;; interp. represents undeadness information at each control-flow node
+
+  ;; conflict-graph is (Graph-of aloc)
   ;; interp. the conflict graph of abstract locations
   (define conflict-graph (void))
 
   ;; func-info -> func-info
+  ;; interp. annotates a function with a conflict graph based on its undead-out info
+  ;; EFFECTS: updates conflict-graph with a new graph consisting of all the
+  ;; local variables
   (define (conflict-analysis-func func)
     (match func
       [`(define ,label ,info ,tail)
@@ -34,7 +42,9 @@
                                       conflict-graph))
        `(define ,label ,updated-info ,tail)]))
 
-  ;; undead-set-tree/rloc asm-pred-lang-v8/undead.tail -> asm-pred-lang-v8/conflicts.tail
+  ;; undead-set-tree asm-pred-lang-v8/undead.tail -> asm-pred-lang-v8/conflicts.tail
+  ;; interp. performs conflict analysis on a tail using its undead-out set tree
+  ;; EFFECTS: mutates conflict-graph by adding edges from tail-level operations
   (define (conflict-analysis-tail udt tail)
     (match (cons udt tail)
       [(cons `(,undead-set-trees ... ,undead-set-tree-tail) `(begin ,fx ... ,inner-tail))
@@ -54,14 +64,13 @@
             ,(conflict-analysis-tail undead-set-tree-t tail-t)
             ,(conflict-analysis-tail undead-set-tree-f tail-f))]))
 
-  ;; undead-set-tree/rloc asm-pred-lang-v8/undead.effect -> asm-pred-lang-v8/conflicts.effect
-  (define (conflict-analysis-effect udt e)
-    (match (cons udt e)
-      [(cons `(,undead-set-trees ... ,last-undead-set-tree) `(begin ,fx ... ,effect))
-       (define analyzed-fx (for/list ([e fx]
-                                      [ust undead-set-trees])
-                             (conflict-analysis-effect ust e)))
-       `(begin ,@analyzed-fx ,(conflict-analysis-effect last-undead-set-tree effect))]
+  ;; undead-set-tree asm-pred-lang-v8/undead.effect -> asm-pred-lang-v8/conflicts.effect
+  ;; interp. performs conflict analysis on an effect using its undead-out set
+  ;; EFFECTS: mutates conflict-graph by adding edges from set! and mref instructions
+  (define (conflict-analysis-effect udt effect)
+    (match (cons udt effect)
+      [(cons `(,undead-set-trees ...) `(begin ,effects ...))
+       `(begin ,@(map (lambda (ust eff) (conflict-analysis-effect ust eff)) undead-set-trees effects))]
       [(cons `(,undead-out ...) `(set! ,loc1 (mref ,loc2 ,index)))
        (set! conflict-graph (add-edges conflict-graph loc1 (set-subtract undead-out (list loc1))))
        `(set! ,loc1 (mref ,loc2 ,index))]
@@ -84,7 +93,8 @@
       [(cons `(,udt-inner ,udt-outer) `(return-point ,label ,tail))
        `(return-point ,label ,(conflict-analysis-tail udt-outer tail))]))
 
-  ;; undead-set-tree/rloc asm-pred-lang-v8/undead.pred -> asm-pred-lang-v8/conflicts.pred
+  ;; undead-set-tree asm-pred-lang-v8/undead.pred -> asm-pred-lang-v8/conflicts.pred
+  ;; interp. performs conflict analysis on a predicate using its undead-out set
   (define (conflict-analysis-pred udt pred)
     (match (cons udt pred)
       [(cons undead-set-tree '(true)) '(true)]
@@ -104,24 +114,30 @@
        `(,relop ,aloc ,triv)]))
 
   ;; triv -> (or/c loc void)
+  ;; interp. extracts the loc from a triv if one exists, otherwise returns void
   (define (extract-loc-from-triv triv)
     (match triv
       [label #:when (label? label) (void)]
       [opand (extract-loc-from-opand opand)]))
 
   ;; loc -> loc
+  ;; interp. returns the loc itself after validating it is a loc
   (define (extract-loc-from-loc loc)
     (match loc
       [rloc #:when (rloc? rloc) rloc]
       [aloc #:when (aloc? aloc) aloc]))
 
   ;; trg -> (or/c loc void)
+  ;; interp. extracts the loc from a jump target if one exists, otherwise
+  ;; returns void
   (define (extract-loc-from-trg trg)
     (match trg
       [label #:when (label? label) (void)]
       [loc (extract-loc-from-loc loc)]))
 
   ;; opand -> (or/c loc void)
+  ;; interp. extracts the loc from an operand if one exists, otherwise
+  ;; returns void
   (define (extract-loc-from-opand op)
     (match op
       [int64 #:when (int64? int64) (void)]

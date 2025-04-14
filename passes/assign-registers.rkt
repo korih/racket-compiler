@@ -19,11 +19,15 @@
   ;; func is `(define ,label ,info ,tail)
   ;; interp. a function definition
 
-  ;; spilled-variables is 
-  ;; keeps track of spilled variables
+  ;; spilled-variables is (Box-of (List-of aloc))
+  ;; interp. stores a list of abstract locations that could not be assigned to 
+  ;; register sand must be spilled to memory
   (define spilled-variables (box '()))
 
   ;; func -> func
+  ; interp. performs register allocation for one function by modifying its
+  ;; assignment mapping using graph colouring
+  ;; EFFECTS: resets spilled-variables to an empty list
   (define (assign-registers-func func)
     (match func
       [`(define ,label ,info ,tail)
@@ -36,15 +40,20 @@
        (set! updated-info (info-set updated-info 'locals updated-locals))
        `(define ,label ,updated-info ,tail)]))
 
-  ;; graph (List-of register) -> (List-of (list aloc loc))
+  ;; (Graph-of loc) (List-of register) -> (List-of (list aloc loc))
+  ;; interp. colours the conflict graph using the given registers, reusing 
+  ;; existing assignments and allocating registers greedily
+  ;; EFFECTS: mutates spilled-variables by adding any unassignable alocs
   (define (graph-colouring-with-spilling assignments conflict-graph registers)
     (define assigned-alocs (map car assignments))
     (define graph^ (for/fold ([new-graph conflict-graph])
                              ([assignment assigned-alocs])
                      (remove-vertex new-graph assignment)))
 
-    ;; graph -> (List-of (list aloc loc))
-    ;; interp. performs the graph colouring algorithm
+    ;; (Graph-of loc) -> (List-of (list aloc loc))
+    ;; interp. recursively assigns a register to each unassigned aloc using the
+    ;; greedy graph colouring algorithm
+    ;; EFFECTS: updates spilled-variables with any aloc that could not be assigned
     (define (colour-graph graph)
       (define sorted-graph (sort (filter aloc? (map car graph))
                                  (lambda (a b)

@@ -525,5 +525,4 @@
         (define procedure-arity.178
           (lambda (tmp.179)
             (if (procedure? tmp.179) (unsafe-procedure-arity tmp.179) (error 26))))
-      (call procedure-arity.178 |+.56|)))
-  )
+      (call procedure-arity.178 |+.56|))))

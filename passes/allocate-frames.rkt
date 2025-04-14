@@ -31,6 +31,9 @@
        (current-word-size-bytes)))
 
   ;; asm-pred-lang-v8/pre-framed.info -> asm-pred-lang-v8/framed.info
+  ;; interp. assigns fresh frame variables to new-frame variables, updates 
+  ;; assignment mapping, and removes temporary fields like new-frames and undead
+  ;; info
   (define (allocate-frames-info info)
     (define new-frames (if (empty? (info-ref info 'new-frames))
                            '()
@@ -69,14 +72,18 @@
      'assignment final-assignments))
 
   ;; func -> func
-  (define (allocate-frames-func f)
-    (match f
+  ;; interp. updates the function info with frame assignments and transforms the 
+  ;; tail to include allocation and deallocation logic
+  (define (allocate-frames-func func)
+    (match func
       [`(define ,label ,info ,tail)
        `(define ,label ,(allocate-frames-info info) ,(allocate-frames-tail tail info))]))
 
   ;; asm-pred-lang-v8/pre-framed.tail asm-pred-lang-v8/pre-framed.info -> asm-pred-lang-v8/framed.tail
-  (define (allocate-frames-tail t info)
-    (match t
+  ;; interp. transforms tail code by recursively applying frame allocation to 
+  ;; all subcomponents and wrapping return-points with frame setup/teardown
+  (define (allocate-frames-tail tail info)
+    (match tail
       [`(jump ,trg ,locs ...) `(jump ,trg ,@locs)]
       [`(begin ,effects ... ,tail)
        (define effects^ (for/fold ([compiled-effects empty])
@@ -89,8 +96,10 @@
             ,(allocate-frames-tail t2 info))]))
 
   ;; asm-pred-lang-v8/pre-framed.effect asm-pred-lang-v8/pre-framed.info -> asm-pred-lang-v8/framed.effect
-  (define (allocate-frames-effect e info)
-    (match e
+  ;; interp. transforms effects by injecting frame allocation logic when 
+  ;; encountering return-points and recursively visiting sub-effects
+  (define (allocate-frames-effect effect info)
+    (match effect
       [`(begin ,effects ...)
        (define effects^ (for/fold ([compiled-effects empty])
                                   ([effect effects])
@@ -109,11 +118,13 @@
             ,(allocate-frames-effect e2 info))]
       ;; Wildcard collapse case used because any other effect does not require
       ;; frame allocation and can be returned unchanged
-      [_ e]))
+      [_ effect]))
 
   ;; asm-pred-lang-v8/pre-framed.pred asm-pred-lang-v8/pre-framed.info -> asm-pred-lang-v8/framed.pred
-  (define (allocate-frames-pred p info)
-    (match p
+  ;; interp. transforms predicate expressions by allocating frames for nested
+  ;; effects
+  (define (allocate-frames-pred pred info)
+    (match pred
       [`(begin ,effects ... ,pred)
        (define effects^ (for/fold ([compiled-effects '()])
                                   ([effect effects])
@@ -121,7 +132,7 @@
        `(begin ,@effects^ ,(allocate-frames-pred pred info))]
       ;; Wildcard collapse case used because all other predicates do not contain
       ;; nested effects or require frame allocation and can be returned as-is
-      [_ p]))
+      [_ pred]))
 
   (match p
     [`(module ,info ,funcs ... ,tail)

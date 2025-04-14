@@ -17,10 +17,19 @@
   ;; func-info is `(define ,label ,info ,tail)
   ;; interp. a function definition that has metadata
 
+  ;; undead-set-tree is one-of:
+  ;; - undead-set
+  ;; - (List-of undead-set-tree)
+  ;; interp. represents undeadness information at each control-flow node
+
+  ;; undead-set is (Set-of loc)
+  ;; interp. represents the set of undead locations at a point in the program
+
   ;; call-undead is (Set-of aloc)
-  ;; interp. the set of abstract locations in the undead-out set of a return-point
+  ;; interp. represents undead abstract locations at return-points
 
   ;; func-info -> func-info
+  ;; interp. annotates a function with its undead-out tree and call-undead set
   (define (analyze-func f)
     (match f
       [`(define ,label ,info ,tail)
@@ -28,9 +37,11 @@
        (define updated-info (info-set (info-set info 'undead-out undead-tree) 'call-undead call-undead))
        `(define ,label ,updated-info ,tail)]))
 
-  ;; asm-pred-lang-v8/locals.tail -> (values undead-set-tree undead-set call-undead)
-  (define (analyze-tail t)
-    (match t
+  ;; asm-pred-lang-v8/locals.tail -> undead-set-tree undead-set call-undead
+  ;; interp. analyzes a tail position to compute its undead tree and variables
+  ;; live after
+  (define (analyze-tail tail)
+    (match tail
       [`(begin ,effects ... ,tail)
        (define-values (t-ust undead-out call-undead-tail)
          (analyze-tail tail))
@@ -53,9 +64,11 @@
       [`(jump ,trg ,locs ...)
        (values locs (set-union (analyze-trg trg) locs) '())]))
 
-  ;; asm-pred-lang-v8/locals.effect undead-set -> (values undead-set-tree undead-set call-undead)
-  (define (analyze-effects e undead-out)
-    (match e
+  ;; asm-pred-lang-v8/locals.effect undead-set -> undead-set-tree undead-set call-undead
+  ;; interp. analyzes an effect expression given an undead-out set and returns
+  ;; undead-in
+  (define (analyze-effects effect undead-out)
+    (match effect
       [`(begin ,effects ...)
        (define-values (begins-ust undead-in call-undead)
          (for/foldr ([eff-ust '()]
@@ -106,9 +119,11 @@
                (set-remove (set-union t-undead-out undead-out) (current-return-value-register))
                (set-subtract (set-union t-call-undead undead-out) (current-register-set)))]))
 
-  ;; asm-pred-lang-v8/locals.pred undead-set -> (values undead-set-tree undead-set call-undead)
-  (define (analyze-pred p undead-out)
-    (match p
+  ;; asm-pred-lang-v8/locals.pred undead-set -> undead-set-tree undead-set call-undead
+  ;; interp. analyzes a predicate expression given undead-out and returns
+  ;; undead-in
+  (define (analyze-pred pred undead-out)
+    (match pred
       [`(not ,pred)
        (analyze-pred pred undead-out)]
       [`(begin ,effects ... ,pred)
@@ -141,24 +156,29 @@
       ['(false) (values undead-out undead-out '())]))
 
   ;; asm-pred-lang-v8/locals.triv -> (List-of loc)
+  ;; interp. returns the set of locations used in a trivial value
   (define (analyze-triv triv)
     (match triv
       [label #:when (label? label) '()]
       [opand (analyze-opand opand)]))
 
   ;; asm-pred-lang-v8/locals.loc -> (List-of loc)
+  ;; interp. returns the list containing the loc if it's a valid abstract or
+  ;; real location
   (define (analyze-loc loc)
     (match loc
       [rloc #:when (rloc? rloc) (list rloc)]
       [aloc #:when (aloc? aloc) (list aloc)]))
 
   ;; asm-pred-lang-v8/locals.trg -> (List-of loc)
+  ;; interp. returns the set of locations referenced by the jump target
   (define (analyze-trg trg)
     (match trg
       [label #:when (label? label) '()]
       [loc (analyze-loc loc)]))
 
   ;; asm-pred-lang-v8/locals.opand -> (List-of loc)
+  ;; interp. returns the set of locations used in the operand
   (define (analyze-opand op)
     (match op
       [int64 #:when (int64? int64) '()]

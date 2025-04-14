@@ -104,7 +104,7 @@
        `(,primop ,@(map implement-safe-call-value vs))]))
 
   ;; exprs-unsafe-data-lang-v9.triv -> exprs-unsafe-lang-v9.triv
-  ;; interp. transforms trivial values (e.g. inline lambdas) recursively
+  ;; interp. transforms trivial values to implement safe calls
   (define (implement-safe-call-triv triv)
     (match triv
       [`(lambda (,alocs ...) ,value)
