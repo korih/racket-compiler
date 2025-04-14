@@ -22,12 +22,16 @@
   ;; interp. a function definition with the body being a tail
 
   ;; func-value -> func-tail
+  ;; interp. transforms the body of a function from value form to tail form by
+  ;; applying remove-complex-opera* to unnest all compound expressions
   (define (remove-complex-opera*-func func)
     (match func
       [`(define ,label (lambda (,alocs ...) ,tail))
        `(define ,label (lambda (,@alocs) ,(remove-complex-opera*-tail tail (λ (v) v))))]))
 
   ;; exprs-bits-lang-v8.value (values-bits-lang-v8.value -> values-bits-lang-v8.value) -> values-bits-lang-v8.tail
+  ;; interp. transforms a tail position expression using a CPS-style 
+  ;; continuation k to manage sequencing of subcomputations
   (define (remove-complex-opera*-tail tail k)
     (match tail
       [`(let ([,alocs ,vs] ...) ,t)
@@ -56,6 +60,8 @@
       [value (remove-complex-opera*-value value k)]))
 
   ;; exprs-bits-lang-v8.value (values-bits-lang-v8.value -> values-bits-lang-v8.value) -> values-bits-lang-v8.value
+  ;; interp. transforms a value by unnesting compound expressions using
+  ;; CPS-style continuation k
   (define (remove-complex-opera*-value value k)
     (match value
       [`(let ([,alocs ,vs] ...) ,v)
@@ -100,6 +106,8 @@
       [triv (trivialize-value triv k)]))
 
   ;; exprs-bits-lang-v8.pred (values-bits-lang-v8.value -> values-bits-lang-v8.value) -> values-bits-lang-v8.pred
+  ;; interp. transforms a predicate by unnesting relops and nested values using
+  ;; continuation k
   (define (remove-complex-opera*-pred pred k)
     (match pred
       ['(true) pred]
@@ -125,6 +133,8 @@
                                                (k `(,relop ,op1^ ,op2^))))))]))
 
   ;; exprs-bits-lang-v8.effect (values-bits-lang-v8.value -> values-bits-lang-v8.value) -> values-bits-lang-v8.effect
+  ;; interp. transforms an effect expression by unnesting expressions used as
+  ;; operands using continuation k
   (define (remove-complex-opera*-effect effect k)
     (match effect
       [`(mset! ,aloc ,opand ,value)
@@ -143,12 +153,16 @@
        `(begin ,@(map (lambda (e) (remove-complex-opera*-effect e k)) es))]))
 
   ;; exprs-bits-lang-v8.value (values-bits-lang-v8.value -> values-bits-lang-v8.value) -> values-bits-lang-v8.opand
+  ;; interp. ensures the value is a trivial operand, otherwise binds it to a
+  ;; temporary variable and passes the temporary to k
   (define (trivialize-value value k)
     (match value
       [label #:when (label? label) (k label)]
       [int64 #:when (int64? int64) (k int64)]
       [aloc #:when (aloc? aloc) (k aloc)]
-      ;; Wildcard case: all other values require trivialization
+      ;; Wildcard collapse case used because all other values are guaranteed to 
+      ;; be non-trivial and must be bound to a temporary to ensure the operand
+      ;; position only contains trivials
       [_
        (define tmp (fresh))
        `(let ([,tmp ,(remove-complex-opera*-value value (λ (v) v))])

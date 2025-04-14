@@ -69,7 +69,6 @@
       [`(error ,i) `(error ,i)]
       [`(lambda (,alocs ...) ,v)
        (define fn (fresh 'lam))
-
        `(letrec ([,fn (lambda ,alocs ,(dox-lambdas/value v))])
           ,fn)]
       [i #:when (fixnum? i) i]
